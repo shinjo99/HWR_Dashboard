@@ -705,72 +705,151 @@ input:focus,textarea:focus,select:focus{outline:none;border-color:var(--border3)
   border:1px solid transparent;
 }</style>
 
-  <!-- Firebase SDK -->
-  <script type="module">
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-    import { getDatabase, ref, set, get, onValue, push } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
+  <!-- HWR API 클라이언트 -->
+  <script>
+    const API_URL = 'https://hwr-api-production.up.railway.app';
 
-    const FB_CONFIG = {
-      apiKey: "AIzaSyB5lxawx2L6Vk6j0HA7E6pmvcZq4kQMUCI",
-      databaseURL: "https://team-dashboard-c0d7b-default-rtdb.asia-southeast1.firebasedatabase.app",
+    // ── 인증 토큰 관리 ───────────────────────────────
+    window.HWR_AUTH = {
+      token: localStorage.getItem('hwr_token') || null,
+      email: localStorage.getItem('hwr_email') || null,
+      role:  localStorage.getItem('hwr_role')  || null,
+
+      save: function(token, email, role) {
+        this.token = token; this.email = email; this.role = role;
+        localStorage.setItem('hwr_token', token);
+        localStorage.setItem('hwr_email', email);
+        localStorage.setItem('hwr_role',  role);
+      },
+      clear: function() {
+        this.token = null; this.email = null; this.role = null;
+        localStorage.removeItem('hwr_token');
+        localStorage.removeItem('hwr_email');
+        localStorage.removeItem('hwr_role');
+      },
+      isLoggedIn: function() { return !!this.token; }
     };
 
-    const fbApp = initializeApp(FB_CONFIG);
-    const db    = getDatabase(fbApp);
+    // ── API 헬퍼 ─────────────────────────────────────
+    async function apiCall(method, path, body) {
+      const headers = { 'Content-Type': 'application/json' };
+      if (window.HWR_AUTH.token) {
+        headers['Authorization'] = 'Bearer ' + window.HWR_AUTH.token;
+      }
+      const opts = { method, headers };
+      if (body) opts.body = JSON.stringify(body);
+      const res = await fetch(API_URL + path, opts);
+      if (res.status === 401) {
+        window.HWR_AUTH.clear();
+        showLoginModal();
+        throw new Error('인증이 필요합니다.');
+      }
+      return res.json();
+    }
 
-    // ── Firebase 헬퍼 (window에 노출) ───────────────────
+    // ── 로그인 모달 ──────────────────────────────────
+    function showLoginModal() {
+      document.getElementById('login-modal').style.display = 'flex';
+    }
+    function hideLoginModal() {
+      document.getElementById('login-modal').style.display = 'none';
+    }
+
+    async function doLogin() {
+      const email = document.getElementById('login-email').value.trim();
+      const pw    = document.getElementById('login-pw').value.trim();
+      const errEl = document.getElementById('login-err');
+      errEl.textContent = '';
+      try {
+        const data = await fetch(API_URL + '/auth/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email, password: pw })
+        }).then(r => r.json());
+        if (!data.token) {
+          errEl.textContent = data.detail || '로그인 실패';
+          return;
+        }
+        window.HWR_AUTH.save(data.token, data.email, data.role);
+        hideLoginModal();
+        console.log('✅ 로그인 성공:', data.email);
+        // PPV 요약 로드
+        loadPPVSummaryFromAPI();
+      } catch(e) {
+        errEl.textContent = '서버 연결 오류';
+      }
+    }
+
+    // ── API → window.FB 브릿지 (기존 코드 호환) ─────
     window.FB = {
-      // PPV override 저장 (RF, Stage)
-      savePPVOverride: function(projectName, data) {
-        var key = projectName.replace(/[.#$/[\]]/g, '_');
-        set(ref(db, 'ppv/overrides/' + key), data);
-      },
-      // 전체 PPV 요약 저장
       savePPVSummary: function(summary) {
-        set(ref(db, 'ppv/summary'), {
-          ...summary,
-          updatedAt: new Date().toISOString(),
-          updatedBy: 'dashboard'
-        });
+        if (!window.HWR_AUTH.isLoggedIn()) return;
+        apiCall('POST', '/ppv/summary', summary).catch(console.error);
       },
-      // 이벤트 로그 저장
       saveEvent: function(event) {
-        push(ref(db, 'ppv/events'), {
-          ...event,
-          ts: new Date().toISOString()
-        });
+        if (!window.HWR_AUTH.isLoggedIn()) return;
+        apiCall('POST', '/ppv/event', event).catch(console.error);
       },
-      // 스냅샷 저장
       saveSnapshot: function(snapshot) {
-        push(ref(db, 'ppv/snapshots'), snapshot);
+        if (!window.HWR_AUTH.isLoggedIn()) return;
+        apiCall('POST', '/ppv/snapshot', snapshot).catch(console.error);
       },
-      // 전체 PPV 데이터 읽기 (봇 연동용)
-      readAll: function(cb) {
-        get(ref(db, 'ppv')).then(function(snap) {
-          cb(snap.exists() ? snap.val() : {});
-        });
+      savePPVOverride: function(projectName, data) {
+        if (!window.HWR_AUTH.isLoggedIn()) return;
+        apiCall('POST', '/ppv/override/' + encodeURIComponent(projectName), data).catch(console.error);
       },
-      // 실시간 동기화 — 다른 사용자 변경 감지
-      watchSummary: function(cb) {
-        onValue(ref(db, 'ppv/summary'), function(snap) {
-          if (snap.exists()) cb(snap.val());
-        });
+      saveFinancial: function(stmt, year, month, data) {
+        if (!window.HWR_AUTH.isLoggedIn()) return;
+        apiCall('POST', '/financial/' + stmt, { year, month, data }).catch(console.error);
       }
     };
 
-    // 대시보드 열릴 때 Firebase 요약 실시간 반영
-    window.FB.watchSummary(function(summary) {
-      // 다른 사용자가 변경했을 때 탑바 PPV 업데이트
-      var el = document.getElementById('ppv-total');
-      if (el && summary.totalRisked) {
-        el.textContent = '$' + (summary.totalRisked / 1000).toFixed(2) + 'B';
+    async function loadPPVSummaryFromAPI() {
+      if (!window.HWR_AUTH.isLoggedIn()) return;
+      try {
+        const summary = await apiCall('GET', '/ppv/summary');
+        if (summary && summary.totalRisked) {
+          var el = document.getElementById('ppv-total');
+          if (el) el.textContent = '$' + (summary.totalRisked / 1000).toFixed(2) + 'B';
+        }
+      } catch(e) {}
+    }
+
+    // 페이지 로드 시 인증 확인
+    document.addEventListener('DOMContentLoaded', function() {
+      if (!window.HWR_AUTH.isLoggedIn()) {
+        showLoginModal();
+      } else {
+        loadPPVSummaryFromAPI();
+        console.log('✅ API 서버 연결됨 — 로그인:', window.HWR_AUTH.email);
       }
     });
-
-    console.log('✅ Firebase 연결됨');
   </script>
 </head>
 <body>
+
+<!-- 로그인 모달 -->
+<div id="login-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:9999;align-items:center;justify-content:center;flex-direction:column">
+  <div style="background:var(--surface);border:1px solid var(--border2);border-radius:var(--r-xl);padding:36px;width:360px;max-width:calc(100vw - 40px)">
+    <div style="margin-bottom:24px">
+      <div style="font-size:18px;font-weight:800;color:var(--t1);margin-bottom:4px">HWR Dashboard</div>
+      <div style="font-size:12px;color:var(--t3)">Hanwha Renewables USA</div>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:10px;margin-bottom:16px">
+      <input id="login-email" type="email" placeholder="이메일" value="team@hwr.com"
+        style="padding:10px 14px;background:var(--surface2);border:1px solid var(--border2);border-radius:var(--r-md);color:var(--t1);font-size:13px;font-family:var(--font);outline:none">
+      <input id="login-pw" type="password" placeholder="비밀번호"
+        onkeydown="if(event.key==='Enter') doLogin()"
+        style="padding:10px 14px;background:var(--surface2);border:1px solid var(--border2);border-radius:var(--r-md);color:var(--t1);font-size:13px;font-family:var(--font);outline:none">
+    </div>
+    <div id="login-err" style="font-size:12px;color:var(--red);margin-bottom:12px;min-height:18px"></div>
+    <button onclick="doLogin()"
+      style="width:100%;padding:11px;background:var(--blue-d);color:#fff;border:none;border-radius:var(--r-md);font-size:14px;font-weight:700;cursor:pointer;font-family:var(--font)">
+      로그인
+    </button>
+  </div>
+</div>
+
 <div id="root">
   <div class="topbar">
     <!-- 브랜드 -->
