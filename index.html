@@ -1313,13 +1313,7 @@ input:focus,textarea:focus,select:focus{outline:none;border-color:var(--border3)
 
 <script>
 // 여기에 붙여넣으세요
-(function(){
-  const pw = prompt("비밀번호를 입력하세요.");
-  if (pw !== "hanwha1234") {
-    document.body.innerHTML = "<div style=\'color:#DCE8FF; background:#0E1219; height:100vh; display:flex; align-items:center; justify-content:center; font-family:Pretendard,sans-serif; flex-direction:column; gap:12px;\'><div style=\'font-size:18px; font-weight:700;\'>접근 권한이 없습니다</div><div style=\'font-size:13px; color:#6678A0;\'>HWR Dashboard</div></div>";
-    throw new Error("Unauthorized");
-  }
-})();
+// 로그인은 API 인증으로 처리됨
 // 원래 있던 코드들이 이어집니다...
 // ─── PROJECT DATA ─────────────────────────────────────────────
 const PROJECTS = [
