@@ -4462,7 +4462,8 @@ function renderCashChart() {
   var curLabel = showKRW
     ? Math.round(curVal * krwRate / 100).toLocaleString() + '억원'
     : '$' + curVal.toFixed(0) + 'M';
-  document.getElementById('fin-cash-chart-legend').textContent = '현재 (' + (curM+1) + '월): ' + curLabel;
+  var legendEl = document.getElementById('fin-cash-chart-legend');
+  if(legendEl) legendEl.textContent = '현재 (' + (curM+1) + '월): ' + curLabel;
 }
 
 
@@ -4600,7 +4601,7 @@ document.getElementById('btn-finance').addEventListener('click', () => {
     if(mb) mb.textContent = CY + ' 월별';
     if(fb) fb.textContent = (CY+1) + '~' + (CY+4) + 'E';
   })();
-  renderFinanceTable();
+  loadAndRenderFinance();
 });
 document.getElementById('btn-report').addEventListener('click', () => {
   openPage('report');
