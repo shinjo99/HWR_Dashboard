@@ -727,7 +727,18 @@ input:focus,textarea:focus,select:focus{outline:none;border-color:var(--border3)
         localStorage.removeItem('hwr_email');
         localStorage.removeItem('hwr_role');
       },
-      isLoggedIn: function() { return !!this.token; }
+      isLoggedIn: function() {
+        if (!this.token) return false;
+        try {
+          // JWT payload 디코딩해서 만료 확인
+          var payload = JSON.parse(atob(this.token.split('.')[1]));
+          if (payload.exp && Date.now() / 1000 > payload.exp) {
+            this.clear(); // 만료 시 자동 로그아웃
+            return false;
+          }
+        } catch(e) { this.clear(); return false; }
+        return true;
+      }
     };
 
     // ── API 헬퍼 ─────────────────────────────────────
@@ -1210,9 +1221,9 @@ input:focus,textarea:focus,select:focus{outline:none;border-color:var(--border3)
     </div>
     <!-- 기간 선택 바 -->
     <div style="display:flex;align-items:center;gap:4px;margin-bottom:20px;padding:4px;background:var(--surface);border:1px solid var(--border);border-radius:var(--r-lg);width:fit-content;flex-wrap:wrap" id="fin-period-bar">
-      <button class="fin-period-btn" data-period="actual" onclick="switchFinPeriod('actual')" style="padding:5px 14px;border-radius:var(--r-md);font-size:11px;font-weight:700;cursor:pointer;font-family:var(--font);background:var(--blue-d);color:#fff;border:none">3개년 실적</button>
-      <button class="fin-period-btn" data-period="monthly" onclick="switchFinPeriod('monthly')" style="padding:5px 14px;border-radius:var(--r-md);font-size:11px;font-weight:600;cursor:pointer;font-family:var(--font);background:none;color:var(--t2);border:none">2026 월별</button>
-      <button class="fin-period-btn" data-period="forecast" onclick="switchFinPeriod('forecast')" style="padding:5px 14px;border-radius:var(--r-md);font-size:11px;font-weight:600;cursor:pointer;font-family:var(--font);background:none;color:var(--t2);border:none">2027~2030E</button>
+      <button class="fin-period-btn" data-period="actual" onclick="switchFinPeriod('actual')" style="padding:5px 14px;border-radius:var(--r-md);font-size:11px;font-weight:700;cursor:pointer;font-family:var(--font);background:var(--blue-d);color:#fff;border:none" id="fin-btn-actual">3개년 실적</button>
+      <button class="fin-period-btn" data-period="monthly" onclick="switchFinPeriod('monthly')" style="padding:5px 14px;border-radius:var(--r-md);font-size:11px;font-weight:600;cursor:pointer;font-family:var(--font);background:none;color:var(--t2);border:none" id="fin-btn-monthly">월별</button>
+      <button class="fin-period-btn" data-period="forecast" onclick="switchFinPeriod('forecast')" style="padding:5px 14px;border-radius:var(--r-md);font-size:11px;font-weight:600;cursor:pointer;font-family:var(--font);background:none;color:var(--t2);border:none" id="fin-btn-forecast">향후 4개년</button>
     </div>
     <!-- P&L -->
     <div id="finance-content-pl">
@@ -4007,20 +4018,30 @@ const FIN_DATA = {
 let currentFinPeriod = 'actual';
 let currentFinTab    = 'pl';
 
-const FIN_PERIODS = {
-  actual:   {
-    cols: ['y23','y24','y25'], labels: ['2023A','2024A','2025A'], isForecast: [false,false,false]
-  },
-  monthly:  {
-    cols: ['m1','m2','m3','m4','m5','m6','m7','m8','m9','m10','m11','m12','total'],
-    labels: ['1월','2월','3월','4월','5월','6월','7월','8월','9월','10월','11월','12월','합계'],
-    isForecast: [...Array(12).fill(false), false],
-    isTotal: [...Array(12).fill(false), true]
-  },
-  forecast: {
-    cols: ['y27','y28','y29','y30'], labels: ['2027E','2028E','2029E','2030E'], isForecast: [true,true,true,true]
-  },
-};
+// ── 재무 기간 동적 계산 (현재 연도 기준) ──────────────────────
+var FIN_PERIODS = (function() {
+  var CY = new Date().getFullYear(); // 현재 연도 (2026)
+  // 과거 3개년
+  var actCols   = ['y'+(CY-3), 'y'+(CY-2), 'y'+(CY-1)];
+  var actLabels = [(CY-3)+'A', (CY-2)+'A', (CY-1)+'A'];
+  // 미래 4개년 (CY+1 ~ CY+4)
+  var fcCols   = ['y'+(CY+1),'y'+(CY+2),'y'+(CY+3),'y'+(CY+4)];
+  var fcLabels = [(CY+1)+'E',(CY+2)+'E',(CY+3)+'E',(CY+4)+'E'];
+  return {
+    actual: {
+      cols: actCols, labels: actLabels, isForecast: [false,false,false]
+    },
+    monthly: {
+      cols: ['m1','m2','m3','m4','m5','m6','m7','m8','m9','m10','m11','m12','total'],
+      labels: ['1월','2월','3월','4월','5월','6월','7월','8월','9월','10월','11월','12월','합계'],
+      isForecast: [...Array(12).fill(false), false],
+      isTotal: [...Array(12).fill(false), true]
+    },
+    forecast: {
+      cols: fcCols, labels: fcLabels, isForecast: [true,true,true,true]
+    },
+  };
+})();
 
 function switchFinPeriod(period) {
   currentFinPeriod = period;
@@ -4101,9 +4122,12 @@ function renderFinanceTable() {
   }).join('');
 
   // 주석
-  var note = currentFinPeriod==='actual' ? '2023A~2025A 실적 · 단위: USD M (내부 추정)'
-           : currentFinPeriod==='monthly' ? '2026년 월별 계획 · 단위: USD M'
-           : '2027~2030 추정치 · 단위: USD M · 내부 가정 기반';
+  var CY_note = new Date().getFullYear();
+  var note = currentFinPeriod==='actual'
+    ? (CY_note-3)+'A~'+(CY_note-1)+'A 실적 · 단위: USD M'
+    : currentFinPeriod==='monthly'
+    ? CY_note+'년 월별 계획 · 단위: USD M'
+    : (CY_note+1)+'~'+(CY_note+4)+' 추정치 · 단위: USD M · 내부 가정 기반';
 
   // KRW 환율
   var krwRate = showKRW ? getCurrentFX() : 1;
@@ -4136,12 +4160,16 @@ function renderFinanceTable() {
     var tds = pData.cols.map(function(c,i) {
       var isTotal = pData.isTotal && pData.isTotal[i];
       var isCur   = currentFinPeriod==='monthly' && !isTotal && i===curMonth;
+      // 4자리 연도 키(y2023)를 2자리(y23)로 매핑
+      var dataKey = c.length > 3 ? 'y' + c.slice(-2) : c;
       var v;
       if(isTotal) {
-        // 합계: 월 컬럼 합산
-        v = colsForCalc.reduce(function(acc, mc){ return acc + (typeof vals[mc]==='number' ? vals[mc] : 0); }, 0);
+        v = colsForCalc.reduce(function(acc, mc){ 
+          var dk = mc.length > 3 ? 'y' + mc.slice(-2) : mc;
+          return acc + (typeof vals[dk]==='number' ? vals[dk] : 0); 
+        }, 0);
       } else {
-        v = vals[c];
+        v = vals[dataKey];
       }
       var num = typeof v === 'number' ? v : null;
       var fmt = num !== null ? fmtFin(num) : '—';
@@ -4368,6 +4396,14 @@ function setActiveNav(id) {
 document.getElementById('btn-finance').addEventListener('click', () => {
   openPage('finance');
   setActiveNav('btn-finance');
+  // 기간 버튼 레이블 동적 업데이트
+  (function() {
+    var CY = new Date().getFullYear();
+    var mb = document.getElementById('fin-btn-monthly');
+    var fb = document.getElementById('fin-btn-forecast');
+    if(mb) mb.textContent = CY + ' 월별';
+    if(fb) fb.textContent = (CY+1) + '~' + (CY+4) + 'E';
+  })();
   renderFinanceTable();
 });
 document.getElementById('btn-report').addEventListener('click', () => {
