@@ -853,34 +853,17 @@ input:focus,textarea:focus,select:focus{outline:none;border-color:var(--border3)
       } catch(e) {}
     }
 
-    // 페이지 로드 시 API로 토큰 검증
+    // 페이지 로드 시 항상 로그인 요구
     document.addEventListener('DOMContentLoaded', function() {
-      if (!window.HWR_AUTH.isLoggedIn()) {
-        showLoginModal(); return;
-      }
-      // 토큰이 있으면 API로 실제 검증
-      fetch(API_URL + '/auth/me', {
-        headers: { 'Authorization': 'Bearer ' + window.HWR_AUTH.token }
-      }).then(function(r) {
-        if (!r.ok) {
-          window.HWR_AUTH.clear();
-          showLoginModal();
-        } else {
-          loadPPVSummaryFromAPI();
-          console.log('✅ API 서버 연결됨 — 로그인:', window.HWR_AUTH.email);
-        }
-      }).catch(function() {
-        // API 서버 연결 실패(로컬 파일 등) → 토큰 무효화 후 로그인 요구
-        window.HWR_AUTH.clear();
-        showLoginModal();
-      });
+      window.HWR_AUTH.clear();
+      showLoginModal();
     });
   </script>
 </head>
 <body>
 
 <!-- 로그인 모달 -->
-<div id="login-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:9999;align-items:center;justify-content:center;flex-direction:column">
+<div id="login-modal" style="display:flex;position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:9999;align-items:center;justify-content:center;flex-direction:column">
   <div style="background:var(--surface);border:1px solid var(--border2);border-radius:var(--r-xl);padding:36px;width:360px;max-width:calc(100vw - 40px)">
     <div style="margin-bottom:24px">
       <div style="font-size:18px;font-weight:800;color:var(--t1);margin-bottom:4px">HWR Dashboard</div>
