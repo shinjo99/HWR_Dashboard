@@ -466,7 +466,7 @@ input:focus,textarea:focus,select:focus{outline:none;border-color:var(--border3)
   max-width:calc(100vw - 48px);
   background:var(--surface);
   border:1px solid rgba(91,76,240,.3);border-radius:var(--r-xl);
-  box-shadow:0 20px 60px rgba(0,0,0,.7);z-index:299;
+  box-shadow:0 20px 60px rgba(0,0,0,.7);z-index:9998;
   display:flex;flex-direction:column;overflow:hidden;
   transform:translateY(16px) scale(.96);opacity:0;pointer-events:none;
   transition:all .22s cubic-bezier(.4,0,.2,1);
@@ -862,7 +862,7 @@ input:focus,textarea:focus,select:focus{outline:none;border-color:var(--border3)
 <body>
 
 <!-- 로그인 모달 -->
-<div id="login-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:9999;align-items:center;justify-content:center;flex-direction:column">
+<div id="login-modal" style="display:flex;position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:9999;align-items:center;justify-content:center;flex-direction:column">
   <div style="background:var(--surface);border:1px solid var(--border2);border-radius:var(--r-xl);padding:36px;width:360px;max-width:calc(100vw - 40px)">
     <div style="margin-bottom:24px">
       <div style="font-size:18px;font-weight:800;color:var(--t1);margin-bottom:4px">HWR Dashboard</div>
