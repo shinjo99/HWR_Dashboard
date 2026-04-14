@@ -2637,15 +2637,86 @@ async function sendAIMessage(text) {
   const typingEl = appendAIMsg('assistant', '', true);
   
   try {
-    const system = `당신은 재생에너지 프로젝트 투자 전문 AI 어시스트입니다.
-현재 관리 중인 포트폴리오:
-- HWR: ${PROJECTS.filter(p=>p.portfolio==='HWR').length}개 프로젝트, PV ${PROJECTS.filter(p=>p.portfolio==='HWR').reduce((a,p)=>a+p.pv,0).toLocaleString()} MWac, ESS ${PROJECTS.filter(p=>p.portfolio==='HWR').reduce((a,p)=>a+p.ess,0).toLocaleString()} MW
-- Q-cells: ${PROJECTS.filter(p=>p.portfolio==='Q-cells').length}개 프로젝트
+    // Firebase 실시간 데이터 로드
+    let ppvSummary = {}, ppvOverrides = {}, divestData = {}, financialData = {}, atlasData2 = [];
+    try {
+      ppvSummary = await apiCall('GET', '/ppv/summary') || {};
+    } catch(e) {}
+    try {
+      const ppvAll = await apiCall('GET', '/ppv/overrides') || {};
+      ppvOverrides = ppvAll;
+    } catch(e) {}
+    try {
+      divestData = await apiCall('GET', '/divest') || {};
+    } catch(e) {}
+    try {
+      financialData = await apiCall('GET', '/financial') || {};
+    } catch(e) {}
+    try {
+      const atlasResp = await apiCall('GET', '/atlas') || [];
+      atlasData2 = atlasResp;
+    } catch(e) {}
 
-ISO 분포: WECC, PJM, ERCOT, MISO, CAISO, ISO-NE, NYISO, SERC, SPP
-총 프로젝트: ${PROJECTS.length}개, COD 범위: 2026~2032년
+    // 대시보드 전체 데이터를 컨텍스트로 구성
+    const portfolioData = PROJECTS.map(p => ({
+      id: p.id, name: p.name, portfolio: p.portfolio,
+      state: p.state, iso: p.iso, type: p.type,
+      pv: p.pv, ess: p.ess, cod: p.cod, ntp: p.ntp,
+      cat: p.cat, blm: p.blm,
+      group: DIVEST_26.has(p.name) ? '매각대상' : SH_A.has(p.name) ? 'SafeHarbor-A' : SH_B.has(p.name) ? 'SafeHarbor-B' : '기타파이프라인',
+      divestProb: DIVEST_PROB[p.name] || null,
+    }));
 
-한국어로 답변하세요. 구체적인 숫자와 프로젝트명을 활용하세요. 간결하고 실용적으로 답변하세요.`;
+    const atlasData = ATLAS_MS.map(m => ({
+      item: m.item, name: m.name, target: m.target, status: m.status
+    }));
+
+    // Firebase에서 로드된 프로젝트별 상세 데이터 (인허가, PPV, 재무 등)
+    const projectDetails = {};
+    PROJECTS.forEach(p => {
+      const pd = window._projectDataCache && window._projectDataCache[p.id];
+      if (pd) projectDetails[p.name] = {
+        permits: pd.permits || [],
+        milestones: pd.milestones || [],
+        ppvOverride: pd.ppvOverride || null,
+        budgets: pd.budgets || [],
+      };
+    });
+
+    const system = `당신은 한화에너지 미국 재생에너지 프로젝트 포트폴리오 전문 AI 어시스트입니다.
+아래는 현재 대시보드의 모든 실시간 데이터입니다. 이 데이터를 기반으로 정확하게 답변하세요.
+
+## 전체 프로젝트 (${PROJECTS.length}개)
+${JSON.stringify(portfolioData, null, 0)}
+
+## 매각 현황 ('26 대상)
+- 매각 대상: ${[...DIVEST_26].join(', ')}
+- 확률 H: ${Object.entries(DIVEST_PROB).filter(([,v])=>v==='H').map(([k])=>k).join(', ')||'없음'}
+- 확률 M: ${Object.entries(DIVEST_PROB).filter(([,v])=>v==='M').map(([k])=>k).join(', ')||'없음'}
+- 확률 L: ${Object.entries(DIVEST_PROB).filter(([,v])=>v==='L').map(([k])=>k).join(', ')||'없음'}
+- Firebase 매각 상세: ${JSON.stringify(divestData, null, 0)}
+
+## Safe Harbor
+- Class A (${SH_A.size}개): ${[...SH_A].join(', ')}
+- Class B: ${[...SH_B].join(', ')}
+
+## PPV (Portfolio at Risk Value) - 실시간
+- 총 PPV (totalRisked): $${ppvSummary.totalRisked || 0}M
+- 프로젝트 수: ${ppvSummary.projectCount || 0}개
+- Stage별: Early $${ppvSummary.byStage?.Early?.toFixed(1)||0}M / Mid $${ppvSummary.byStage?.Mid?.toFixed(1)||0}M / Late $${ppvSummary.byStage?.Late?.toFixed(1)||0}M
+- 프로젝트별 Risk Factor: ${JSON.stringify(ppvOverrides, null, 0)}
+
+## Atlas North 1st Milestone
+${JSON.stringify(ATLAS_MS.map(m=>({item:m.item, name:m.name, target:m.target, status:m.status})), null, 0)}
+
+## 재무 데이터 (Firebase)
+${JSON.stringify(financialData, null, 0)}
+
+## 포트폴리오 요약
+- HWR: ${PROJECTS.filter(p=>p.portfolio==='HWR').length}개, PV ${PROJECTS.filter(p=>p.portfolio==='HWR').reduce((a,p)=>a+p.pv,0).toLocaleString()} MWac, ESS ${PROJECTS.filter(p=>p.portfolio==='HWR').reduce((a,p)=>a+p.ess,0).toLocaleString()} MW
+- Q-cells: ${PROJECTS.filter(p=>p.portfolio==='Q-cells').length}개, PV ${PROJECTS.filter(p=>p.portfolio==='Q-cells').reduce((a,p)=>a+p.pv,0).toLocaleString()} MWac, ESS ${PROJECTS.filter(p=>p.portfolio==='Q-cells').reduce((a,p)=>a+p.ess,0).toLocaleString()} MW
+
+한국어로 답변하세요. 데이터에 있는 구체적인 숫자와 프로젝트명을 반드시 활용하세요. 없는 데이터는 없다고 하세요.`;
 
     const msgs = aiHistory.slice(-8); // last 8 turns
     const reply = await callClaude(msgs, system, 1200);
@@ -2658,12 +2729,12 @@ ISO 분포: WECC, PJM, ERCOT, MISO, CAISO, ISO-NE, NYISO, SERC, SPP
   }
 }
 
-// Quick actions
+// Quick actions - 데이터는 sendAIMessage의 system 프롬프트에 포함됨
 const QUICK_PROMPTS = {
-  report: `현재 포트폴리오 전체에 대한 경영진 보고용 요약 리포트를 작성해주세요. 포트폴리오별 현황, ISO별 분포, COD 연도별 파이프라인, 총 용량 합계를 포함해주세요.`,
-  risk: `현재 포트폴리오의 주요 리스크 요인을 분석해주세요. BLM 프로젝트, 특정 ISO 집중 리스크, COD 일정 리스크, 포트폴리오 다각화 관점에서 분석해주세요.`,
-  cod: `COD 연도별로 프로젝트 현황을 정리해주세요. 2026년부터 연도별 프로젝트 수, 총 용량(PV+ESS), 주요 프로젝트를 보여주세요.`,
-  finance: `각 포트폴리오별 평균 프로젝트 규모, 총 투자 예상 규모(CAPEX), 포트폴리오 밸런스(PV vs ESS 비중)를 분석해주세요.`,
+  report: `전체 포트폴리오 경영진 보고용 요약 리포트를 작성해주세요. HWR/Q-cells 포트폴리오별 현황, ISO별 분포, COD 연도별 파이프라인, 총 용량(PV+ESS), 매각 대상 현황을 포함해주세요.`,
+  risk: `현재 포트폴리오의 주요 리스크 요인을 분석해주세요. BLM 프로젝트 리스크, ISO 집중도 리스크, COD 일정 리스크, 매각 성사 불확실성, Atlas Milestone 지연 리스크를 구체적 프로젝트명과 함께 분석해주세요.`,
+  cod: `COD 연도별 프로젝트 현황을 정리해주세요. 2026년부터 연도별 프로젝트 수, 총 용량(PV+ESS MWac), 주요 프로젝트명을 표 형식으로 보여주세요.`,
+  finance: `포트폴리오 재무 분석을 해주세요. HWR/Q-cells별 총 PV·ESS 용량, 평균 프로젝트 규모, PV vs ESS 비중, Safe Harbor 투자 현황을 분석해주세요.`,
 };
 
 // ─── AI Document Analysis ─────────────────────────
