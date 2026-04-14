@@ -461,12 +461,13 @@ input:focus,textarea:focus,select:focus{outline:none;border-color:var(--border3)
   transition:transform .2s,box-shadow .2s;
 }
 .ai-fab:hover{transform:scale(1.08);box-shadow:0 6px 28px rgba(91,76,240,.6)}
+.ai-fab 
 .ai-panel{
   position:fixed;bottom:84px;right:24px;width:400px;
   max-width:calc(100vw - 48px);
   background:var(--surface);
   border:1px solid rgba(91,76,240,.3);border-radius:var(--r-xl);
-  box-shadow:0 20px 60px rgba(0,0,0,.7);z-index:9998;
+  box-shadow:0 20px 60px rgba(0,0,0,.7);z-index:299;
   display:flex;flex-direction:column;overflow:hidden;
   transform:translateY(16px) scale(.96);opacity:0;pointer-events:none;
   transition:all .22s cubic-bezier(.4,0,.2,1);
@@ -852,17 +853,34 @@ input:focus,textarea:focus,select:focus{outline:none;border-color:var(--border3)
       } catch(e) {}
     }
 
-    // 페이지 로드 시 항상 로그인 요구
+    // 페이지 로드 시 API로 토큰 검증
     document.addEventListener('DOMContentLoaded', function() {
-      window.HWR_AUTH.clear();
-      showLoginModal();
+      if (!window.HWR_AUTH.isLoggedIn()) {
+        showLoginModal(); return;
+      }
+      // 토큰이 있으면 API로 실제 검증
+      fetch(API_URL + '/auth/me', {
+        headers: { 'Authorization': 'Bearer ' + window.HWR_AUTH.token }
+      }).then(function(r) {
+        if (!r.ok) {
+          window.HWR_AUTH.clear();
+          showLoginModal();
+        } else {
+          loadPPVSummaryFromAPI();
+          console.log('✅ API 서버 연결됨 — 로그인:', window.HWR_AUTH.email);
+        }
+      }).catch(function() {
+        // API 서버 연결 실패(로컬 파일 등) → 토큰 무효화 후 로그인 요구
+        window.HWR_AUTH.clear();
+        showLoginModal();
+      });
     });
   </script>
 </head>
 <body>
 
 <!-- 로그인 모달 -->
-<div id="login-modal" style="display:flex;position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:9999;align-items:center;justify-content:center;flex-direction:column">
+<div id="login-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:9999;align-items:center;justify-content:center;flex-direction:column">
   <div style="background:var(--surface);border:1px solid var(--border2);border-radius:var(--r-xl);padding:36px;width:360px;max-width:calc(100vw - 40px)">
     <div style="margin-bottom:24px">
       <div style="font-size:18px;font-weight:800;color:var(--t1);margin-bottom:4px">HWR Dashboard</div>
@@ -1348,13 +1366,6 @@ input:focus,textarea:focus,select:focus{outline:none;border-color:var(--border3)
       위 버튼으로 빠르게 시작하거나 질문을 입력하세요.
       </div>
     </div>
-  </div>
-  <div class="ai-upload-row" style="padding:8px 12px 0;border-top:1px solid var(--border)">
-    <label for="ai-file-input" style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:11px;color:var(--t3);padding:6px 10px;background:var(--surface2);border:1px dashed var(--border2);border-radius:8px;transition:all .2s" id="ai-file-label">
-      📎 <span id="ai-file-name">보고서 업로드 (PDF·엑셀·Word·PPT)</span>
-    </label>
-    <input type="file" id="ai-file-input" accept=".pdf,.xlsx,.xls,.docx,.doc,.pptx,.ppt" style="display:none">
-    <button id="ai-file-analyze" style="display:none;margin-top:4px;width:100%;padding:6px;background:linear-gradient(135deg,#5B4CF0,#8B6FE8);color:#fff;border:none;border-radius:8px;font-size:11px;cursor:pointer;font-weight:700">✨ AI 분석 및 대시보드 업데이트</button>
   </div>
   <div class="ai-input-row">
     <textarea class="ai-input" id="ai-input" placeholder="예: PJM 지역 대용량 ESS 프로젝트 현황은?" rows="1"></textarea>
@@ -2853,25 +2864,6 @@ renderDocs = function(body, p, pd) {
   });
 };
 
-
-const UPLOAD_SYSTEM = `당신은 한화에너지 미국 개발사업부(HWR) AI 어시스턴트입니다. 업로드된 문서를 분석하여 다음을 제공하세요:
-1. 핵심 요약 (3~5줄)
-2. 주요 의사결정 사항
-3. 대시보드 업데이트가 필요한 항목 (프로젝트 현황, 매각 진행, PPA, 재무 수치 등)
-4. 리스크 또는 주의 사항
-한국어로 간결하게 답변하세요.`;
-
-const UPLOAD_PROMPT = '이 문서의 핵심 내용을 분석해주세요. 특히 프로젝트 현황 변경사항, 매각 진행 현황, 재무 수치, 일정 변경, 의사결정 사항을 중점적으로 파악하고 대시보드에 업데이트해야 할 내용을 구체적으로 알려주세요.';
-
-function fileToBase64(file) {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(reader.result.split(',')[1]);
-    reader.onerror = reject;
-    reader.readAsDataURL(file);
-  });
-}
-
 // ─── Event Listeners (AI) ─────────────────────────
 document.addEventListener('DOMContentLoaded', () => {
   // AI FAB
@@ -2896,67 +2888,6 @@ document.addEventListener('DOMContentLoaded', () => {
     aiInput.style.height = 'auto';
     aiInput.style.height = Math.min(aiInput.scrollHeight, 80)+'px';
   });
-
-  // ─── 파일 업로드 → Claude 파싱 ───────────────────────
-  const fileInput = document.getElementById('ai-file-input');
-  const fileName  = document.getElementById('ai-file-name');
-  const analyzeBtn = document.getElementById('ai-file-analyze');
-  const fileLabel  = document.getElementById('ai-file-label');
-
-  fileInput.addEventListener('change', function() {
-    if (fileInput.files.length > 0) {
-      const f = fileInput.files[0];
-      fileName.textContent = f.name;
-      fileLabel.style.borderColor = 'rgba(91,76,240,.6)';
-      fileLabel.style.color = 'var(--t1)';
-      analyzeBtn.style.display = 'block';
-    }
-  });
-
-  analyzeBtn.addEventListener('click', async function() {
-    const f = fileInput.files[0];
-    if (!f) return;
-    analyzeBtn.disabled = true;
-    analyzeBtn.textContent = '⏳ 분석 중...';
-    addAIMessage('user', f.name + ' 파일을 분석해서 대시보드 업데이트할 내용을 찾아줘.');
-    addAIMessage('assistant', '⏳ 파일 읽는 중...');
-    try {
-      const base64 = await fileToBase64(f);
-      const ext = f.name.split('.').pop().toLowerCase();
-      let messages;
-      if (['pdf'].includes(ext)) {
-        messages = [{
-          role: 'user',
-          content: [
-            { type: 'document', source: { type: 'base64', media_type: 'application/pdf', data: base64 } },
-            { type: 'text', text: UPLOAD_PROMPT }
-          ]
-        }];
-      } else {
-        messages = [{ role: 'user', content: '파일명: ' + f.name + '
-
-' + UPLOAD_PROMPT + '
-
-(파일 내용을 텍스트로 변환하여 분석합니다. 주요 내용을 요약하고 대시보드 업데이트 사항을 제안해주세요.)' }];
-      }
-      const result = await callClaude(messages, UPLOAD_SYSTEM);
-      const lastMsg = document.querySelector('#ai-messages .ai-msg.assistant:last-child .ai-msg-bubble');
-      if (lastMsg) lastMsg.innerHTML = result.replace(/
-/g, '<br>');
-      // 업로드 초기화
-      fileInput.value = '';
-      fileName.textContent = '보고서 업로드 (PDF·엑셀·Word·PPT)';
-      fileLabel.style.borderColor = '';
-      fileLabel.style.color = '';
-      analyzeBtn.style.display = 'none';
-    } catch(e) {
-      const lastMsg = document.querySelector('#ai-messages .ai-msg.assistant:last-child .ai-msg-bubble');
-      if (lastMsg) lastMsg.textContent = '오류: ' + e.message;
-    }
-    analyzeBtn.disabled = false;
-    analyzeBtn.textContent = '✨ AI 분석 및 대시보드 업데이트';
-  });
-
   
   // AI Search toggle
   const aiSearchToggle = document.getElementById('ai-search-toggle');
