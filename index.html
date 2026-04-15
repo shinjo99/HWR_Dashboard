@@ -188,6 +188,34 @@ body::before{
 .tb-nav-btn:hover{color:var(--t1);background:var(--surface2)}
 .tb-nav-btn.active{color:var(--t1);border-bottom-color:var(--blue)}
 
+.bu-tabs{
+  display:flex;align-items:center;gap:2px;
+  padding:0 16px;height:34px;
+  border-bottom:1px solid var(--border);
+  background:var(--surface);
+  flex-shrink:0;overflow-x:auto;
+}
+.bu-tabs::-webkit-scrollbar{display:none}
+.bu-tab{
+  padding:4px 14px;border-radius:20px;
+  font-size:11px;font-weight:600;
+  border:1px solid transparent;
+  background:none;color:var(--t3);
+  cursor:pointer;font-family:var(--font);
+  transition:all var(--ease);white-space:nowrap;
+}
+.bu-tab:hover{background:var(--surface3);color:var(--t2)}
+.bu-tab.active{background:var(--surface2);color:var(--t1);border-color:var(--border2)}
+.bu-tab[data-bu="dev"].active::before{content:'';display:inline-block;width:5px;height:5px;border-radius:50%;background:var(--blue);margin-right:5px;vertical-align:middle}
+.bu-tab[data-bu="retail"].active::before{content:'';display:inline-block;width:5px;height:5px;border-radius:50%;background:var(--green);margin-right:5px;vertical-align:middle}
+.bu-tab[data-bu="material"].active::before{content:'';display:inline-block;width:5px;height:5px;border-radius:50%;background:#F472B6;margin-right:5px;vertical-align:middle}
+.bu-tab[data-bu="dc"].active::before{content:'';display:inline-block;width:5px;height:5px;border-radius:50%;background:var(--purple);margin-right:5px;vertical-align:middle}
+.bu-tab[data-bu="gas"].active::before{content:'';display:inline-block;width:5px;height:5px;border-radius:50%;background:var(--amber);margin-right:5px;vertical-align:middle}
+.bu-empty{display:flex;flex-direction:column;align-items:center;justify-content:center;height:60%;color:var(--t3);gap:10px}
+.bu-empty-icon{font-size:36px;opacity:.4}
+.bu-empty-text{font-size:13px;font-weight:600}
+.bu-empty-sub{font-size:11px;opacity:.7}
+
 /* ── ALERT PANEL ─────────────────────────────────── */
 .alert-panel{position:absolute;top:54px;right:0;width:300px;background:var(--surface);border:1px solid var(--border2);border-bottom-left-radius:var(--r-lg);z-index:50;box-shadow:0 20px 60px rgba(0,0,0,.7);max-height:380px;overflow-y:auto;display:none}
 .alert-panel.open{display:block}
@@ -859,6 +887,7 @@ input:focus,textarea:focus,select:focus{outline:none;border-color:var(--border3)
     });
   </script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 </head>
 <body>
 
@@ -945,6 +974,15 @@ input:focus,textarea:focus,select:focus{outline:none;border-color:var(--border3)
       <button class="tb-nav-btn" id="btn-finance">재무</button>
       <button class="tb-nav-btn" id="btn-report">보고</button>
     </div>
+  </div>
+
+  <!-- BU 탭 -->
+  <div class="bu-tabs" id="bu-tabs">
+    <button class="bu-tab active" data-bu="dev">개발</button>
+    <button class="bu-tab" data-bu="retail">리테일</button>
+    <button class="bu-tab" data-bu="material">소재</button>
+    <button class="bu-tab" data-bu="dc">Data Center</button>
+    <button class="bu-tab" data-bu="gas">Gas</button>
   </div>
 
   <div class="alert-panel" id="alert-panel">
@@ -1273,6 +1311,104 @@ input:focus,textarea:focus,select:focus{outline:none;border-color:var(--border3)
 </div>
 
 <!-- ══ 재무 페이지 ══ -->
+<!-- ══ 리테일 페이지 ══ -->
+<div id="page-retail" class="page-overlay" style="display:none">
+  <div class="page-inner">
+    <div class="page-header">
+      <div class="page-title-block">
+        <div class="page-title">⚡ Retail (Chariot)</div>
+        <div class="page-subtitle">ERCOT · PJM · 월별 Plan vs Actual</div>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px">
+        <button onclick="openRetailInput()" style="padding:6px 14px;background:var(--surface2);border:1px solid var(--border2);border-radius:var(--r-md);font-size:12px;font-weight:600;color:var(--t2);cursor:pointer;font-family:var(--font)">✏️ 실적 입력</button>
+        <label style="padding:6px 14px;background:var(--surface2);border:1px solid var(--border2);border-radius:var(--r-md);font-size:12px;font-weight:600;color:var(--t2);cursor:pointer;font-family:var(--font)">
+          📎 엑셀 업로드
+          <input type="file" id="retail-excel-input" accept=".xlsx,.xls,.csv" style="display:none">
+        </label>
+        <button onclick="closeAllPages()" class="page-back-btn">← HEUH Dashboard</button>
+      </div>
+    </div>
+
+    <!-- ERCOT / PJM 탭 -->
+    <div style="display:flex;gap:6px;margin-bottom:20px">
+      <button class="issue-tab active" data-rtab="ercot" onclick="switchRetailTab('ercot')">🔵 ERCOT</button>
+      <button class="issue-tab" data-rtab="pjm" onclick="switchRetailTab('pjm')">🟣 PJM</button>
+    </div>
+
+    <!-- YTD 카드 -->
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:24px" id="retail-kpi-cards"></div>
+
+    <!-- 차트 그리드 -->
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px">
+      <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--r-lg);padding:16px">
+        <div style="font-size:11px;font-weight:700;color:var(--t3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:12px">Revenue ($M)</div>
+        <div style="position:relative;height:180px"><canvas id="chart-revenue"></canvas></div>
+      </div>
+      <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--r-lg);padding:16px">
+        <div style="font-size:11px;font-weight:700;color:var(--t3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:12px">Gross Margin ($M)</div>
+        <div style="position:relative;height:180px"><canvas id="chart-gm"></canvas></div>
+      </div>
+      <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--r-lg);padding:16px">
+        <div style="font-size:11px;font-weight:700;color:var(--t3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:12px">Gross Margin % · GM/MWh ($)</div>
+        <div style="position:relative;height:180px"><canvas id="chart-gmpct"></canvas></div>
+      </div>
+      <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--r-lg);padding:16px">
+        <div style="font-size:11px;font-weight:700;color:var(--t3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:12px">Usage (MWh) — Res / SME / C&I</div>
+        <div style="position:relative;height:180px"><canvas id="chart-usage"></canvas></div>
+      </div>
+    </div>
+
+    <!-- 고객 수 -->
+    <div id="retail-customer-section" style="background:var(--surface);border:1px solid var(--border);border-radius:var(--r-lg);padding:16px">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px">
+        <div style="font-size:11px;font-weight:700;color:var(--t3);text-transform:uppercase;letter-spacing:.06em">Customer Count (CRCE/RCE)</div>
+        <span style="font-size:10px;font-weight:700;padding:2px 8px;border-radius:20px;background:rgba(74,140,247,.15);color:var(--blue-h)">ERCOT + PJM 통합</span>
+      </div>
+      <div style="position:relative;height:200px"><canvas id="chart-customers"></canvas></div>
+    </div>
+  </div>
+</div>
+
+<!-- 리테일 실적 입력 모달 -->
+<div id="retail-input-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:800;align-items:center;justify-content:center">
+  <div style="background:var(--surface);border:1px solid var(--border2);border-radius:var(--r-xl);padding:28px;width:580px;max-width:calc(100vw-32px);max-height:80vh;overflow-y:auto">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px">
+      <div style="font-size:15px;font-weight:800;color:var(--t1)" id="retail-input-title">실적 입력</div>
+      <button onclick="closeRetailInput()" style="background:none;border:none;color:var(--t2);font-size:18px;cursor:pointer">✕</button>
+    </div>
+    <div style="display:flex;gap:8px;margin-bottom:16px">
+      <select id="retail-input-market" style="padding:7px 12px;background:var(--surface2);border:1px solid var(--border2);border-radius:var(--r-md);color:var(--t1);font-size:13px;font-family:var(--font)">
+        <option value="ercot">ERCOT</option>
+        <option value="pjm">PJM</option>
+      </select>
+      <select id="retail-input-month" style="padding:7px 12px;background:var(--surface2);border:1px solid var(--border2);border-radius:var(--r-md);color:var(--t1);font-size:13px;font-family:var(--font)">
+        <option value="0">1월</option><option value="1">2월</option><option value="2">3월</option>
+        <option value="3">4월</option><option value="4">5월</option><option value="5">6월</option>
+        <option value="6">7월</option><option value="7">8월</option><option value="8">9월</option>
+        <option value="9">10월</option><option value="10">11월</option><option value="11">12월</option>
+      </select>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px" id="retail-input-fields">
+      <div><label style="font-size:11px;color:var(--t3);display:block;margin-bottom:4px">Revenue ($M)</label>
+        <input id="ri-revenue" type="number" step="0.001" style="width:100%;padding:8px 10px;background:var(--surface2);border:1px solid var(--border2);border-radius:var(--r-md);color:var(--t1);font-size:13px;font-family:var(--font);box-sizing:border-box"></div>
+      <div><label style="font-size:11px;color:var(--t3);display:block;margin-bottom:4px">Gross Margin ($M)</label>
+        <input id="ri-gm" type="number" step="0.001" style="width:100%;padding:8px 10px;background:var(--surface2);border:1px solid var(--border2);border-radius:var(--r-md);color:var(--t1);font-size:13px;font-family:var(--font);box-sizing:border-box"></div>
+      <div><label style="font-size:11px;color:var(--t3);display:block;margin-bottom:4px">Usage (MWh) — Res</label>
+        <input id="ri-usage-res" type="number" style="width:100%;padding:8px 10px;background:var(--surface2);border:1px solid var(--border2);border-radius:var(--r-md);color:var(--t1);font-size:13px;font-family:var(--font);box-sizing:border-box"></div>
+      <div><label style="font-size:11px;color:var(--t3);display:block;margin-bottom:4px">Usage (MWh) — SME</label>
+        <input id="ri-usage-sme" type="number" style="width:100%;padding:8px 10px;background:var(--surface2);border:1px solid var(--border2);border-radius:var(--r-md);color:var(--t1);font-size:13px;font-family:var(--font);box-sizing:border-box"></div>
+      <div><label style="font-size:11px;color:var(--t3);display:block;margin-bottom:4px">Usage (MWh) — Large C&I</label>
+        <input id="ri-usage-ci" type="number" style="width:100%;padding:8px 10px;background:var(--surface2);border:1px solid var(--border2);border-radius:var(--r-md);color:var(--t1);font-size:13px;font-family:var(--font);box-sizing:border-box"></div>
+      <div><label style="font-size:11px;color:var(--t3);display:block;margin-bottom:4px">Customer Count</label>
+        <input id="ri-customers" type="number" style="width:100%;padding:8px 10px;background:var(--surface2);border:1px solid var(--border2);border-radius:var(--r-md);color:var(--t1);font-size:13px;font-family:var(--font);box-sizing:border-box"></div>
+    </div>
+    <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:20px">
+      <button onclick="closeRetailInput()" style="padding:8px 18px;background:var(--surface2);border:1px solid var(--border2);border-radius:var(--r-md);font-size:13px;color:var(--t2);cursor:pointer;font-family:var(--font)">취소</button>
+      <button onclick="saveRetailInput()" style="padding:8px 20px;background:var(--blue-d);color:#fff;border:none;border-radius:var(--r-md);font-size:13px;font-weight:700;cursor:pointer;font-family:var(--font)">저장</button>
+    </div>
+  </div>
+</div>
+
 <div id="page-finance" class="page-overlay">
   <div class="page-inner">
     <div class="page-header">
@@ -1610,6 +1746,7 @@ function calcFinancials(params) {
 let state = {
   selectedProject: null,
   activeTab: 'overview',
+  buFilter: 'dev',
   portfolioFilter: 'all',
   isoFilter: 'all',
   search: '',
@@ -1619,10 +1756,26 @@ let state = {
   addingDoc: false,
 };
 
+// BU → portfolio 매핑
+const BU_MAP = {
+  'all':     null,
+  'dev':     ['HWR','Q-cells'],
+  'retail':  [],
+  'material':[],
+  'dc':      [],
+  'gas':     [],
+};
+const BU_LABELS = {
+  'all':'전체', 'dev':'개발', 'retail':'리테일', 'material':'소재', 'dc':'Data Center', 'gas':'Gas'
+};
+
 // ─── FILTERED PROJECTS ────────────────────────────────────────
 function getFiltered() {
   const q = state.search.toLowerCase();
+  const buPortfolios = BU_MAP[state.buFilter];
   return PROJECTS.filter(p => {
+    if(buPortfolios && buPortfolios.length > 0 && !buPortfolios.includes(p.portfolio)) return false;
+    if(buPortfolios && buPortfolios.length === 0 && state.buFilter !== 'all') return false;
     if(state.portfolioFilter!=='all' && p.portfolio!==state.portfolioFilter) return false;
     if(state.isoFilter!=='all' && p.iso!==state.isoFilter) return false;
     if(q && !p.name.toLowerCase().includes(q) && !p.state.toLowerCase().includes(q) &&
@@ -1949,10 +2102,10 @@ function renderDetailPanel() {
     </div>
     <div class="dp-tabs" id="dp-tabs">
       <button class="dp-tab${state.activeTab==='overview'?' active':''}" data-tab="overview">개요</button>
-      <button class="dp-tab${state.activeTab==='permits'?' active':''}" data-tab="permits">인허가</button>
+      <button class="dp-tab${state.activeTab==='permits'?' active':''}" data-tab="permits">${currentLang==='en'?'Permits':'인허가'}</button>
       <button class="dp-tab${state.activeTab==='financial'?' active':''}" data-tab="financial">재무모델</button>
       <button class="dp-tab${state.activeTab==='budget'?' active':''}" data-tab="budget">예산</button>
-      <button class="dp-tab${state.activeTab==='docs'?' active':''}" data-tab="docs">품의</button>
+      <button class="dp-tab${state.activeTab==='docs'?' active':''}" data-tab="docs">${currentLang==='en'?'Approvals':'품의'}</button>
       <button class="dp-tab${state.activeTab==='schedule'?' active':''}" data-tab="schedule">일정</button>
     </div>
     <div class="dp-body" id="dp-body"></div>
@@ -1987,29 +2140,34 @@ function renderTab() {
 // ─── PERMITS ─────────────────────────────────────────────────
 function renderPermits(body, p, pd) {
   const permits = pd.permits || [];
+  const isEn = currentLang === 'en';
   const PERMIT_TYPES = [
-    {key:'interconnection', label:'계통연계 (Interconnection)', icon:'⚡'},
-    {key:'land',            label:'토지/부지 확보 (Land Control)', icon:'🏔'},
-    {key:'environmental',   label:'환경 영향 평가 (NEPA/EA)', icon:'🌿'},
-    {key:'building',        label:'건축·공사 허가', icon:'🏗'},
-    {key:'utility',         label:'유틸리티 인허가', icon:'🔌'},
-    {key:'state',           label:'주 규제기관 승인', icon:'📋'},
-    {key:'blm',             label:'BLM / 연방 허가', icon:'🦅'},
-    {key:'ppa', label:'PPA 계약', icon:'⚡'},
+    {key:'interconnection', label: isEn ? 'Interconnection'            : '계통연계 (Interconnection)', icon:'⚡'},
+    {key:'land',            label: isEn ? 'Land Control'               : '토지/부지 확보 (Land Control)', icon:'🏔'},
+    {key:'environmental',   label: isEn ? 'Environmental (NEPA/EA)'    : '환경 영향 평가 (NEPA/EA)', icon:'🌿'},
+    {key:'building',        label: isEn ? 'Building Permit'            : '건축·공사 허가', icon:'🏗'},
+    {key:'utility',         label: isEn ? 'Utility Permit'             : '유틸리티 인허가', icon:'🔌'},
+    {key:'state',           label: isEn ? 'State Regulatory Approval'  : '주 규제기관 승인', icon:'📋'},
+    {key:'blm',             label: isEn ? 'BLM / Federal Permit'       : 'BLM / 연방 허가', icon:'🦅'},
+    {key:'ppa',             label: isEn ? 'PPA Contract'               : 'PPA 계약', icon:'⚡'},
   ];
-  const STATUS_OPT = ['미착수','진행중','제출완료','승인','불허/반려'];
-  const STATUS_COLOR = {'미착수':'color:var(--t3)','진행중':'color:var(--blue-h)','제출완료':'color:var(--amber)','승인':'color:var(--green)','불허/반려':'color:var(--red)'};
+  const STATUS_OPT = isEn
+    ? ['Pending','In Progress','Submitted','Approved','Denied']
+    : ['미착수','진행중','제출완료','승인','불허/반려'];
+  const STATUS_COLOR = isEn
+    ? {'Pending':'color:var(--t3)','In Progress':'color:var(--blue-h)','Submitted':'color:var(--amber)','Approved':'color:var(--green)','Denied':'color:var(--red)'}
+    : {'미착수':'color:var(--t3)','진행중':'color:var(--blue-h)','제출완료':'color:var(--amber)','승인':'color:var(--green)','불허/반려':'color:var(--red)'};
   const savedMap = {};
   permits.forEach(function(item){ savedMap[item.key] = item; });
 
   function optHtml(key) {
-    var cur = (savedMap[key] || {}).status || '미착수';
+    var cur = (savedMap[key] || {}).status || (isEn ? 'Pending' : '미착수');
     return STATUS_OPT.map(function(s){ return '<option'+(s===cur?' selected':'')+'>'+s+'</option>'; }).join('');
   }
   function rowHtml(t) {
     var saved = savedMap[t.key] || {};
     var note = saved.note || '';
-    var status = saved.status || '미착수';
+    var status = saved.status || (isEn ? 'Pending' : '미착수');
     var sc = STATUS_COLOR[status] || '';
     return '<div style="background:var(--surface2);border:1px solid var(--border);border-radius:var(--r-md);padding:10px 12px;margin-bottom:6px">'
       +'<div style="display:flex;align-items:center;gap:8px;margin-bottom:'+(note?'7px':'0')+'">'
@@ -2017,13 +2175,13 @@ function renderPermits(body, p, pd) {
       +'<span style="font-size:12px;font-weight:600;color:var(--t1);flex:1">'+t.label+'</span>'
       +'<select data-pkey="'+t.key+'" class="permit-sel" style="padding:3px 8px;border-radius:20px;border:none;cursor:pointer;font-size:11px;font-weight:700;font-family:var(--font);background:var(--surface3);'+sc+'">'
       +optHtml(t.key)+'</select></div>'
-      +'<input data-nkey="'+t.key+'" class="permit-note" placeholder="메모 (담당자, 기한 등)" value="'+note+'"'
+      +'<input data-nkey="'+t.key+'" class="permit-note" placeholder="'+(isEn?'Memo (owner, deadline)':'메모 (담당자, 기한 등)')+'" value="'+note+'"'
       +' style="width:100%;padding:5px 8px;background:var(--surface3);border:1px solid var(--border);border-radius:var(--r-sm);color:var(--t2);font-size:11px;font-family:var(--font);'+(note?'':'display:none')+'"></div>';
   }
 
-  body.innerHTML = '<div class="section-title" style="margin-top:0">인허가 현황</div>'
+  body.innerHTML = '<div class="section-title" style="margin-top:0">'+(isEn?'Permit Status':'인허가 현황')+'</div>'
     +'<div>'+PERMIT_TYPES.map(rowHtml).join('')+'</div>'
-    +'<button id="permit-save" class="btn-save" style="margin-top:10px;width:100%;padding:8px">저장</button>';
+    +'<button id="permit-save" class="btn-save" style="margin-top:10px;width:100%;padding:8px">'+(isEn?'Save':'저장')+'</button>';
 
   body.querySelectorAll('.permit-sel').forEach(function(sel) {
     var key = sel.dataset.pkey;
@@ -2031,7 +2189,7 @@ function renderPermits(body, p, pd) {
     sel.onchange = function() {
       var c = STATUS_COLOR[sel.value] || 'color:var(--t3)';
       sel.setAttribute('style', sel.getAttribute('style').replace(/color:[^;]+/, c));
-      if (inp) inp.style.display = sel.value !== '미착수' ? '' : 'none';
+      if (inp) inp.style.display = (sel.value !== '미착수' && sel.value !== 'Pending') ? '' : 'none';
     };
   });
 
@@ -2577,6 +2735,53 @@ function animateCount(el, target, suffix='', duration=600) {
 }
 
 document.addEventListener('DOMContentLoaded',()=>{
+  // BU 탭 필터
+  document.querySelectorAll('.bu-tab').forEach(btn=>{
+    btn.onclick=()=>{
+      document.querySelectorAll('.bu-tab').forEach(b=>b.classList.remove('active'));
+      btn.classList.add('active');
+      state.buFilter = btn.dataset.bu;
+      const mainEl = document.querySelector('.main');
+      const empty = document.getElementById('bu-empty-state');
+
+      // 리테일: 별도 페이지 열기
+      if (state.buFilter === 'retail') {
+        if (empty) empty.remove();
+        if (mainEl) mainEl.style.display = 'none';
+        openPage('retail');
+        renderRetailPage();
+        return;
+      }
+
+      // 다른 BU에서 리테일로 갔다가 돌아올 때 리테일 페이지 닫기
+      const retailPage = document.getElementById('page-retail');
+      if (retailPage) retailPage.style.display = 'none';
+
+      const portfolios = BU_MAP[state.buFilter];
+      const hasData = !portfolios || portfolios.length > 0;
+
+      if (!hasData) {
+        if (!empty) {
+          const div = document.createElement('div');
+          div.id = 'bu-empty-state';
+          div.className = 'bu-empty';
+          div.innerHTML = `<div class="bu-empty-icon">🚧</div>
+            <div class="bu-empty-text">${BU_LABELS[state.buFilter]} 대시보드 준비 중</div>
+            <div class="bu-empty-sub">Phase 1에서 구축 예정입니다</div>`;
+          mainEl.parentNode.insertBefore(div, mainEl);
+        }
+        if (mainEl) mainEl.style.display = 'none';
+      } else {
+        if (empty) empty.remove();
+        if (mainEl) mainEl.style.display = '';
+      }
+      document.querySelectorAll('.fchip').forEach(b=>b.classList.remove('active'));
+      document.querySelector('.fchip.all').classList.add('active');
+      state.portfolioFilter = 'all';
+      renderSidebar();renderStats();plotProjects();
+    };
+  });
+
   // Portfolio filter
   document.querySelectorAll('.fchip').forEach(btn=>{
     btn.onclick=()=>{
@@ -3607,6 +3812,34 @@ function applyLang() {
   });
 
 
+  // 재무 기간 버튼
+  const finActual   = document.getElementById('fin-btn-actual');
+  const finMonthly  = document.getElementById('fin-btn-monthly');
+  if (finActual)  finActual.textContent  = currentLang==='en' ? '5Y Actual' : '5개년 실적';
+  if (finMonthly) finMonthly.textContent = currentLang==='en'
+    ? new Date().getFullYear()+' Monthly'
+    : new Date().getFullYear()+'년 월별';
+
+  // 저장 버튼 텍스트
+  document.querySelectorAll('.btn-save').forEach(btn => {
+    if (btn.id === 'btn-issues-save') return;
+    btn.textContent = currentLang==='en' ? 'Save' : '저장';
+  });
+  const issuesSaveBtn = document.getElementById('btn-issues-save');
+  if (issuesSaveBtn) issuesSaveBtn.innerHTML = currentLang==='en' ? '💾 Save' : '💾 저장';
+
+  // BU 탭 라벨
+  const buLabels = currentLang==='en'
+    ? {dev:'Development', retail:'Retail', material:'Materials', dc:'Data Center', gas:'Gas'}
+    : {dev:'개발', retail:'리테일', material:'소재', dc:'Data Center', gas:'Gas'};
+  document.querySelectorAll('.bu-tab[data-bu]').forEach(btn => {
+    if (buLabels[btn.dataset.bu]) btn.textContent = buLabels[btn.dataset.bu];
+  });
+
+  // 알림 패널 헤더
+  const alertHead = document.querySelector('.alert-panel-head');
+  if (alertHead) alertHead.textContent = currentLang==='en' ? '📅 Schedule Alerts' : '📅 일정 알림';
+
   // 사이드바 그룹 재렌더 (그룹명 언어 반영)
   renderSidebar();
 
@@ -3935,7 +4168,314 @@ function showToast(msg) {
   setTimeout(() => t.remove(), 2000);
 }
 
-const PAGES = ['issues','finance','report','ppv','kpi'];
+const PAGES = ['issues','finance','report','ppv','kpi','retail'];
+
+// ══════════════════════════════════════════════════════════════
+// RETAIL (CHARIOT) 대시보드
+// ══════════════════════════════════════════════════════════════
+
+const RETAIL_MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+
+// Plan 데이터 (엑셀 기준)
+const RETAIL_PLAN = {
+  ercot: {
+    revenue:  [20.54, 20.53, 19.37, 20.73, 25.44, 31.38, 34.84, 37.70, 33.18, 25.98, 23.93, 25.74],
+    gm:       [2.48,  2.56,  3.38,  3.52,  4.24,  5.19,  4.31,  3.31,  5.84,  4.92,  4.43,  4.63],
+    usageRes: [63904, 58402, 50078, 58116, 84477, 123242, 143882, 160151, 131243, 92473, 82811, 93204],
+    usageSme: [33312, 43222, 47043, 51486, 62227, 68970, 75424, 81205, 76501, 57204, 47585, 47617],
+    usageCi:  [100437,101393,102350,103308,106498,110646,114794,118941,123088,126917,129235,131536],
+    usageLegacy:[46224,48865,52388,56790,61633,67356,72640,77922,81406,84214,86431,88051],
+    usageSbb:   [8202, 8558, 8869, 9447,10362,11273,12162,13072,13651,14041,14287,14379],
+    usageSmeP:  [28010,30816,34557,38978,43367,47590,51519,57131,61808,65695,69093,72465],
+    usageCiP:   [80586,81510,82435,83360,86443,90451,94460,98467,102475,106175,108415,110638],
+    customers:[59012, 62390, 66733, 64035, 67284, 70870, 74232, 77760, 80151, 82011, 83447, 84485],
+    custLegacy:[46224,48865,52388,49169,51121,53428,55558,57687,59091,60223,61117,61770],
+    custSbb:   [8202, 8558, 8869, 9447,10362,11273,12162,13072,13651,14041,14287,14379],
+    custSme:   [4506, 4887, 5395, 5344, 5725, 6091, 6432, 6919, 7325, 7662, 7957, 8249],
+    custCi:    [80,   80,   81,   75,   76,   78,   80,   82,   84,   85,   86,   87],
+  },
+  pjm: {
+    revenue:  [0.89, 1.16, 1.41, 1.92, 2.88, 4.29, 5.51, 6.69, 6.41, 5.34, 5.05, 5.48],
+    gm:       [0.14, 0.23, 0.26, 0.31, 0.39, 0.43, 0.47, 0.81, 1.06, 0.92, 0.94, 1.06],
+    usageRes: [0,0,0,0,0,0,0,0,0,0,0,0],
+    usageSme: [0,0,0,0,0,0,0,0,0,0,0,0],
+    usageCi:  [0,0,0,0,0,0,0,0,0,0,0,0],
+    customers:[0,0,0,0,0,0,0,0,0,0,0,0],
+  }
+};
+
+// Actual 데이터 (초기값: Jan-Mar 실적)
+let RETAIL_ACTUAL = {
+  ercot: {
+    revenue:  [20.483, 17.8, 20.112, 0,0,0,0,0,0,0,0,0],
+    gm:       [3.657,  1.354, 3.885, 0,0,0,0,0,0,0,0,0],
+    usageRes: [72155, 52642, 58638, 0,0,0,0,0,0,0,0,0],
+    usageSme: [37269, 32233, 38231, 0,0,0,0,0,0,0,0,0],
+    usageCi:  [74597, 70296, 85164, 0,0,0,0,0,0,0,0,0],
+    usageLegacy:[49166,50274,51433, 0,0,0,0,0,0,0,0,0],
+    usageSbb:   [6184, 6135, 6055,  0,0,0,0,0,0,0,0,0],
+    usageSmeA:  [29984,30866,33062, 0,0,0,0,0,0,0,0,0],
+    usageCiA:   [0,    0,    62066, 0,0,0,0,0,0,0,0,0],
+    customers:[59182, 60367, 61657, 0,0,0,0,0,0,0,0,0],
+    custLegacy:[43843,44790,45946, 0,0,0,0,0,0,0,0,0],
+    custSbb:   [7900, 7823, 7724,  0,0,0,0,0,0,0,0,0],
+    custSme:   [7395, 7709, 7987,  0,0,0,0,0,0,0,0,0],
+    custCi:    [44,   45,   45,    0,0,0,0,0,0,0,0,0],
+  },
+  pjm: {
+    revenue:  [0,0,0,0,0,0,0,0,0,0,0,0],
+    gm:       [0,0,0,0,0,0,0,0,0,0,0,0],
+    usageRes: [0,0,0,0,0,0,0,0,0,0,0,0],
+    usageSme: [0,0,0,0,0,0,0,0,0,0,0,0],
+    usageCi:  [0,0,0,0,0,0,0,0,0,0,0,0],
+    customers:[0,0,0,0,0,0,0,0,0,0,0,0],
+  }
+};
+
+let currentRetailTab = 'ercot';
+let retailCharts = {};
+
+function loadRetailData() {
+  try {
+    const saved = JSON.parse(localStorage.getItem('heuh_retail') || 'null');
+    if (saved) RETAIL_ACTUAL = saved;
+  } catch(e) {}
+}
+
+function saveRetailData() {
+  localStorage.setItem('heuh_retail', JSON.stringify(RETAIL_ACTUAL));
+}
+
+function switchRetailTab(tab) {
+  currentRetailTab = tab;
+  document.querySelectorAll('[data-rtab]').forEach(b => b.classList.toggle('active', b.dataset.rtab === tab));
+  renderRetailPage();
+}
+
+function renderRetailPage() {
+  loadRetailData();
+  const plan   = RETAIL_PLAN[currentRetailTab];
+  const actual = RETAIL_ACTUAL[currentRetailTab];
+
+  // PJM 탭에서 고객 수 섹션 숨기기 (통합 지표라 ERCOT에만 표시)
+  const custSection = document.getElementById('retail-customer-section');
+  if (custSection) custSection.style.display = currentRetailTab === 'pjm' ? 'none' : '';
+
+  // YTD 계산 (실적 있는 달만)
+  const ytdRevA  = actual.revenue.reduce((s,v) => s + (v||0), 0);
+  const ytdRevP  = plan.revenue.reduce((s,v) => s + v, 0);
+  const ytdGmA   = actual.gm.reduce((s,v) => s + (v||0), 0);
+  const ytdUsageA= actual.usageRes.reduce((s,v,i) => s + (v||0) + (actual.usageSme[i]||0) + (actual.usageCi[i]||0), 0);
+  const gmPctA   = ytdRevA > 0 ? (ytdGmA / ytdRevA * 100).toFixed(1) : '—';
+  const lastCust = [...actual.customers].reverse().find(v => v > 0) || 0;
+
+  // KPI 카드
+  const cards = document.getElementById('retail-kpi-cards');
+  if (cards) cards.innerHTML = [
+    {label:'YTD Revenue', val:'$'+ytdRevA.toFixed(1)+'M', sub:`Plan $${ytdRevP.toFixed(0)}M`, color:'var(--blue-h)'},
+    {label:'YTD Gross Margin', val:'$'+ytdGmA.toFixed(2)+'M', sub:`GM% ${gmPctA}%`, color:'var(--green)'},
+    {label:'Gross Margin %', val:gmPctA+'%', sub:'Target 15.2%', color: parseFloat(gmPctA) >= 15.2 ? 'var(--green)' : 'var(--amber)'},
+    {label:'Customer Count', val: lastCust ? lastCust.toLocaleString() : '—',
+      sub: 'Plan ' + (plan.customers[actual.customers.reduce((last,v,i)=>v>0?i:last,0)]||0).toLocaleString(),
+      color:'var(--amber)'},
+  ].map(c => `
+    <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--r-lg);padding:16px">
+      <div style="font-size:10px;font-weight:700;color:var(--t3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px">${c.label}</div>
+      <div style="font-size:22px;font-weight:800;color:${c.color};letter-spacing:-.5px">${c.val}</div>
+      <div style="font-size:11px;color:var(--t3);margin-top:4px">${c.sub}</div>
+    </div>`).join('');
+
+  // 차트 공통 옵션
+  const chartDefaults = {
+    responsive: true, maintainAspectRatio: false,
+    plugins: { legend: { labels: { color: '#8b8a9b', font: { size: 11 }, boxWidth: 12 } } },
+    scales: {
+      x: { ticks: { color: '#8b8a9b', font: { size: 10 } }, grid: { color: 'rgba(255,255,255,.04)' } },
+      y: { ticks: { color: '#8b8a9b', font: { size: 10 } }, grid: { color: 'rgba(255,255,255,.06)' } }
+    }
+  };
+
+  function mkChart(id, cfg) {
+    if (retailCharts[id]) retailCharts[id].destroy();
+    const ctx = document.getElementById(id);
+    if (!ctx) return;
+    retailCharts[id] = new Chart(ctx, cfg);
+  }
+
+  const planColor  = 'rgba(92,90,112,.6)';
+  const planBorder = 'rgba(92,90,112,1)';
+  const actColor   = 'rgba(74,140,247,.75)';
+  const actBorder  = 'rgba(74,140,247,1)';
+
+  // 1. Revenue
+  mkChart('chart-revenue', {
+    type: 'bar',
+    data: {
+      labels: RETAIL_MONTHS,
+      datasets: [
+        { label: 'Plan', data: plan.revenue, backgroundColor: planColor, borderColor: planBorder, borderWidth: 1 },
+        { label: 'Actual', data: actual.revenue.map(v => v || null), backgroundColor: actColor, borderColor: actBorder, borderWidth: 1 },
+      ]
+    },
+    options: { ...chartDefaults, scales: { ...chartDefaults.scales,
+      y: { ...chartDefaults.scales.y, ticks: { ...chartDefaults.scales.y.ticks, callback: v => '$'+v+'M' } }
+    }}
+  });
+
+  // 2. Gross Margin
+  mkChart('chart-gm', {
+    type: 'bar',
+    data: {
+      labels: RETAIL_MONTHS,
+      datasets: [
+        { label: 'Plan', data: plan.gm, backgroundColor: planColor, borderColor: planBorder, borderWidth: 1 },
+        { label: 'Actual', data: actual.gm.map(v => v || null), backgroundColor: 'rgba(16,185,129,.7)', borderColor: '#10B981', borderWidth: 1 },
+      ]
+    },
+    options: { ...chartDefaults, scales: { ...chartDefaults.scales,
+      y: { ...chartDefaults.scales.y, ticks: { ...chartDefaults.scales.y.ticks, callback: v => '$'+v+'M' } }
+    }}
+  });
+
+  // 3. GM%
+  const gmPctActual = actual.revenue.map((r,i) => r > 0 ? +(actual.gm[i]/r*100).toFixed(2) : null);
+  const gmPctPlan   = plan.revenue.map((r,i) => r > 0 ? +(plan.gm[i]/r*100).toFixed(2) : null);
+  mkChart('chart-gmpct', {
+    type: 'line',
+    data: {
+      labels: RETAIL_MONTHS,
+      datasets: [
+        { label: 'Plan %', data: gmPctPlan, borderColor: planBorder, backgroundColor: 'transparent', borderDash: [4,3], pointRadius: 3, tension: .3 },
+        { label: 'Actual %', data: gmPctActual, borderColor: '#10B981', backgroundColor: 'rgba(16,185,129,.1)', pointRadius: 4, tension: .3, fill: true },
+        { label: 'Target 15.2%', data: Array(12).fill(15.2), borderColor: 'rgba(232,150,31,.5)', backgroundColor: 'transparent', borderDash: [6,3], pointRadius: 0 },
+      ]
+    },
+    options: { ...chartDefaults, scales: { ...chartDefaults.scales,
+      y: { ...chartDefaults.scales.y, ticks: { ...chartDefaults.scales.y.ticks, callback: v => v+'%' } }
+    }}
+  });
+
+  // 4. Usage 스택 바 (Plan/Actual 각각 4개 세그먼트)
+  mkChart('chart-usage', {
+    type: 'bar',
+    data: {
+      labels: RETAIL_MONTHS,
+      datasets: [
+        { label: 'P: Res_Legacy', data: (plan.usageLegacy||plan.usageRes),
+          backgroundColor: 'rgba(74,140,247,.3)', stack: 'plan' },
+        { label: 'P: Res_SBB',    data: (plan.usageSbb||plan.usageSme),
+          backgroundColor: 'rgba(99,179,255,.3)', stack: 'plan' },
+        { label: 'P: SME',        data: (plan.usageSmeP||plan.usageSme),
+          backgroundColor: 'rgba(139,92,246,.3)', stack: 'plan' },
+        { label: 'P: C&I',        data: (plan.usageCiP||plan.usageCi),
+          backgroundColor: 'rgba(16,185,129,.3)', stack: 'plan' },
+        { label: 'Res_Legacy', data: (actual.usageLegacy||actual.usageRes).map(v => v||null),
+          backgroundColor: 'rgba(74,140,247,.9)', stack: 'actual' },
+        { label: 'Res_SBB',    data: (actual.usageSbb||[]).map(v => v||null),
+          backgroundColor: 'rgba(99,179,255,.85)', stack: 'actual' },
+        { label: 'SME',        data: (actual.usageSmeA||actual.usageSme).map(v => v||null),
+          backgroundColor: 'rgba(139,92,246,.9)', stack: 'actual' },
+        { label: 'Large C&I',  data: (actual.usageCiA||actual.usageCi).map(v => v||null),
+          backgroundColor: 'rgba(16,185,129,.9)', stack: 'actual' },
+      ]
+    },
+    options: { ...chartDefaults, scales: { ...chartDefaults.scales,
+      y: { ...chartDefaults.scales.y, ticks: { ...chartDefaults.scales.y.ticks,
+        callback: v => v >= 1000 ? (v/1000).toFixed(0)+'K' : v } }
+    }}
+  });
+
+  // 5. Customer count
+  mkChart('chart-customers', {
+    type: 'bar',
+    data: {
+      labels: RETAIL_MONTHS,
+      datasets: [
+        { label: 'P: Res_Legacy', data: (plan.custLegacy||[]),
+          backgroundColor: 'rgba(74,140,247,.3)', stack: 'plan' },
+        { label: 'P: Res_SBB',    data: (plan.custSbb||[]),
+          backgroundColor: 'rgba(99,179,255,.3)', stack: 'plan' },
+        { label: 'P: SME',        data: (plan.custSme||[]),
+          backgroundColor: 'rgba(139,92,246,.3)', stack: 'plan' },
+        { label: 'P: C&I',        data: (plan.custCi||[]),
+          backgroundColor: 'rgba(16,185,129,.3)', stack: 'plan' },
+        { label: 'Res_Legacy', data: (actual.custLegacy||[]).map(v => v||null),
+          backgroundColor: 'rgba(74,140,247,.9)', stack: 'actual' },
+        { label: 'Res_SBB',    data: (actual.custSbb||[]).map(v => v||null),
+          backgroundColor: 'rgba(99,179,255,.85)', stack: 'actual' },
+        { label: 'SME',        data: (actual.custSme||[]).map(v => v||null),
+          backgroundColor: 'rgba(139,92,246,.9)', stack: 'actual' },
+        { label: 'Large C&I',  data: (actual.custCi||[]).map(v => v||null),
+          backgroundColor: 'rgba(16,185,129,.9)', stack: 'actual' },
+      ]
+    },
+    options: { ...chartDefaults, scales: { ...chartDefaults.scales,
+      y: { ...chartDefaults.scales.y, ticks: { ...chartDefaults.scales.y.ticks,
+        callback: v => v >= 1000 ? (v/1000).toFixed(0)+'K' : v } }
+    }}
+  });
+}
+
+function openRetailInput() {
+  // 현재 실적 있는 마지막 달 찾기
+  const lastMonth = RETAIL_ACTUAL[currentRetailTab].revenue.reduce((last, v, i) => v > 0 ? i : last, 0);
+  document.getElementById('retail-input-market').value = currentRetailTab;
+  document.getElementById('retail-input-month').value = lastMonth;
+  // 기존 값 채우기
+  const a = RETAIL_ACTUAL[currentRetailTab];
+  document.getElementById('ri-revenue').value    = a.revenue[lastMonth]    || '';
+  document.getElementById('ri-gm').value         = a.gm[lastMonth]         || '';
+  document.getElementById('ri-usage-res').value  = a.usageRes[lastMonth]   || '';
+  document.getElementById('ri-usage-sme').value  = a.usageSme[lastMonth]   || '';
+  document.getElementById('ri-usage-ci').value   = a.usageCi[lastMonth]    || '';
+  document.getElementById('ri-customers').value  = a.customers[lastMonth]  || '';
+  document.getElementById('retail-input-modal').style.display = 'flex';
+}
+
+function closeRetailInput() {
+  document.getElementById('retail-input-modal').style.display = 'none';
+}
+
+function saveRetailInput() {
+  const market = document.getElementById('retail-input-market').value;
+  const month  = parseInt(document.getElementById('retail-input-month').value);
+  const a = RETAIL_ACTUAL[market];
+  a.revenue[month]   = parseFloat(document.getElementById('ri-revenue').value)    || 0;
+  a.gm[month]        = parseFloat(document.getElementById('ri-gm').value)          || 0;
+  a.usageRes[month]  = parseInt(document.getElementById('ri-usage-res').value)     || 0;
+  a.usageSme[month]  = parseInt(document.getElementById('ri-usage-sme').value)     || 0;
+  a.usageCi[month]   = parseInt(document.getElementById('ri-usage-ci').value)      || 0;
+  a.customers[month] = parseInt(document.getElementById('ri-customers').value)     || 0;
+  saveRetailData();
+  closeRetailInput();
+  renderRetailPage();
+  showToast('✅ 저장 완료');
+}
+
+// 엑셀 업로드 파싱 (SheetJS)
+async function parseRetailExcel(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = e => {
+      try {
+        const wb = XLSX.read(e.target.result, { type: 'array' });
+        const ws = wb.Sheets[wb.SheetNames[0]];
+        const rows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: 0 });
+        // Claude API로 파싱
+        const text = rows.map(r => r.join('\t')).join('\n');
+        callClaude([{ role: 'user', content: `아래 Chariot KPI 엑셀 데이터에서 ERCOT과 PJM의 Revenue, Gross Margin, Usage(Res/SME/C&I), Customer Count 월별 Actual/Forecast 수치를 추출하세요.\n\n반드시 JSON만 반환:\n{"ercot":{"revenue":[1월,...,12월],"gm":[...],"usageRes":[...],"usageSme":[...],"usageCi":[...],"customers":[...]},"pjm":{...}}\n\n데이터:\n${text.substring(0,6000)}` }],
+          `엑셀 데이터 파싱 전문가. JSON만 반환. 없는 달은 0으로.`, 1500)
+          .then(raw => {
+            const match = raw.match(/\{[\s\S]*\}/);
+            resolve(match ? JSON.parse(match[0]) : null);
+          }).catch(reject);
+      } catch(err) { reject(err); }
+    };
+    reader.onerror = reject;
+    reader.readAsArrayBuffer(file);
+  });
+}
+
 
 function openPage(name) {
   PAGES.forEach(p => {
@@ -5007,6 +5547,30 @@ function setActiveNav(id) {
       openPage('kpi');
       setActiveNav('btn-kpi');
       renderKPIPage();
+    });
+  }
+
+  // 리테일 엑셀 업로드
+  const retailExcelInput = document.getElementById('retail-excel-input');
+  if (retailExcelInput) {
+    retailExcelInput.addEventListener('change', async () => {
+      if (!retailExcelInput.files.length) return;
+      showToast('⏳ 엑셀 파싱 중...');
+      try {
+        const parsed = await parseRetailExcel(retailExcelInput.files[0]);
+        if (parsed) {
+          if (parsed.ercot) Object.assign(RETAIL_ACTUAL.ercot, parsed.ercot);
+          if (parsed.pjm)   Object.assign(RETAIL_ACTUAL.pjm,   parsed.pjm);
+          saveRetailData();
+          renderRetailPage();
+          showToast('✅ 엑셀 업로드 완료');
+        } else {
+          showToast('⚠️ 파싱 실패 — 직접 입력을 이용해주세요');
+        }
+      } catch(e) {
+        showToast('⚠️ 오류: ' + e.message);
+      }
+      retailExcelInput.value = '';
     });
   }
 
