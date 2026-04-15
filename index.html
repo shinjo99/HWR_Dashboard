@@ -570,6 +570,7 @@ input:focus,textarea:focus,select:focus{outline:none;border-color:var(--border3)
   display:none;position:fixed;inset:0;
   background:var(--bg);z-index:200;
   overflow-y:auto;
+  scrollbar-gutter:stable;
   animation:pageIn .2s ease;
 }
 @keyframes pageIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
@@ -1374,15 +1375,9 @@ input:focus,textarea:focus,select:focus{outline:none;border-color:var(--border3)
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px">
         <div>
           <div style="font-size:18px;font-weight:800;color:var(--t1)" id="mb-date-title">—</div>
-          <div style="font-size:11px;color:var(--t3);margin-top:2px">Morning Operations Brief · Chariot Energy</div>
+          <div style="font-size:11px;color:var(--t3);margin-top:2px">Daily Operations Brief · Chariot Energy</div>
         </div>
-        <div style="display:flex;align-items:center;gap:10px">
-          <div id="mb-status-badge" style="display:flex;align-items:center;gap:6px;padding:5px 12px;border-radius:20px;font-size:11px;font-weight:700;background:rgba(16,185,129,.12);border:1px solid rgba(16,185,129,.3);color:var(--green)">
-            <span style="width:6px;height:6px;border-radius:50%;background:var(--green);display:inline-block"></span>
-            <span id="mb-status-text">Normal</span>
-          </div>
-          <button onclick="openMorningInput()" style="padding:8px 18px;background:var(--blue-d);color:#fff;border:none;border-radius:var(--r-md);font-size:13px;font-weight:700;cursor:pointer;font-family:var(--font)">✏️ Update Brief</button>
-        </div>
+        <button onclick="openMorningInput()" style="padding:8px 18px;background:var(--blue-d);color:#fff;border:none;border-radius:var(--r-md);font-size:13px;font-weight:700;cursor:pointer;font-family:var(--font)">✏️ Update Brief</button>
       </div>
 
       <!-- 상단 4카드 -->
@@ -1507,9 +1502,158 @@ input:focus,textarea:focus,select:focus{outline:none;border-color:var(--border3)
         <div style="font-size:11px;font-weight:700;color:var(--t3);text-transform:uppercase;letter-spacing:.06em">Customer Count (CRCE/RCE)</div>
         <span style="font-size:10px;font-weight:700;padding:2px 8px;border-radius:20px;background:rgba(74,140,247,.15);color:var(--blue-h)">ERCOT + PJM Combined</span>
       </div>
+      <!-- 요약 카드 -->
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:14px">
+        <div style="background:var(--surface2);border-radius:var(--r-md);padding:12px">
+          <div style="font-size:10px;color:var(--t3);font-weight:600;margin-bottom:4px;text-transform:uppercase">Plan (YE)</div>
+          <div style="font-size:20px;font-weight:800;color:var(--t1)" id="cc-plan-total">—</div>
+        </div>
+        <div style="background:var(--surface2);border-radius:var(--r-md);padding:12px">
+          <div style="font-size:10px;color:var(--t3);font-weight:600;margin-bottom:4px;text-transform:uppercase">Actual (Latest)</div>
+          <div style="font-size:20px;font-weight:800;color:var(--t1)" id="cc-actual-total">—</div>
+        </div>
+        <div style="background:var(--surface2);border-radius:var(--r-md);padding:12px">
+          <div style="font-size:10px;color:var(--t3);font-weight:600;margin-bottom:4px;text-transform:uppercase">vs Plan</div>
+          <div style="font-size:20px;font-weight:800" id="cc-vs-plan">—</div>
+        </div>
+      </div>
       <div style="position:relative;height:200px"><canvas id="chart-customers"></canvas></div>
     </div>
+
+    <!-- Expiry + Movement 2열 그리드 -->
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:16px">
+
+      <!-- 계약 만료 임박 (LEFT) -->
+      <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--r-lg);padding:18px">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+          <div>
+            <div style="font-size:11px;font-weight:700;color:var(--t3);text-transform:uppercase;letter-spacing:.06em">⏰ Contract Expiry Watch</div>
+            <div style="font-size:11px;color:var(--t3);margin-top:2px">Expiring within 90 days</div>
+          </div>
+          <button onclick="openExpiryInput()" style="padding:5px 12px;background:var(--surface2);border:1px solid var(--border2);border-radius:var(--r-md);font-size:11px;font-weight:600;color:var(--t2);cursor:pointer;font-family:var(--font)">+ Add</button>
+        </div>
+        <div style="display:flex;gap:5px;margin-bottom:12px">
+          <button class="expiry-filter active" data-days="all" onclick="filterExpiry('all')" style="padding:3px 10px;border-radius:20px;font-size:11px;font-weight:600;cursor:pointer;font-family:var(--font);background:var(--blue-d);color:#fff;border:none">All</button>
+          <button class="expiry-filter" data-days="30" onclick="filterExpiry('30')" style="padding:3px 10px;border-radius:20px;font-size:11px;font-weight:600;cursor:pointer;font-family:var(--font);background:var(--surface2);color:var(--t2);border:1px solid var(--border)">30d</button>
+          <button class="expiry-filter" data-days="60" onclick="filterExpiry('60')" style="padding:3px 10px;border-radius:20px;font-size:11px;font-weight:600;cursor:pointer;font-family:var(--font);background:var(--surface2);color:var(--t2);border:1px solid var(--border)">60d</button>
+          <button class="expiry-filter" data-days="90" onclick="filterExpiry('90')" style="padding:3px 10px;border-radius:20px;font-size:11px;font-weight:600;cursor:pointer;font-family:var(--font);background:var(--surface2);color:var(--t2);border:1px solid var(--border)">90d</button>
+        </div>
+        <div id="expiry-table-wrap" style="overflow-x:auto;max-height:320px;overflow-y:auto">
+          <div style="text-align:center;padding:24px;color:var(--t3);font-size:12px">No contracts added yet</div>
+        </div>
+      </div>
+
+      <!-- 고객 이동 MTD (RIGHT) -->
+      <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--r-lg);padding:18px">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+          <div style="font-size:11px;font-weight:700;color:var(--t3);text-transform:uppercase;letter-spacing:.06em">👥 Customer Movement — MTD</div>
+          <button onclick="openCustMoveInput()" style="padding:5px 12px;background:var(--surface2);border:1px solid var(--border2);border-radius:var(--r-md);font-size:11px;font-weight:600;color:var(--t2);cursor:pointer;font-family:var(--font)">✏️ Update</button>
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin-bottom:14px">
+          <div style="background:var(--surface2);border-radius:var(--r-md);padding:12px;text-align:center">
+            <div style="font-size:10px;color:var(--t3);font-weight:600;margin-bottom:4px">NEW</div>
+            <div style="font-size:20px;font-weight:800;color:var(--green)" id="cm-new">—</div>
+          </div>
+          <div style="background:var(--surface2);border-radius:var(--r-md);padding:12px;text-align:center">
+            <div style="font-size:10px;color:var(--t3);font-weight:600;margin-bottom:4px">CHURN</div>
+            <div style="font-size:20px;font-weight:800;color:var(--red)" id="cm-churn">—</div>
+          </div>
+          <div style="background:var(--surface2);border-radius:var(--r-md);padding:12px;text-align:center">
+            <div style="font-size:10px;color:var(--t3);font-weight:600;margin-bottom:4px">NET</div>
+            <div style="font-size:20px;font-weight:800" id="cm-net">—</div>
+          </div>
+          <div style="background:var(--surface2);border-radius:var(--r-md);padding:12px;text-align:center">
+            <div style="font-size:10px;color:var(--t3);font-weight:600;margin-bottom:4px">CHURN RATE</div>
+            <div style="font-size:20px;font-weight:800;color:var(--amber)" id="cm-rate">—</div>
+          </div>
+        </div>
+        <div style="overflow-x:auto;max-height:220px;overflow-y:auto">
+          <table style="width:100%;border-collapse:collapse;font-size:11px" id="cust-move-table">
+            <thead>
+              <tr style="border-bottom:1px solid var(--border)">
+                <th style="padding:6px 8px;text-align:left;font-size:10px;font-weight:700;color:var(--t3);text-transform:uppercase">Seg</th>
+                <th style="padding:6px 8px;text-align:right;font-size:10px;font-weight:700;color:var(--t3)">Open</th>
+                <th style="padding:6px 8px;text-align:right;font-size:10px;font-weight:700;color:var(--green)">New</th>
+                <th style="padding:6px 8px;text-align:right;font-size:10px;font-weight:700;color:var(--red)">Churn</th>
+                <th style="padding:6px 8px;text-align:right;font-size:10px;font-weight:700;color:var(--t3)">Close</th>
+                <th style="padding:6px 8px;text-align:right;font-size:10px;font-weight:700;color:var(--t3)">Net</th>
+              </tr>
+            </thead>
+            <tbody id="cust-move-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+
+    </div><!-- 2열 그리드 end -->
+
     </div><!-- retail-tab-monthly end -->
+  </div>
+</div>
+
+<!-- Customer Movement 입력 모달 -->
+<div id="cust-move-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:800;align-items:center;justify-content:center">
+  <div style="background:var(--surface);border:1px solid var(--border2);border-radius:var(--r-xl);padding:28px;width:540px;max-width:calc(100vw-32px);max-height:85vh;overflow-y:auto">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px">
+      <div style="font-size:15px;font-weight:800;color:var(--t1)">👥 Customer Movement</div>
+      <button onclick="closeCustMoveInput()" style="background:none;border:none;color:var(--t2);font-size:18px;cursor:pointer">✕</button>
+    </div>
+    <div style="font-size:11px;color:var(--t3);margin-bottom:16px">Enter MTD figures by segment</div>
+    <table style="width:100%;border-collapse:collapse;font-size:12px">
+      <thead>
+        <tr style="border-bottom:1px solid var(--border)">
+          <th style="padding:8px 10px;text-align:left;color:var(--t3);font-size:10px;text-transform:uppercase">Segment</th>
+          <th style="padding:8px 10px;text-align:center;color:var(--t3);font-size:10px;text-transform:uppercase">Opening</th>
+          <th style="padding:8px 10px;text-align:center;color:var(--green);font-size:10px;text-transform:uppercase">New</th>
+          <th style="padding:8px 10px;text-align:center;color:var(--red);font-size:10px;text-transform:uppercase">Churn</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${['Res_Legacy','Res_SBB','SME','Large C&I'].map(seg => `
+        <tr style="border-bottom:1px solid var(--border)">
+          <td style="padding:8px 10px;color:var(--t2);font-size:12px">${seg}</td>
+          <td style="padding:6px 8px"><input type="number" id="cm-open-${seg.replace(/[^a-z]/gi,'').toLowerCase()}" placeholder="0" style="width:100%;padding:6px 8px;background:var(--surface2);border:1px solid var(--border2);border-radius:var(--r-md);color:var(--t1);font-size:12px;font-family:var(--font);text-align:center;box-sizing:border-box"></td>
+          <td style="padding:6px 8px"><input type="number" id="cm-new-${seg.replace(/[^a-z]/gi,'').toLowerCase()}" placeholder="0" style="width:100%;padding:6px 8px;background:var(--surface2);border:1px solid var(--border2);border-radius:var(--r-md);color:var(--t1);font-size:12px;font-family:var(--font);text-align:center;box-sizing:border-box"></td>
+          <td style="padding:6px 8px"><input type="number" id="cm-churn-${seg.replace(/[^a-z]/gi,'').toLowerCase()}" placeholder="0" style="width:100%;padding:6px 8px;background:var(--surface2);border:1px solid var(--border2);border-radius:var(--r-md);color:var(--t1);font-size:12px;font-family:var(--font);text-align:center;box-sizing:border-box"></td>
+        </tr>`).join('')}
+      </tbody>
+    </table>
+    <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:20px">
+      <button onclick="closeCustMoveInput()" style="padding:8px 18px;background:var(--surface2);border:1px solid var(--border2);border-radius:var(--r-md);font-size:13px;color:var(--t2);cursor:pointer;font-family:var(--font)">Cancel</button>
+      <button onclick="saveCustMove()" style="padding:8px 22px;background:var(--blue-d);color:#fff;border:none;border-radius:var(--r-md);font-size:13px;font-weight:700;cursor:pointer;font-family:var(--font)">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- Contract Expiry 입력 모달 -->
+<div id="expiry-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:800;align-items:center;justify-content:center">
+  <div style="background:var(--surface);border:1px solid var(--border2);border-radius:var(--r-xl);padding:28px;width:480px;max-width:calc(100vw-32px)">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px">
+      <div style="font-size:15px;font-weight:800;color:var(--t1)">⏰ Add Contract</div>
+      <button onclick="closeExpiryInput()" style="background:none;border:none;color:var(--t2);font-size:18px;cursor:pointer">✕</button>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:20px">
+      <div style="grid-column:span 2"><label style="font-size:11px;color:var(--t3);display:block;margin-bottom:4px">Customer Name</label>
+        <input id="exp-name" type="text" placeholder="e.g. Acme Corp" style="width:100%;padding:8px 10px;background:var(--surface2);border:1px solid var(--border2);border-radius:var(--r-md);color:var(--t1);font-size:13px;font-family:var(--font);box-sizing:border-box"></div>
+      <div><label style="font-size:11px;color:var(--t3);display:block;margin-bottom:4px">Segment</label>
+        <select id="exp-seg" style="width:100%;padding:8px 10px;background:var(--surface2);border:1px solid var(--border2);border-radius:var(--r-md);color:var(--t1);font-size:13px;font-family:var(--font)">
+          <option>Res_Legacy</option><option>Res_SBB</option><option>SME</option><option>Large C&I</option>
+        </select></div>
+      <div><label style="font-size:11px;color:var(--t3);display:block;margin-bottom:4px">Contract Expiry</label>
+        <input id="exp-date" type="date" style="width:100%;padding:8px 10px;background:var(--surface2);border:1px solid var(--border2);border-radius:var(--r-md);color:var(--t1);font-size:13px;font-family:var(--font);box-sizing:border-box"></div>
+      <div><label style="font-size:11px;color:var(--t3);display:block;margin-bottom:4px">MW</label>
+        <input id="exp-mw" type="number" step="0.1" placeholder="0.0" style="width:100%;padding:8px 10px;background:var(--surface2);border:1px solid var(--border2);border-radius:var(--r-md);color:var(--t1);font-size:13px;font-family:var(--font);box-sizing:border-box"></div>
+      <div><label style="font-size:11px;color:var(--t3);display:block;margin-bottom:4px">Renewal Status</label>
+        <select id="exp-status" style="width:100%;padding:8px 10px;background:var(--surface2);border:1px solid var(--border2);border-radius:var(--r-md);color:var(--t1);font-size:13px;font-family:var(--font)">
+          <option value="pending">Pending</option>
+          <option value="negotiating">Negotiating</option>
+          <option value="renewed">Renewed</option>
+          <option value="lost">Lost</option>
+        </select></div>
+    </div>
+    <div style="display:flex;gap:8px;justify-content:flex-end">
+      <button onclick="closeExpiryInput()" style="padding:8px 18px;background:var(--surface2);border:1px solid var(--border2);border-radius:var(--r-md);font-size:13px;color:var(--t2);cursor:pointer;font-family:var(--font)">Cancel</button>
+      <button onclick="saveExpiry()" style="padding:8px 22px;background:var(--blue-d);color:#fff;border:none;border-radius:var(--r-md);font-size:13px;font-weight:700;cursor:pointer;font-family:var(--font)">Add</button>
+    </div>
   </div>
 </div>
 
@@ -1920,7 +2064,7 @@ const STATE_COORDS = {
 };
 
 const PORTFOLIO_COLORS = {HWR:'#3B7EF0','Q-cells':'#F5A623'};
-const CAT_COLORS = {A:'#F5A623',B:'#3B7EF0',C:'#8B6FE8',D:'#0EB87A','—':'#6B7FA8'};
+
 
 // ─── LOCAL STORAGE ────────────────────────────────────────────
 function loadProjectData(id) {
@@ -2189,11 +2333,6 @@ const SH_B = new Set([
   'Martha Fields','Cedar Ridge','Barkley Creek','Greasewood',
   'Intermountain','Prairie Ridge'
 ]);
-const PROB_STYLE = {
-  H:'background:rgba(16,185,129,.2);color:var(--green)',
-  M:'background:rgba(232,150,31,.2);color:var(--amber)',
-  L:'background:rgba(240,82,82,.2);color:var(--red)'
-};
 
 function getGroup(p) {
   if (DIVEST_26.has(p.name)) return 'divest';
@@ -4114,9 +4253,13 @@ const STAGE_COLOR = {
   'BO':'var(--amber)','SPA협상':'var(--red)','클로징':'var(--green)'
 };
 
+const STAGE_PROG = {
+  '준비':0, 'NDA/티저':20, 'NBO':40, 'BO':60, 'SPA협상':80, '클로징':100
+};
+
 function saveDivestData() {
   localStorage.setItem('heuh_divest', JSON.stringify(
-    DIVEST.map(d => ({name: d.name, buyer: d.buyer||'', note: d.note||''}))
+    DIVEST.map(d => ({name:d.name, buyer:d.buyer||'', note:d.note||'', stage:d.stage, prog:d.prog}))
   ));
 }
 
@@ -4125,7 +4268,10 @@ function loadDivestData() {
     const saved = JSON.parse(localStorage.getItem('heuh_divest') || '[]');
     saved.forEach(s => {
       const d = DIVEST.find(x => x.name === s.name);
-      if (d) { d.buyer = s.buyer; d.note = s.note; }
+      if (d) {
+        d.buyer = s.buyer; d.note = s.note;
+        if (s.stage) { d.stage = s.stage; d.prog = STAGE_PROG[s.stage] ?? s.prog ?? d.prog; }
+      }
     });
   } catch(e) {}
 }
@@ -4146,19 +4292,20 @@ function renderDivestment() {
     kpiCard('대상 프로젝트', DIVEST.length+'건',  '2026 매각 Pool',    'var(--t1)',    [5,6,7,7,8,8], null),
     kpiCard('예상 매각이익', '$'+totalMargin+'M', 'Est. Total Margin', 'var(--green)', [80,95,110,125,130,142], null),
     kpiCard('High 확도',    hCount+'건',         '확률 높은 딜',       'var(--blue-h)',[1,1,2,2,3,hCount], null),
-    kpiCard('평균 진척도',  avgProg+'%',         'Weighted Progress',  'var(--amber)', [20,28,35,40,45,avgProg], 5.5),
+    kpiCard('평균 진척도',  avgProg+'%',         'Weighted Progress',  'var(--amber)', [20,28,35,40,45,avgProg], null),
   ].join('');
 
   // 테이블
-  const stageBadgeMap = {'준비':'badge-muted','NDA/티저':'badge-blue','NBO':'badge-blue','BO':'badge-amber','SPA협상':'badge-amber','클로징':'badge-green'};
+  const STAGE_OPTS = ['준비','NDA/티저','NBO','BO','SPA협상','클로징'];
   const probBadgeMap  = {H:'badge-green',M:'badge-amber',L:'badge-muted'};
   const rows = DIVEST.map(d=>{
     const sc = STAGE_COLOR[d.stage]||'var(--t3)';
-    const stageLbl = L.divestStages[d.stage] || d.stage;
-    const sb = stageBadgeMap[d.stage]||'badge-muted';
     const pb = probBadgeMap[d.prob]||'badge-muted';
     const buyerVal = (d.buyer||'').replace(/"/g,'&quot;');
     const noteVal  = (d.note||'').replace(/"/g,'&quot;');
+    const stageOpts = STAGE_OPTS.map(s =>
+      `<option value="${s}" ${d.stage===s?'selected':''}>${L.divestStages[s]||s}</option>`
+    ).join('');
     return `<tr style="height:36px">
       <td style="font-weight:700;font-size:12px;white-space:nowrap;padding:4px 10px">${d.name}</td>
       <td style="padding:4px 6px">
@@ -4167,11 +4314,18 @@ function renderDivestment() {
           style="width:90px;padding:2px 6px;background:var(--surface2);border:1px solid var(--border);border-radius:4px;color:var(--t1);font-size:11px;font-family:var(--font);outline:none">
       </td>
       <td style="font-size:11px;color:var(--t2);white-space:nowrap;padding:4px 8px">${d.iso}·${d.state}</td>
-      <td style="padding:4px 6px"><span class="badge ${sb}" style="font-size:10px">${stageLbl}</span></td>
-      <td style="padding:4px 8px">
+      <td style="padding:4px 6px">
+        <select data-divest-stage="${d.name}"
+          style="padding:2px 6px;background:var(--surface2);border:1px solid var(--border);border-radius:4px;
+                 color:${sc};font-size:11px;font-weight:700;font-family:var(--font);
+                 cursor:pointer;outline:none;max-width:90px">
+          ${stageOpts}
+        </select>
+      </td>
+      <td style="padding:4px 8px" id="prog-cell-${d.name.replace(/\s/g,'_')}">
         <div style="display:flex;align-items:center;gap:5px">
           <div style="width:44px;height:3px;background:var(--surface3);border-radius:2px;overflow:hidden;flex-shrink:0">
-            <div style="width:${d.prog}%;height:100%;background:${sc};border-radius:2px"></div>
+            <div style="width:${d.prog}%;height:100%;background:${sc};border-radius:2px;transition:width .4s ease"></div>
           </div>
           <span style="font-size:10px;color:var(--t3)">${d.prog}%</span>
         </div>
@@ -4190,12 +4344,46 @@ function renderDivestment() {
     <table class="data-table" style="table-layout:fixed;width:100%;border-collapse:collapse">
       <colgroup>
         <col style="width:130px"><col style="width:110px"><col style="width:90px">
-        <col style="width:90px"><col style="width:80px"><col style="width:50px">
+        <col style="width:100px"><col style="width:80px"><col style="width:50px">
         <col style="width:70px"><col>
       </colgroup>
       <thead><tr>${cols8.map(h=>`<th style="padding:6px 8px;font-size:10px">${h}</th>`).join('')}</tr></thead>
       <tbody>${rows}</tbody>
     </table>`;
+
+  // 단계 변경 → 진척도 자동 업데이트
+  document.querySelectorAll('[data-divest-stage]').forEach(sel => {
+    sel.addEventListener('change', () => {
+      const d = DIVEST.find(x => x.name === sel.dataset.divestStage);
+      if (!d) return;
+      d.stage = sel.value;
+      d.prog  = STAGE_PROG[sel.value] ?? d.prog;
+      // 색상 즉시 반영
+      sel.style.color = STAGE_COLOR[sel.value] || 'var(--t3)';
+      // 진척도 셀 즉시 업데이트
+      const cellId = 'prog-cell-' + d.name.replace(/\s/g,'_');
+      const cell = document.getElementById(cellId);
+      if (cell) {
+        const newColor = STAGE_COLOR[sel.value] || 'var(--t3)';
+        cell.innerHTML = `<div style="display:flex;align-items:center;gap:5px">
+          <div style="width:44px;height:3px;background:var(--surface3);border-radius:2px;overflow:hidden;flex-shrink:0">
+            <div style="width:${d.prog}%;height:100%;background:${newColor};border-radius:2px;transition:width .4s ease"></div>
+          </div>
+          <span style="font-size:10px;color:var(--t3)">${d.prog}%</span>
+        </div>`;
+      }
+      // KPI 카드 재계산
+      const avgP = Math.round(DIVEST.reduce((s,x)=>s+x.prog,0)/DIVEST.length);
+      document.getElementById('div-kpi').innerHTML = [
+        kpiCard('대상 프로젝트', DIVEST.length+'건',  '2026 매각 Pool',    'var(--t1)',    [5,6,7,7,8,8], null),
+        kpiCard('예상 매각이익', '$'+DIVEST.reduce((s,x)=>s+x.margin,0)+'M', 'Est. Total Margin', 'var(--green)', [80,95,110,125,130,142], null),
+        kpiCard('High 확도',    DIVEST.filter(x=>x.prob==='H').length+'건', '확률 높은 딜', 'var(--blue-h)',[1,1,2,2,3,DIVEST.filter(x=>x.prob==='H').length], null),
+        kpiCard('평균 진척도',  avgP+'%', 'Weighted Progress', 'var(--amber)', [20,28,35,40,45,avgP], null),
+      ].join('');
+      saveDivestData();
+      showToast('✅ 단계 변경 저장됨');
+    });
+  });
 
   // 매각처 편집
   document.querySelectorAll('[data-divest-buyer]').forEach(inp => {
@@ -4514,6 +4702,180 @@ function stopErcotFeed() {
   if (ercotPriceInterval) { clearInterval(ercotPriceInterval); ercotPriceInterval = null; }
 }
 
+// ══ CUSTOMER MOVEMENT ════════════════════════════════════════
+const CM_SEGS = ['Res_Legacy','Res_SBB','SME','Large C&I'];
+const CM_KEYS = ['reslegacy','ressbb','sme','largeci'];
+
+let CUST_MOVE = JSON.parse(localStorage.getItem('heuh_cust_move') || 'null') || {
+  reslegacy: {open:0, newC:0, churn:0},
+  ressbb:    {open:0, newC:0, churn:0},
+  sme:       {open:0, newC:0, churn:0},
+  largeci:   {open:0, newC:0, churn:0},
+};
+
+function saveCustMoveData() { localStorage.setItem('heuh_cust_move', JSON.stringify(CUST_MOVE)); }
+
+function renderCustMove() {
+  let totalNew = 0, totalChurn = 0, totalOpen = 0;
+  const tbody = document.getElementById('cust-move-tbody');
+  if (!tbody) return;
+
+  tbody.innerHTML = CM_KEYS.map((key, i) => {
+    const d = CUST_MOVE[key] || {open:0, newC:0, churn:0};
+    const close = (d.open||0) + (d.newC||0) - (d.churn||0);
+    const net   = (d.newC||0) - (d.churn||0);
+    totalNew   += d.newC||0;
+    totalChurn += d.churn||0;
+    totalOpen  += d.open||0;
+    return `<tr style="border-bottom:1px solid var(--border)">
+      <td style="padding:8px 10px;color:var(--t2);font-size:12px">${CM_SEGS[i]}</td>
+      <td style="padding:8px 10px;text-align:right;color:var(--t2)">${(d.open||0).toLocaleString()}</td>
+      <td style="padding:8px 10px;text-align:right;color:var(--green)">+${(d.newC||0).toLocaleString()}</td>
+      <td style="padding:8px 10px;text-align:right;color:var(--red)">-${(d.churn||0).toLocaleString()}</td>
+      <td style="padding:8px 10px;text-align:right;font-weight:600;color:var(--t1)">${close.toLocaleString()}</td>
+      <td style="padding:8px 10px;text-align:right;font-weight:700;color:${net>=0?'var(--green)':'var(--red)'}">${net>=0?'+':''}${net.toLocaleString()}</td>
+    </tr>`;
+  }).join('');
+
+  const totalClose = totalOpen + totalNew - totalChurn;
+  const net = totalNew - totalChurn;
+  const rate = totalOpen > 0 ? (totalChurn/totalOpen*100).toFixed(1) : 0;
+
+  const set = (id, v, c) => { const e = document.getElementById(id); if(e){ e.textContent = v; if(c) e.style.color = c; } };
+  set('cm-new',   '+' + totalNew.toLocaleString(), 'var(--green)');
+  set('cm-churn', '-' + totalChurn.toLocaleString(), 'var(--red)');
+  set('cm-net',   (net>=0?'+':'') + net.toLocaleString(), net>=0?'var(--green)':'var(--red)');
+  set('cm-rate',  rate + '%', parseFloat(rate) > 3 ? 'var(--red)' : parseFloat(rate) > 1.5 ? 'var(--amber)' : 'var(--green)');
+}
+
+function openCustMoveInput() {
+  CM_KEYS.forEach(key => {
+    const d = CUST_MOVE[key] || {};
+    const el = k => document.getElementById('cm-' + k + '-' + key);
+    if(el('open'))  el('open').value  = d.open  || '';
+    if(el('new'))   el('new').value   = d.newC  || '';
+    if(el('churn')) el('churn').value = d.churn || '';
+  });
+  document.getElementById('cust-move-modal').style.display = 'flex';
+}
+function closeCustMoveInput() { document.getElementById('cust-move-modal').style.display = 'none'; }
+function saveCustMove() {
+  CM_KEYS.forEach(key => {
+    const v = id => parseInt(document.getElementById(id)?.value) || 0;
+    CUST_MOVE[key] = { open: v('cm-open-'+key), newC: v('cm-new-'+key), churn: v('cm-churn-'+key) };
+  });
+  saveCustMoveData(); closeCustMoveInput(); renderCustMove(); showToast('✅ Saved');
+}
+
+// ══ CONTRACT EXPIRY ═══════════════════════════════════════════
+let EXPIRY_LIST = JSON.parse(localStorage.getItem('heuh_expiry') || '[]');
+let expiryFilter = 'all';
+
+const EXPIRY_STATUS_STYLE = {
+  pending:     'background:rgba(92,90,112,.2);color:var(--t3)',
+  negotiating: 'background:rgba(74,140,247,.15);color:var(--blue-h)',
+  renewed:     'background:rgba(16,185,129,.15);color:var(--green)',
+  lost:        'background:rgba(239,68,68,.15);color:var(--red)',
+};
+
+function saveExpiryData() { localStorage.setItem('heuh_expiry', JSON.stringify(EXPIRY_LIST)); }
+
+function getDaysUntil(dateStr) {
+  const today = new Date(); today.setHours(0,0,0,0);
+  const target = new Date(dateStr + 'T00:00:00');
+  return Math.round((target - today) / 86400000);
+}
+
+function filterExpiry(days) {
+  expiryFilter = days;
+  document.querySelectorAll('.expiry-filter').forEach(b => {
+    const active = b.dataset.days === days;
+    b.style.background = active ? 'var(--blue-d)' : 'var(--surface2)';
+    b.style.color = active ? '#fff' : 'var(--t2)';
+    b.style.border = active ? 'none' : '1px solid var(--border)';
+  });
+  renderExpiry();
+}
+
+function renderExpiry() {
+  const wrap = document.getElementById('expiry-table-wrap');
+  if (!wrap) return;
+
+  const maxDays = expiryFilter === 'all' ? 9999 : parseInt(expiryFilter);
+  const filtered = EXPIRY_LIST
+    .map(e => ({ ...e, daysLeft: getDaysUntil(e.date) }))
+    .filter(e => e.daysLeft <= maxDays)
+    .sort((a,b) => a.daysLeft - b.daysLeft);
+
+  if (!filtered.length) {
+    wrap.innerHTML = '<div style="text-align:center;padding:24px;color:var(--t3);font-size:12px">No contracts in this range</div>';
+    return;
+  }
+
+  wrap.innerHTML = `<table style="width:100%;border-collapse:collapse;font-size:12px">
+    <thead><tr style="border-bottom:1px solid var(--border)">
+      <th style="padding:8px 10px;text-align:left;font-size:10px;color:var(--t3);text-transform:uppercase">Customer</th>
+      <th style="padding:8px 10px;text-align:left;font-size:10px;color:var(--t3);text-transform:uppercase">Segment</th>
+      <th style="padding:8px 10px;text-align:right;font-size:10px;color:var(--t3);text-transform:uppercase">MW</th>
+      <th style="padding:8px 10px;text-align:center;font-size:10px;color:var(--t3);text-transform:uppercase">Expiry</th>
+      <th style="padding:8px 10px;text-align:center;font-size:10px;color:var(--t3);text-transform:uppercase">Days Left</th>
+      <th style="padding:8px 10px;text-align:center;font-size:10px;color:var(--t3);text-transform:uppercase">Status</th>
+      <th style="padding:8px 10px;text-align:center;font-size:10px;color:var(--t3);text-transform:uppercase"></th>
+    </tr></thead>
+    <tbody>${filtered.map(e => {
+      const dColor = e.daysLeft <= 30 ? 'var(--red)' : e.daysLeft <= 60 ? 'var(--amber)' : 'var(--t2)';
+      const ss = EXPIRY_STATUS_STYLE[e.status] || EXPIRY_STATUS_STYLE.pending;
+      return `<tr style="border-bottom:1px solid var(--border)">
+        <td style="padding:8px 10px;font-weight:600;color:var(--t1)">${e.name}</td>
+        <td style="padding:8px 10px;color:var(--t2)">${e.seg}</td>
+        <td style="padding:8px 10px;text-align:right;color:var(--t2)">${e.mw || '—'}</td>
+        <td style="padding:8px 10px;text-align:center;color:var(--t2)">${e.date}</td>
+        <td style="padding:8px 10px;text-align:center;font-weight:700;color:${dColor}">${e.daysLeft}d</td>
+        <td style="padding:8px 10px;text-align:center"><span style="font-size:10px;font-weight:700;padding:2px 8px;border-radius:20px;${ss};text-transform:capitalize">${e.status}</span></td>
+        <td style="padding:8px 10px;text-align:center">
+          <select onchange="updateExpiryStatus('${e.id}', this.value)" style="font-size:11px;padding:2px 6px;background:var(--surface2);border:1px solid var(--border);border-radius:4px;color:var(--t2);cursor:pointer;font-family:var(--font)">
+            <option value="pending" ${e.status==='pending'?'selected':''}>Pending</option>
+            <option value="negotiating" ${e.status==='negotiating'?'selected':''}>Negotiating</option>
+            <option value="renewed" ${e.status==='renewed'?'selected':''}>Renewed</option>
+            <option value="lost" ${e.status==='lost'?'selected':''}>Lost</option>
+          </select>
+          <button onclick="deleteExpiry('${e.id}')" style="background:none;border:none;color:var(--t3);cursor:pointer;font-size:12px;margin-left:4px;padding:2px 4px">✕</button>
+        </td>
+      </tr>`;
+    }).join('')}</tbody>
+  </table>`;
+}
+
+function openExpiryInput() {
+  document.getElementById('exp-name').value = '';
+  document.getElementById('exp-mw').value = '';
+  document.getElementById('exp-date').value = '';
+  document.getElementById('exp-status').value = 'pending';
+  document.getElementById('expiry-modal').style.display = 'flex';
+}
+function closeExpiryInput() { document.getElementById('expiry-modal').style.display = 'none'; }
+function saveExpiry() {
+  const name = document.getElementById('exp-name').value.trim();
+  const date = document.getElementById('exp-date').value;
+  if (!name || !date) { showToast('⚠️ Name and date required'); return; }
+  EXPIRY_LIST.push({
+    id: Date.now().toString(),
+    name, date,
+    seg:    document.getElementById('exp-seg').value,
+    mw:     document.getElementById('exp-mw').value || null,
+    status: document.getElementById('exp-status').value,
+  });
+  saveExpiryData(); closeExpiryInput(); renderExpiry(); showToast('✅ Contract added');
+}
+function updateExpiryStatus(id, status) {
+  const e = EXPIRY_LIST.find(x => x.id === id);
+  if (e) { e.status = status; saveExpiryData(); renderExpiry(); }
+}
+function deleteExpiry(id) {
+  EXPIRY_LIST = EXPIRY_LIST.filter(x => x.id !== id);
+  saveExpiryData(); renderExpiry(); showToast('Deleted');
+}
+
 function showToast(msg) {
   const t = document.createElement('div');
   t.textContent = msg;
@@ -4601,7 +4963,7 @@ function saveRetailData() {
 }
 
 // ══ MORNING BRIEF ════════════════════════════════════════════
-const MB_MONTH_TARGET = 4800; // 월 목표 P&L $K
+
 let MB_DATA = { date:'', ector:324, tb2:50, ob1b:30, sres:0, ssme:0, sci:0, rev:0, proc:0, asset:0, daCov:0, gasPct:0, waha:0, memo:'', daily:[] };
 
 function loadMB() { try { const s = JSON.parse(localStorage.getItem('heuh_mb')||'null'); if(s) MB_DATA = {...MB_DATA, ...s}; } catch(e) {} }
@@ -4622,34 +4984,11 @@ function renderMorningBrief() {
   const dateEl = document.getElementById('mb-date-title');
   if (dateEl && d.date) {
     const dt = new Date(d.date + 'T12:00:00');
-    dateEl.textContent = dt.toLocaleDateString('en-US', { weekday:'long', year:'numeric', month:'long', day:'numeric' });
-  }
-
-  // 상태 뱃지 — DA Coverage 기준
-  const badge = document.getElementById('mb-status-badge');
-  const badgeText = document.getElementById('mb-status-text');
-  if (badge && badgeText) {
-    const da = parseFloat(d.daCov) || 0;
-    const rtExpVal = shortT && da ? shortT * (1 - da/100) : 0;
-    let status, color, bg, border;
-    if (!d.rev && !d.sres) {
-      status = 'Not Updated'; color = 'var(--t3)'; bg = 'rgba(255,255,255,.05)'; border = 'rgba(255,255,255,.1)';
-    } else if (da < 50 || rtExpVal > 300) {
-      status = '⚠️ Alert'; color = 'var(--red)'; bg = 'rgba(239,68,68,.12)'; border = 'rgba(239,68,68,.3)';
-    } else if (da < 70 || rtExpVal > 150) {
-      status = 'Caution'; color = 'var(--amber)'; bg = 'rgba(232,150,31,.12)'; border = 'rgba(232,150,31,.3)';
-    } else {
-      status = 'Normal'; color = 'var(--green)'; bg = 'rgba(16,185,129,.12)'; border = 'rgba(16,185,129,.3)';
-    }
-    badgeText.textContent = status;
-    badge.style.color = color;
-    badge.style.background = bg;
-    badge.style.border = '1px solid ' + border;
-    badge.querySelector('span').style.background = color;
+    dateEl.textContent = dt.toLocaleDateString('en-US', { year:'numeric', month:'long', day:'numeric', weekday:'long' }) + ' Brief';
   }
 
   // 포지션
-  const longT  = (d.ector !== '' ? parseFloat(d.ector)||0 : 324) + (d.tb2 !== '' ? parseFloat(d.tb2)||0 : 50) + (d.ob1b !== '' ? parseFloat(d.ob1b)||0 : 30);
+  const longT  = (parseFloat(d.ector)||324) + (parseFloat(d.tb2)||50) + (parseFloat(d.ob1b)||30);
   const shortT = (parseFloat(d.sres)||0) + (parseFloat(d.ssme)||0) + (parseFloat(d.sci)||0);
   const net    = shortT - longT;
   const set = (id, v, color) => { const e = document.getElementById(id); if(e){ e.textContent = v; if(color) e.style.color = color; } };
@@ -4663,7 +5002,7 @@ function renderMorningBrief() {
 
   // P&L
   const netPnl = (parseFloat(d.rev)||0) - (parseFloat(d.proc)||0) + (parseFloat(d.asset)||0);
-  set('mb-yday-pnl', (d.rev !== undefined && d.rev !== '') || (d.proc !== undefined && d.proc !== '') || (d.asset !== undefined && d.asset !== '') ? fmtK(netPnl) : '—', netPnl >= 0 ? 'var(--green)' : 'var(--red)');
+  set('mb-yday-pnl', d.rev || d.proc || d.asset ? fmtK(netPnl) : '—', netPnl >= 0 ? 'var(--green)' : 'var(--red)');
 
   // MTD
   const ym = new Date().toISOString().slice(0,7);
@@ -4749,18 +5088,15 @@ function openMorningInput() {
 function closeMorningInput() { document.getElementById('mb-modal').style.display = 'none'; }
 
 function saveMorningBrief() {
+  const v = id => parseFloat(document.getElementById(id).value) || 0;
   const date = document.getElementById('mb-i-date').value;
-  const raw = id => document.getElementById(id).value.trim();
-  const num = id => raw(id) !== '' ? parseFloat(raw(id)) : '';
-  const netPnl = (parseFloat(raw('mb-i-rev'))||0) - (parseFloat(raw('mb-i-proc'))||0) + (parseFloat(raw('mb-i-asset'))||0);
+  const netPnl = v('mb-i-rev') - v('mb-i-proc') + v('mb-i-asset');
   MB_DATA = { ...MB_DATA, date,
-    ector: num('mb-i-ector') !== '' ? num('mb-i-ector') : 324,
-    tb2:   num('mb-i-tb2')   !== '' ? num('mb-i-tb2')   : 50,
-    ob1b:  num('mb-i-ob1b')  !== '' ? num('mb-i-ob1b')  : 30,
-    sres: num('mb-i-sres'), ssme: num('mb-i-ssme'), sci: num('mb-i-sci'),
-    rev:  num('mb-i-rev'),  proc: num('mb-i-proc'), asset: num('mb-i-asset'),
-    daCov: num('mb-i-dacov'), gasPct: num('mb-i-gaspct'), waha: num('mb-i-waha'),
-    memo: raw('mb-i-memo'),
+    ector: v('mb-i-ector')||324, tb2: v('mb-i-tb2')||50, ob1b: v('mb-i-ob1b')||30,
+    sres: v('mb-i-sres'), ssme: v('mb-i-ssme'), sci: v('mb-i-sci'),
+    rev: v('mb-i-rev'), proc: v('mb-i-proc'), asset: v('mb-i-asset'),
+    daCov: v('mb-i-dacov'), gasPct: v('mb-i-gaspct'), waha: v('mb-i-waha'),
+    memo: document.getElementById('mb-i-memo').value,
   };
   if (date) {
     const idx = (MB_DATA.daily||[]).findIndex(d => d.date === date);
@@ -4784,7 +5120,7 @@ function switchRetailTab(tab) {
     const btns = document.getElementById('retail-monthly-btns');
     if (btns) btns.style.display = 'none';
     const sub = document.getElementById('retail-page-sub');
-    if (sub) sub.textContent = 'Morning Operations Brief · Chariot Energy';
+    if (sub) sub.textContent = 'Daily Operations Brief · Chariot Energy';
     renderMorningBrief();
   } else {
     if (morningEl) morningEl.style.display = 'none';
@@ -4807,6 +5143,12 @@ function renderRetailPage() {
   // PJM 탭에서 고객 수 섹션 숨기기 (통합 지표라 ERCOT에만 표시)
   const custSection = document.getElementById('retail-customer-section');
   if (custSection) custSection.style.display = currentRetailTab === 'pjm' ? 'none' : '';
+
+  // ERCOT 탭일 때 고객 이동 + 계약만료 렌더
+  if (currentRetailTab === 'ercot') {
+    renderCustMove();
+    renderExpiry();
+  }
 
   // YTD 계산 (실적 있는 달만)
   const ytdRevA  = actual.revenue.reduce((s,v) => s + (v||0), 0);
@@ -4949,7 +5291,26 @@ function renderRetailPage() {
     }}
   });
 
-  // 5. Customer count
+  // 5. Customer count 요약 카드
+  const custSegs = ['custLegacy','custSbb','custSme','custCi'];
+  // Plan YE = 12월 합계
+  const planYE = custSegs.reduce((s, k) => s + (plan[k]?.[11] || 0), 0);
+  // Actual = 가장 최근 실적 달 합계
+  const lastActualIdx = custSegs.reduce((last, k) => {
+    const arr = actual[k] || [];
+    let li = -1; arr.forEach((v,i) => { if(v > 0) li = i; });
+    return Math.max(last, li);
+  }, -1);
+  const actualLatest = lastActualIdx >= 0
+    ? custSegs.reduce((s, k) => s + (actual[k]?.[lastActualIdx] || 0), 0) : 0;
+  const diff = actualLatest - planYE;
+  const set = (id, v, c) => { const e = document.getElementById(id); if(e){ e.textContent = v; if(c) e.style.color = c; } };
+  set('cc-plan-total',   planYE > 0 ? planYE.toLocaleString() : '—');
+  set('cc-actual-total', actualLatest > 0 ? actualLatest.toLocaleString() : '—');
+  if (actualLatest > 0 && planYE > 0) {
+    set('cc-vs-plan', (diff >= 0 ? '+' : '') + diff.toLocaleString(), diff >= 0 ? 'var(--green)' : 'var(--red)');
+  } else { set('cc-vs-plan', '—'); }
+
   mkChart('chart-customers', {
     type: 'bar',
     data: {
@@ -4976,7 +5337,55 @@ function renderRetailPage() {
     options: { ...chartDefaults, scales: { ...chartDefaults.scales,
       y: { ...chartDefaults.scales.y, ticks: { ...chartDefaults.scales.y.ticks,
         callback: v => v >= 1000 ? (v/1000).toFixed(0)+'K' : v } }
-    }}
+    }},
+    plugins: [{
+      id: 'custStackTotals',
+      afterDatasetsDraw(chart) {
+        const ctx = chart.ctx;
+        const nMonths = RETAIL_MONTHS.length;
+        const planMetas   = [0,1,2,3].map(d => chart.getDatasetMeta(d));
+        const actualMetas = [4,5,6,7].map(d => chart.getDatasetMeta(d));
+        if (!planMetas[0] || !actualMetas[0]) return;
+
+        ctx.save();
+        ctx.font = 'bold 10px Pretendard Variable, Pretendard, sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'bottom';
+
+        for (let i = 0; i < nMonths; i++) {
+          // ── Plan 합계 ──
+          let planTotal = 0, planTopY = Infinity, planX = null;
+          planMetas.forEach((meta, di) => {
+            if (meta.hidden) return;
+            const el = meta.data[i];
+            if (!el) return;
+            const val = chart.data.datasets[di].data[i] || 0;
+            if (val > 0) { planTotal += val; planTopY = Math.min(planTopY, el.y); planX = el.x; }
+          });
+          if (planTotal > 0 && planX !== null) {
+            ctx.fillStyle = 'rgba(180,200,255,0.65)';
+            const lbl = planTotal >= 1000 ? (planTotal/1000).toFixed(1)+'K' : planTotal.toLocaleString();
+            ctx.fillText(lbl, planX, planTopY - 3);
+          }
+
+          // ── Actual 합계 ──
+          let actTotal = 0, actTopY = Infinity, actX = null;
+          actualMetas.forEach((meta, di) => {
+            if (meta.hidden) return;
+            const el = meta.data[i];
+            if (!el) return;
+            const val = chart.data.datasets[di + 4].data[i] || 0;
+            if (val > 0) { actTotal += val; actTopY = Math.min(actTopY, el.y); actX = el.x; }
+          });
+          if (actTotal > 0 && actX !== null) {
+            ctx.fillStyle = '#DCE8FF';
+            const lbl = actTotal >= 1000 ? (actTotal/1000).toFixed(1)+'K' : actTotal.toLocaleString();
+            ctx.fillText(lbl, actX, actTopY - 3);
+          }
+        }
+        ctx.restore();
+      }
+    }]
   });
 }
 
@@ -5425,8 +5834,7 @@ function saveAllPPV(){
 
 // ═══ PPV 2026 실제 데이터 (NDC_2026 시트에서 추출) ════════════
 const PPV_2026_PROJECTS = [{"name": "Appaloosa 2", "type": "PV Only", "iso": "WECC", "pv": 65, "ess": 0, "stage": "Mid", "timing": "NTP", "ntp": "2027-12", "cod": "2028-12", "gross_margin_m": 2.64, "ppv_unrisked_m": 2.29, "ppv_risked_m": 0.46, "risk_factor": 0.2}, {"name": "Atlas 10 (Project Philadelphia)", "type": "PV Only", "iso": "CAISO", "pv": 225, "ess": 0, "stage": "Late", "timing": "NTP", "ntp": "2025-06", "cod": "2026-06", "gross_margin_m": 4.61, "ppv_unrisked_m": 4.61, "ppv_risked_m": 4.61, "risk_factor": 1.0}, {"name": "Atlas 11 (Project Philadelphia)", "type": "PV Only", "iso": "CAISO", "pv": 200, "ess": 0, "stage": "Late", "timing": "NTP", "ntp": "2025-06", "cod": "2026-06", "gross_margin_m": 4.09, "ppv_unrisked_m": 4.09, "ppv_risked_m": 4.09, "risk_factor": 1.0}, {"name": "Atlas 5 (Project Philadelphia)", "type": "PV Only", "iso": "CAISO", "pv": 200, "ess": 0, "stage": "Late", "timing": "COD", "ntp": "2025-06", "cod": "2026-02", "gross_margin_m": 3.93, "ppv_unrisked_m": 3.93, "ppv_risked_m": 3.93, "risk_factor": 1.0}, {"name": "Atlas 6 (Project Philadelphia)", "type": "PV Only", "iso": "CAISO", "pv": 100, "ess": 0, "stage": "Late", "timing": "COD", "ntp": "2025-06", "cod": "2026-06", "gross_margin_m": 1.96, "ppv_unrisked_m": 1.96, "ppv_risked_m": 1.96, "risk_factor": 1.0}, {"name": "Bay City", "type": "PV+ESS", "iso": "SERC", "pv": 290, "ess": 290, "stage": "Early", "timing": "NTP", "ntp": "2028-12", "cod": "2029-12", "gross_margin_m": 20.33, "ppv_unrisked_m": 15.36, "ppv_risked_m": 3.07, "risk_factor": 0.2}, {"name": "Black Star", "type": "PV Only", "iso": "WECC", "pv": 300, "ess": 0, "stage": "Mid", "timing": "NTP", "ntp": "2027-12", "cod": "2028-12", "gross_margin_m": 46.21, "ppv_unrisked_m": 40.19, "ppv_risked_m": 8.04, "risk_factor": 0.2}, {"name": "Blacks Creek", "type": "PV+ESS", "iso": "WECC", "pv": 400, "ess": 200, "stage": "Late", "timing": "NTP", "ntp": "2025-06", "cod": "2027-12", "gross_margin_m": 12.4, "ppv_unrisked_m": 12.4, "ppv_risked_m": 12.4, "risk_factor": 1.0}, {"name": "Borden", "type": "PV+ESS", "iso": "SERC", "pv": 87, "ess": 87, "stage": "Early", "timing": "NTP", "ntp": "2028-12", "cod": "2029-12", "gross_margin_m": 4.93, "ppv_unrisked_m": 4.93, "ppv_risked_m": 4.93, "risk_factor": 1.0}, {"name": "Bracero Pecan", "type": "BESS", "iso": "ERCOT", "pv": 0, "ess": 230, "stage": "Late", "timing": "NTP", "ntp": "2026-06", "cod": "2027-06", "gross_margin_m": 2.96, "ppv_unrisked_m": 2.96, "ppv_risked_m": 2.96, "risk_factor": 1.0}, {"name": "Cedar", "type": "BESS", "iso": "MISO", "pv": 0, "ess": 150, "stage": "Early", "timing": "NTP", "ntp": "2028-12", "cod": "2029-12", "gross_margin_m": 5.25, "ppv_unrisked_m": 5.25, "ppv_risked_m": 0.0, "risk_factor": 0.0}, {"name": "Concord", "type": "BESS", "iso": "ISO-NE", "pv": 0, "ess": 100, "stage": "Early", "timing": "NTP", "ntp": "2031-06", "cod": "2032-12", "gross_margin_m": 4.33, "ppv_unrisked_m": 2.47, "ppv_risked_m": 0.0, "risk_factor": 0.0}, {"name": "Crystal", "type": "BESS", "iso": "NYISO", "pv": 0, "ess": 175, "stage": "Early", "timing": "NTP", "ntp": "2028-12", "cod": "2029-12", "gross_margin_m": 12.25, "ppv_unrisked_m": 12.25, "ppv_risked_m": 0.0, "risk_factor": 0.0}, {"name": "Dandelion", "type": "PV+ESS", "iso": "WECC", "pv": 241, "ess": 241, "stage": "Mid", "timing": "NTP", "ntp": "2026-03", "cod": "2027-05", "gross_margin_m": 27.72, "ppv_unrisked_m": 27.72, "ppv_risked_m": 27.72, "risk_factor": 1.0}, {"name": "Deerfield", "type": "BESS", "iso": "ISO-NE", "pv": 0, "ess": 100, "stage": "Early", "timing": "NTP", "ntp": "2029-12", "cod": "2030-12", "gross_margin_m": 4.24, "ppv_unrisked_m": 2.79, "ppv_risked_m": 0.0, "risk_factor": 0.0}, {"name": "Double Toll Gate", "type": "BESS", "iso": "PJM", "pv": 0, "ess": 110, "stage": "Early", "timing": "NTP", "ntp": "2028-12", "cod": "2029-12", "gross_margin_m": 5.84, "ppv_unrisked_m": 4.41, "ppv_risked_m": 0.88, "risk_factor": 0.2}, {"name": "Fairway", "type": "BESS", "iso": "ERCOT", "pv": 0, "ess": 120, "stage": "Mid", "timing": "NTP", "ntp": "2026-06", "cod": "2027-06", "gross_margin_m": 7.56, "ppv_unrisked_m": 7.56, "ppv_risked_m": 7.56, "risk_factor": 1.0}, {"name": "Florence", "type": "PV Only", "iso": "MISO", "pv": 99, "ess": 0, "stage": "Mid", "timing": "NTP", "ntp": "2027-12", "cod": "2029-12", "gross_margin_m": 4.32, "ppv_unrisked_m": 4.32, "ppv_risked_m": 4.32, "risk_factor": 1.0}, {"name": "Keystone", "type": "BESS", "iso": "WECC", "pv": 0, "ess": 110, "stage": "Mid", "timing": "NTP", "ntp": "2026-09", "cod": "2027-09", "gross_margin_m": 5.12, "ppv_unrisked_m": 5.12, "ppv_risked_m": 5.12, "risk_factor": 1.0}, {"name": "Glen Gardner", "type": "BESS", "iso": "PJM", "pv": 0, "ess": 280, "stage": "Early", "timing": "NTP", "ntp": "2028-12", "cod": "2029-12", "gross_margin_m": 27.44, "ppv_unrisked_m": 27.44, "ppv_risked_m": 0.0, "risk_factor": 0.0}, {"name": "Grandview", "type": "PV+ESS", "iso": "PJM", "pv": 0, "ess": 140, "stage": "Early", "timing": "NTP", "ntp": "2028-12", "cod": "2029-12", "gross_margin_m": 7.43, "ppv_unrisked_m": 5.61, "ppv_risked_m": 1.12, "risk_factor": 0.2}, {"name": "Greenfall", "type": "BESS", "iso": "ISO-NE", "pv": 0, "ess": 100, "stage": "Early", "timing": "NTP", "ntp": "2027-09", "cod": "2028-09", "gross_margin_m": 7.0, "ppv_unrisked_m": 7.0, "ppv_risked_m": 0.0, "risk_factor": 0.0}, {"name": "High Desert", "type": "PV+ESS", "iso": "WECC", "pv": 199, "ess": 100, "stage": "Early", "timing": "NTP", "ntp": "2030-12", "cod": "2031-12", "gross_margin_m": 19.33, "ppv_unrisked_m": 11.05, "ppv_risked_m": 0.0, "risk_factor": 0.0}, {"name": "Lavender", "type": "BESS", "iso": "ERCOT", "pv": 0, "ess": 230, "stage": "Mid", "timing": "NTP", "ntp": "2028-12", "cod": "2029-12", "gross_margin_m": 6.84, "ppv_unrisked_m": 6.84, "ppv_risked_m": 6.84, "risk_factor": 1.0}, {"name": "Leopard", "type": "BESS", "iso": "PJM", "pv": 0, "ess": 130, "stage": "Early", "timing": "NTP", "ntp": "2028-10", "cod": "2029-10", "gross_margin_m": 12.74, "ppv_unrisked_m": 12.74, "ppv_risked_m": 0.0, "risk_factor": 0.0}, {"name": "Livorno", "type": "BESS", "iso": "PJM", "pv": 0, "ess": 130, "stage": "Early", "timing": "NTP", "ntp": "2027-12", "cod": "2028-12", "gross_margin_m": 12.74, "ppv_unrisked_m": 12.74, "ppv_risked_m": 0.0, "risk_factor": 0.0}, {"name": "Lone Star", "type": "PV+ESS", "iso": "ERCOT", "pv": 150, "ess": 50, "stage": "Early", "timing": "NTP", "ntp": "2026-11", "cod": "2027-12", "gross_margin_m": 10.92, "ppv_unrisked_m": 10.92, "ppv_risked_m": 0.0, "risk_factor": 0.0}, {"name": "Maplehurst", "type": "PV+ESS", "iso": "NYISO", "pv": 75, "ess": 75, "stage": "Early", "timing": "NTP", "ntp": "2028-12", "cod": "2029-12", "gross_margin_m": 8.12, "ppv_unrisked_m": 6.13, "ppv_risked_m": 1.23, "risk_factor": 0.2}, {"name": "Mariposa", "type": "PV+ESS", "iso": "WECC", "pv": 412, "ess": 412, "stage": "Early", "timing": "NTP", "ntp": "2030-12", "cod": "2031-12", "gross_margin_m": 23.11, "ppv_unrisked_m": 13.21, "ppv_risked_m": 7.92, "risk_factor": 0.6}, {"name": "Martha Fields", "type": "PV+ESS", "iso": "WECC", "pv": 400, "ess": 200, "stage": "Mid", "timing": "NTP", "ntp": "2027-12", "cod": "2028-12", "gross_margin_m": 13.27, "ppv_unrisked_m": 11.54, "ppv_risked_m": 6.92, "risk_factor": 0.6}, {"name": "Merrimack", "type": "BESS", "iso": "ISO-NE", "pv": 0, "ess": 100, "stage": "Early", "timing": "NTP", "ntp": "2027-11", "cod": "2028-11", "gross_margin_m": 7.0, "ppv_unrisked_m": 7.0, "ppv_risked_m": 0.0, "risk_factor": 0.0}, {"name": "Messina", "type": "BESS", "iso": "PJM", "pv": 0, "ess": 50, "stage": "Early", "timing": "NTP", "ntp": "2028-12", "cod": "2029-12", "gross_margin_m": 2.65, "ppv_unrisked_m": 2.01, "ppv_risked_m": 0.4, "risk_factor": 0.2}, {"name": "Midfield", "type": "PV+ESS", "iso": "ERCOT", "pv": 150, "ess": 50, "stage": "Early", "timing": "NTP", "ntp": "2028-09", "cod": "2029-09", "gross_margin_m": 5.74, "ppv_unrisked_m": 4.99, "ppv_risked_m": 1.0, "risk_factor": 0.2}, {"name": "Moffett II", "type": "PV Only", "iso": "SERC", "pv": 75, "ess": 0, "stage": "Late", "timing": "NTP", "ntp": "2026-12", "cod": "2027-12", "gross_margin_m": 7.59, "ppv_unrisked_m": 7.59, "ppv_risked_m": 0.0, "risk_factor": 0.0}, {"name": "Muddy Creek", "type": "PV+ESS", "iso": "WECC", "pv": 199, "ess": 199, "stage": "Mid", "timing": "NTP", "ntp": "2027-12", "cod": "2028-12", "gross_margin_m": 24.27, "ppv_unrisked_m": 21.11, "ppv_risked_m": 12.66, "risk_factor": 0.6}, {"name": "Neptune", "type": "PV+ESS", "iso": "WECC", "pv": 199, "ess": 199, "stage": "Mid", "timing": "NTP", "ntp": "2030-12", "cod": "2031-12", "gross_margin_m": 19.16, "ppv_unrisked_m": 10.95, "ppv_risked_m": 6.57, "risk_factor": 0.6}, {"name": "Nerano", "type": "BESS", "iso": "NYISO", "pv": 0, "ess": 305, "stage": "Early", "timing": "NTP", "ntp": "2028-12", "cod": "2029-12", "gross_margin_m": 21.35, "ppv_unrisked_m": 21.35, "ppv_risked_m": 0.0, "risk_factor": 0.0}, {"name": "Nickel Plate", "type": "PV+ESS", "iso": "PJM", "pv": 230, "ess": 230, "stage": "Early", "timing": "NTP", "ntp": "2028-12", "cod": "2029-12", "gross_margin_m": 25.04, "ppv_unrisked_m": 18.93, "ppv_risked_m": 3.79, "risk_factor": 0.2}, {"name": "Palermo", "type": "BESS", "iso": "PJM", "pv": 0, "ess": 140, "stage": "Early", "timing": "NTP", "ntp": "2028-12", "cod": "2029-12", "gross_margin_m": 7.43, "ppv_unrisked_m": 5.61, "ppv_risked_m": 1.12, "risk_factor": 0.2}, {"name": "Salerno", "type": "BESS", "iso": "PJM", "pv": 0, "ess": 83, "stage": "Early", "timing": "NTP", "ntp": "2027-12", "cod": "2028-12", "gross_margin_m": 8.13, "ppv_unrisked_m": 8.13, "ppv_risked_m": 0.0, "risk_factor": 0.0}, {"name": "Sapphire", "type": "BESS", "iso": "NYISO", "pv": 0, "ess": 100, "stage": "Early", "timing": "NTP", "ntp": "2028-12", "cod": "2029-12", "gross_margin_m": 7.0, "ppv_unrisked_m": 7.0, "ppv_risked_m": 0.0, "risk_factor": 0.0}, {"name": "Stone Fruit", "type": "PV+ESS", "iso": "PJM", "pv": 100, "ess": 100, "stage": "Early", "timing": "NTP", "ntp": "2028-12", "cod": "2029-12", "gross_margin_m": 11.92, "ppv_unrisked_m": 9.01, "ppv_risked_m": 1.8, "risk_factor": 0.2}, {"name": "Taormina", "type": "BESS", "iso": "ERCOT", "pv": 0, "ess": 230, "stage": "Mid", "timing": "NTP", "ntp": "2028-09", "cod": "2029-09", "gross_margin_m": 6.84, "ppv_unrisked_m": 6.84, "ppv_risked_m": 6.84, "risk_factor": 1.0}, {"name": "Treacle Creek", "type": "PV+ESS", "iso": "PJM", "pv": 100, "ess": 100, "stage": "Early", "timing": "NTP", "ntp": "2028-12", "cod": "2029-12", "gross_margin_m": 11.92, "ppv_unrisked_m": 9.01, "ppv_risked_m": 1.8, "risk_factor": 0.2}, {"name": "Triton", "type": "PV+ESS", "iso": "WECC", "pv": 199, "ess": 199, "stage": "Early", "timing": "NTP", "ntp": "2030-12", "cod": "2031-12", "gross_margin_m": 17.87, "ppv_unrisked_m": 10.21, "ppv_risked_m": 2.04, "risk_factor": 0.2}, {"name": "Turkey Creek", "type": "PV Only", "iso": "WECC", "pv": 200, "ess": 0, "stage": "Mid", "timing": "NTP", "ntp": "2026-12", "cod": "2028-02", "gross_margin_m": 2.5, "ppv_unrisked_m": 2.5, "ppv_risked_m": 1.5, "risk_factor": 0.6}, {"name": "Twinkle", "type": "PV+ESS", "iso": "WECC", "pv": 199, "ess": 0, "stage": "Mid", "timing": "NTP", "ntp": "2027-12", "cod": "2028-12", "gross_margin_m": 14.94, "ppv_unrisked_m": 14.94, "ppv_risked_m": 14.94, "risk_factor": 1.0}, {"name": "Ursa", "type": "PV Only", "iso": "MISO", "pv": 200, "ess": 0, "stage": "Late", "timing": "NTP", "ntp": "2025-05", "cod": "2026-10", "gross_margin_m": 33.36, "ppv_unrisked_m": 33.36, "ppv_risked_m": 33.36, "risk_factor": 1.0}, {"name": "Valley", "type": "BESS", "iso": "PJM", "pv": 0, "ess": 210, "stage": "Early", "timing": "NTP", "ntp": "2028-11", "cod": "2029-11", "gross_margin_m": 20.58, "ppv_unrisked_m": 20.58, "ppv_risked_m": 0.0, "risk_factor": 0.0}, {"name": "Viburnum", "type": "BESS", "iso": "NYISO", "pv": 0, "ess": 200, "stage": "Early", "timing": "NTP", "ntp": "2028-12", "cod": "2029-12", "gross_margin_m": 14.0, "ppv_unrisked_m": 14.0, "ppv_risked_m": 0.0, "risk_factor": 0.0}, {"name": "Wagon Wheel", "type": "BESS", "iso": "CAISO", "pv": 0, "ess": 105, "stage": "Early", "timing": "NTP", "ntp": "2027-01", "cod": "2027-12", "gross_margin_m": 2.23, "ppv_unrisked_m": 2.23, "ppv_risked_m": 0.0, "risk_factor": 0.0}, {"name": "White Pine Grove", "type": "PV Only", "iso": "MISO", "pv": 100, "ess": 0, "stage": "Late", "timing": "NTP", "ntp": "2025-04", "cod": "2026-03", "gross_margin_m": -10.0, "ppv_unrisked_m": -10.0, "ppv_risked_m": -10.0, "risk_factor": 1.0}, {"name": "Widgeon Flats", "type": "PV Only", "iso": "WECC", "pv": 182, "ess": 0, "stage": "Early", "timing": "NTP", "ntp": "2028-12", "cod": "2030-12", "gross_margin_m": 0.0, "ppv_unrisked_m": 0.0, "ppv_risked_m": 0.0, "risk_factor": 0.0}, {"name": "Sutherland", "type": "PV+ESS", "iso": "PJM", "pv": 500, "ess": 600, "stage": "Early", "timing": "NTP", "ntp": "2029-12", "cod": "2030-12", "gross_margin_m": 66.22, "ppv_unrisked_m": 43.52, "ppv_risked_m": 8.7, "risk_factor": 0.2}, {"name": "Sutherland 2", "type": "PV Only", "iso": "WECC", "pv": 1500, "ess": 0, "stage": "Early", "timing": "NTP", "ntp": "2030-12", "cod": "2031-12", "gross_margin_m": 67.49, "ppv_unrisked_m": 38.57, "ppv_risked_m": 7.71, "risk_factor": 0.2}, {"name": "Elkwood", "type": "PV Only", "iso": "WECC", "pv": 100, "ess": 0, "stage": "Early", "timing": "NTP", "ntp": "2031-12", "cod": "2032-12", "gross_margin_m": 4.76, "ppv_unrisked_m": 2.72, "ppv_risked_m": 0.54, "risk_factor": 0.2}, {"name": "Bay City 2", "type": "PV Only", "iso": "SERC", "pv": 370, "ess": 154, "stage": "Early", "timing": "NTP", "ntp": "2029-12", "cod": "2030-12", "gross_margin_m": 24.47, "ppv_unrisked_m": 16.08, "ppv_risked_m": 3.22, "risk_factor": 0.2}, {"name": "Wild Wood Energy Park", "type": "PV Only", "iso": "SERC", "pv": 100, "ess": 0, "stage": "Early", "timing": "NTP", "ntp": "2029-12", "cod": "2030-12", "gross_margin_m": 5.46, "ppv_unrisked_m": 5.46, "ppv_risked_m": 0.0, "risk_factor": 0.0}, {"name": "322 Solar Energy Park", "type": "PV Only", "iso": "PJM", "pv": 80, "ess": 0, "stage": "Early", "timing": "NTP", "ntp": "2029-12", "cod": "2030-12", "gross_margin_m": 10.48, "ppv_unrisked_m": 10.48, "ppv_risked_m": 0.0, "risk_factor": 0.0}, {"name": "NEW Greenfield (YR 2025) - PV", "type": "PV Only", "iso": "Others", "pv": 0, "ess": 0, "stage": "Early", "timing": "NTP", "ntp": "2030-12", "cod": "2031-12", "gross_margin_m": 144.18, "ppv_unrisked_m": 144.18, "ppv_risked_m": 0.0, "risk_factor": 0.0}, {"name": "NEW Greenfield (YR 2025) - BESS", "type": "BESS", "iso": "Others", "pv": 0, "ess": 791, "stage": "Early", "timing": "NTP", "ntp": "2030-12", "cod": "2031-12", "gross_margin_m": 39.55, "ppv_unrisked_m": 39.55, "ppv_risked_m": 0.0, "risk_factor": 0.0}, {"name": "NEW Greenfield (YR 2026) - PV", "type": "PV Only", "iso": "Others", "pv": 0, "ess": 0, "stage": "Early", "timing": "NTP", "ntp": "2031-12", "cod": "2032-12", "gross_margin_m": 112.86, "ppv_unrisked_m": 45.97, "ppv_risked_m": 0.0, "risk_factor": 0.0}, {"name": "NEW Greenfield (YR 2026) - BESS", "type": "BESS", "iso": "Others", "pv": 0, "ess": 760, "stage": "Early", "timing": "NTP", "ntp": "2031-12", "cod": "2032-12", "gross_margin_m": 38.0, "ppv_unrisked_m": 15.65, "ppv_risked_m": 0.0, "risk_factor": 0.0}];
-const PPV_2026_TOTAL_RISKED   = 214.1;
-const PPV_2026_TOTAL_UNRISKED = 879.4;
+
 
 
 // 핵심 이슈 서브 탭 전환
