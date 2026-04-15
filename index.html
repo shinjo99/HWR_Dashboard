@@ -997,14 +997,19 @@ input:focus,textarea:focus,select:focus{outline:none;border-color:var(--border3)
     <div class="page-header">
       <div class="page-title-block">
         <div class="page-title" id="issues-page-title">🔥 핵심 이슈</div>
-        <div class="page-subtitle" id="issues-page-sub">매각현황 · PPA · Atlas Milestone</div>
+        <div class="page-subtitle" id="issues-page-sub">매각현황 · PPA · Atlas North M1</div>
       </div>
-      <button id="close-issues" class="page-back-btn" onclick="closeAllPages()">← HEUH Dashboard</button>
+      <div style="display:flex;align-items:center;gap:8px">
+        <button id="btn-issues-save" onclick="saveAllIssueData()" style="padding:6px 16px;background:var(--blue-d);color:#fff;border:none;border-radius:var(--r-md);font-size:12px;font-weight:700;cursor:pointer;font-family:var(--font);display:flex;align-items:center;gap:5px">
+          💾 저장
+        </button>
+        <button id="close-issues" class="page-back-btn" onclick="closeAllPages()">← HEUH Dashboard</button>
+      </div>
     </div>
     <div class="sub-tabs" id="issues-tabs" style="margin-bottom:22px">
       <button class="issue-tab active" data-tab="divestment" onclick="switchIssueTab('divestment')">💰 매각현황</button>
       <button class="issue-tab" data-tab="ppa" onclick="switchIssueTab('ppa')">⚡ PPA</button>
-      <button class="issue-tab" data-tab="atlas" onclick="switchIssueTab('atlas')">🏔 Atlas</button>
+      <button class="issue-tab" data-tab="atlas" onclick="switchIssueTab('atlas')">🏔 Atlas North M1</button>
       <button class="issue-tab" data-tab="liquidity" onclick="switchIssueTab('liquidity')">💧 운영자산 유동화</button>
     </div>
     <!-- 탭 컨텐츠 -->
@@ -3402,12 +3407,12 @@ const LANG = {
     searchPlaceholder: '프로젝트 검색 (이름, 주, ISO...)',
     selectPrompt: '프로젝트를 선택하세요',
     overview: '개요', financial: '재무', budget: '예산', docs: '문서', schedule: '일정',
-    divestBtn: '💰 매각현황', atlasBtn: '🏔 Atlas', ppaBtn: '⚡ PPA',
+    divestBtn: '💰 매각현황', atlasBtn: '🏔 Atlas North M1', ppaBtn: '⚡ PPA',
     backBtn: '← HEUH Dashboard',
     // 지도 범례
     legendPortfolio: '포트폴리오', legendType: '유형',
     // Atlas
-    atlasTitle: '🏔 Atlas North 1st Milestone',
+    atlasTitle: '🏔 Atlas North M1 Milestone',
     atlasSub: 'Lydian 1st Milestone Payment 조건 달성 현황',
     atlasTotal: '전체 항목', atlasDone: '완료', atlasPending: '미착수', atlasRate: '전체 달성률',
     atlasColItem: '항목', atlasColTarget: 'TARGET 일정', atlasColDday: 'D-DAY', atlasColStatus: '상태',
@@ -3415,13 +3420,13 @@ const LANG = {
     ppaTitle: '⚡ PPA 진척 현황',
     ppaSub: '프로젝트별 PPA 단계 관리',
     ppaAll: '전체', ppaRfp: 'RFP 참여', ppaSl: 'SL/BL', ppaContract: '계약 완료',
-    ppaColProj: '프로젝트', ppaColIso: 'ISO', ppaColState: '주', ppaColStage: '현재 단계', ppaColNote: '비고',
+    ppaColProj: '프로젝트', ppaColIso: 'ISO', ppaColState: '주', ppaColStage: '현재 단계', ppaColNote: '현황',
     // 매각현황
     divestTitle: '💰 매각현황 (2026년)',
     divestSub: '8개 프로젝트 · 예상 총 매각이익 $142M',
-    divestColName: '프로젝트', divestColType: '유형', divestColIso: 'ISO · 주',
+    divestColName: '프로젝트', divestColType: '매각처', divestColIso: 'ISO · 주',
     divestColStage: '현재 단계', divestColProg: '진척도', divestColProb: '확도',
-    divestColMargin: '예상이익', divestColNote: '비고',
+    divestColMargin: '예상이익', divestColNote: '현황',
     divestStageNote: '단계 가중치: 준비 0% → NDA/티저 20% → NBO 40% → BO 60% → SPA협상 80% → 클로징 100%',
     divestStages: {'준비':'준비','NDA/티저':'NDA/티저','NBO':'NBO','BO':'BO','SPA협상':'SPA협상','클로징':'클로징'},
     divestTypes: {'LCC':'LCC','운영업체':'운영업체'},
@@ -3438,7 +3443,7 @@ const LANG = {
     aiPlaceholder: '예: PJM 지역 대용량 ESS 프로젝트 현황은?',
     aiWelcome: '안녕하세요! US 프로젝트 파이프라인 AI 어시스트입니다.<br><br><strong>할 수 있는 것:</strong><br>• 포트폴리오 현황 분석 및 경영진 리포트 생성<br>• 업로드한 계약서·품의서 핵심 조항 분석<br>• 재무 벤치마크 (시장 기준 CAPEX·IRR 참고값)<br>• 자연어로 프로젝트 검색 (상단 🤖 버튼)<br><br>위 버튼으로 빠르게 시작하거나 질문을 입력하세요.',
     financeTitle: '📊 재무 현황', financeSub: 'P&L · B/S · C/F',
-    issuesTitle: '🔥 핵심 이슈', issuesSub: '매각현황 · PPA · Atlas Milestone',
+    issuesTitle: '🔥 핵심 이슈', issuesSub: '매각현황 · PPA · Atlas North M1',
     issuesBtn: '🔥 핵심 이슈', reportBtn: '📋 보고', financeBtn: '📊 재무',
   },
   en: {
@@ -3450,12 +3455,12 @@ const LANG = {
     searchPlaceholder: 'Search projects (name, state, ISO...)',
     selectPrompt: 'Select a project',
     overview: 'Overview', financial: 'Financial', budget: 'Budget', docs: 'Documents', schedule: 'Schedule',
-    divestBtn: '💰 Divestment', atlasBtn: '🏔 Atlas', ppaBtn: '⚡ PPA',
+    divestBtn: '💰 Divestment', atlasBtn: '🏔 Atlas North M1', ppaBtn: '⚡ PPA',
     backBtn: '← HEUH Dashboard',
     // Map legend
     legendPortfolio: 'Portfolio', legendType: 'Type',
     // Atlas
-    atlasTitle: '🏔 Atlas North 1st Milestone',
+    atlasTitle: '🏔 Atlas North M1 Milestone',
     atlasSub: 'Lydian 1st Milestone Payment Conditions',
     atlasTotal: 'Total Items', atlasDone: 'Done', atlasPending: 'Pending', atlasRate: 'Achievement Rate',
     atlasColItem: 'Item', atlasColTarget: 'Target Date', atlasColDday: 'D-DAY', atlasColStatus: 'Status',
@@ -3463,13 +3468,13 @@ const LANG = {
     ppaTitle: '⚡ PPA Progress',
     ppaSub: 'PPA Stage Management by Project',
     ppaAll: 'Total', ppaRfp: 'RFP', ppaSl: 'SL/BL', ppaContract: 'Contracted',
-    ppaColProj: 'Project', ppaColIso: 'ISO', ppaColState: 'State', ppaColStage: 'Stage', ppaColNote: 'Note',
+    ppaColProj: 'Project', ppaColIso: 'ISO', ppaColState: 'State', ppaColStage: 'Stage', ppaColNote: '현황',
     // Divestment
     divestTitle: '💰 Divestment Status (2026)',
     divestSub: '8 Projects · Est. Total Margin $142M',
-    divestColName: 'Project', divestColType: 'Type', divestColIso: 'ISO · State',
+    divestColName: 'Project', divestColType: 'Buyer', divestColIso: 'ISO · State',
     divestColStage: 'Stage', divestColProg: 'Progress', divestColProb: 'Prob.',
-    divestColMargin: 'Est. Margin', divestColNote: 'Note',
+    divestColMargin: 'Est. Margin', divestColNote: '현황',
     divestStageNote: 'Stage Weight: Prep 0% → NDA/Teaser 20% → NBO 40% → BO 60% → SPA 80% → Closing 100%',
     divestStages: {'준비':'Prep','NDA/티저':'NDA/Teaser','NBO':'NBO','BO':'BO','SPA협상':'SPA','클로징':'Closing'},
     divestTypes: {'LCC':'LCC','운영업체':'Operator'},
@@ -3486,7 +3491,7 @@ const LANG = {
     aiPlaceholder: 'e.g. Large-scale ESS projects in PJM region?',
     aiWelcome: 'Hello! I am the US Project Pipeline AI Assistant.<br><br><strong>What I can do:</strong><br>• Portfolio analysis & executive report generation<br>• Key clause analysis from uploaded contracts/approvals<br>• Financial benchmarks (market CAPEX·IRR reference)<br>• Natural language project search (🤖 button above)<br><br>Use the buttons above or type your question to get started.',
     financeTitle: '📊 Financial Overview', financeSub: 'P&L · B/S · C/F',
-    issuesTitle: '🔥 Key Issues', issuesSub: 'Divestment · PPA · Atlas Milestone',
+    issuesTitle: '🔥 Key Issues', issuesSub: 'Divestment · PPA · Atlas North M1',
     issuesBtn: '🔥 Key Issues', reportBtn: '📋 Reports', financeBtn: '📊 Finance',
   }
 };
@@ -3617,14 +3622,14 @@ function applyLang() {
 // ─── renderSidebar 언어 반영은 LANG 객체로 직접 처리 ─
 
 const DIVEST = [
-  {name:'Boulder Solar 3', type:'LCC',    prob:'H', margin:40,  prog:40,  stage:'NBO',      iso:'WECC',  state:'NV', note:'Morrison 협의 진행 중, ROFO 절차 병행'},
-  {name:'Bonanza Peak',    type:'LCC',    prob:'M', margin:50,  prog:20,  stage:'NDA/티저', iso:'CAISO', state:'CA', note:'Lydian 초기 협의 완료, 업데이트 경제성 검토 중'},
-  {name:'Oberon II',       type:'운영업체', prob:'M', margin:5,   prog:20,  stage:'NDA/티저', iso:'ERCOT', state:'TX', note:'Disney COD 연장 논의 중, 3월 NDA 아웃리치 계획'},
-  {name:'Oberon III',      type:'운영업체', prob:'M', margin:10,  prog:20,  stage:'NDA/티저', iso:'ERCOT', state:'TX', note:'Mars 조달 중단, 신규 Offtaker 물색 중'},
-  {name:'Oberon IV',       type:'운영업체', prob:'M', margin:5,   prog:20,  stage:'NDA/티저', iso:'ERCOT', state:'TX', note:'TTE NBO 제출, Premium 재협의 요청 중'},
-  {name:'Taormina',        type:'운영업체', prob:'M', margin:10,  prog:20,  stage:'NDA/티저', iso:'ERCOT', state:'TX', note:'Austin Energy / CPS RFP 제출 완료, Shortlist 4월 예정'},
-  {name:'Lavender',        type:'운영업체', prob:'M', margin:10,  prog:20,  stage:'NDA/티저', iso:'ERCOT', state:'TX', note:'Taormina와 동시 진행, 바이어 리스트 작성 중'},
-  {name:'Gibson',          type:'운영업체', prob:'L', margin:12,  prog:0,   stage:'준비',     iso:'PJM',   state:'VA', note:'Dominion Shortlist 4월 발표 후 계획 수립'},
+  {name:'Boulder Solar 3', type:'LCC',    buyer:'Morrison',  prob:'H', margin:40,  prog:40,  stage:'NBO',      iso:'WECC',  state:'NV', note:'Morrison 협의 진행 중, ROFO 절차 병행'},
+  {name:'Bonanza Peak',    type:'LCC',    buyer:'Lydian',  prob:'M', margin:50,  prog:20,  stage:'NDA/티저', iso:'CAISO', state:'CA', note:'Lydian 초기 협의 완료, 업데이트 경제성 검토 중'},
+  {name:'Oberon II',       type:'운영업체', buyer:'Disney',  prob:'M', margin:5,   prog:20,  stage:'NDA/티저', iso:'ERCOT', state:'TX', note:'Disney COD 연장 논의 중, 3월 NDA 아웃리치 계획'},
+  {name:'Oberon III',      type:'운영업체', buyer:'',  prob:'M', margin:10,  prog:20,  stage:'NDA/티저', iso:'ERCOT', state:'TX', note:'Mars 조달 중단, 신규 Offtaker 물색 중'},
+  {name:'Oberon IV',       type:'운영업체', buyer:'TTE',  prob:'M', margin:5,   prog:20,  stage:'NDA/티저', iso:'ERCOT', state:'TX', note:'TTE NBO 제출, Premium 재협의 요청 중'},
+  {name:'Taormina',        type:'운영업체', buyer:'',  prob:'M', margin:10,  prog:20,  stage:'NDA/티저', iso:'ERCOT', state:'TX', note:'Austin Energy / CPS RFP 제출 완료, Shortlist 4월 예정'},
+  {name:'Lavender',        type:'운영업체', buyer:'',  prob:'M', margin:10,  prog:20,  stage:'NDA/티저', iso:'ERCOT', state:'TX', note:'Taormina와 동시 진행, 바이어 리스트 작성 중'},
+  {name:'Gibson',          type:'운영업체', buyer:'',  prob:'L', margin:12,  prog:0,   stage:'준비',     iso:'PJM',   state:'VA', note:'Dominion Shortlist 4월 발표 후 계획 수립'},
 ];
 
 const STAGE_COLOR = {
@@ -3632,7 +3637,24 @@ const STAGE_COLOR = {
   'BO':'var(--amber)','SPA협상':'var(--red)','클로징':'var(--green)'
 };
 
+function saveDivestData() {
+  localStorage.setItem('heuh_divest', JSON.stringify(
+    DIVEST.map(d => ({name: d.name, buyer: d.buyer||'', note: d.note||''}))
+  ));
+}
+
+function loadDivestData() {
+  try {
+    const saved = JSON.parse(localStorage.getItem('heuh_divest') || '[]');
+    saved.forEach(s => {
+      const d = DIVEST.find(x => x.name === s.name);
+      if (d) { d.buyer = s.buyer; d.note = s.note; }
+    });
+  } catch(e) {}
+}
+
 function renderDivestment() {
+  loadDivestData();
   const L = LANG[currentLang];
   const totalMargin = DIVEST.reduce((s,d)=>s+d.margin,0);
   const hCount = DIVEST.filter(d=>d.prob==='H').length;
@@ -3645,7 +3667,7 @@ function renderDivestment() {
   // KPI 카드
   document.getElementById('div-kpi').innerHTML = [
     kpiCard('대상 프로젝트', DIVEST.length+'건',  '2026 매각 Pool',    'var(--t1)',    [5,6,7,7,8,8], null),
-    kpiCard('예상 매각이익', '$'+totalMargin+'M', 'Est. Total Margin', 'var(--green)', [80,95,110,125,130,142], 9.2),
+    kpiCard('예상 매각이익', '$'+totalMargin+'M', 'Est. Total Margin', 'var(--green)', [80,95,110,125,130,142], null),
     kpiCard('High 확도',    hCount+'건',         '확률 높은 딜',       'var(--blue-h)',[1,1,2,2,3,hCount], null),
     kpiCard('평균 진척도',  avgProg+'%',         'Weighted Progress',  'var(--amber)', [20,28,35,40,45,avgProg], 5.5),
   ].join('');
@@ -3656,33 +3678,62 @@ function renderDivestment() {
   const rows = DIVEST.map(d=>{
     const sc = STAGE_COLOR[d.stage]||'var(--t3)';
     const stageLbl = L.divestStages[d.stage] || d.stage;
-    const typeLbl  = L.divestTypes[d.type]   || d.type;
     const sb = stageBadgeMap[d.stage]||'badge-muted';
     const pb = probBadgeMap[d.prob]||'badge-muted';
-    return `<tr>
-      <td class="primary">${d.name}</td>
-      <td>${typeLbl}</td>
-      <td>${d.iso} · ${d.state}</td>
-      <td><span class="badge ${sb}">${stageLbl}</span></td>
-      <td>
-        <div style="display:flex;align-items:center;gap:8px">
-          <div style="width:68px;height:3px;background:var(--surface3);border-radius:2px;overflow:hidden;flex-shrink:0">
+    const buyerVal = (d.buyer||'').replace(/"/g,'&quot;');
+    const noteVal  = (d.note||'').replace(/"/g,'&quot;');
+    return `<tr style="height:36px">
+      <td style="font-weight:700;font-size:12px;white-space:nowrap;padding:4px 10px">${d.name}</td>
+      <td style="padding:4px 6px">
+        <input type="text" value="${buyerVal}" placeholder="—"
+          data-divest-buyer="${d.name}"
+          style="width:90px;padding:2px 6px;background:var(--surface2);border:1px solid var(--border);border-radius:4px;color:var(--t1);font-size:11px;font-family:var(--font);outline:none">
+      </td>
+      <td style="font-size:11px;color:var(--t2);white-space:nowrap;padding:4px 8px">${d.iso}·${d.state}</td>
+      <td style="padding:4px 6px"><span class="badge ${sb}" style="font-size:10px">${stageLbl}</span></td>
+      <td style="padding:4px 8px">
+        <div style="display:flex;align-items:center;gap:5px">
+          <div style="width:44px;height:3px;background:var(--surface3);border-radius:2px;overflow:hidden;flex-shrink:0">
             <div style="width:${d.prog}%;height:100%;background:${sc};border-radius:2px"></div>
           </div>
-          <span style="font-size:11px;color:var(--t3)">${d.prog}%</span>
+          <span style="font-size:10px;color:var(--t3)">${d.prog}%</span>
         </div>
       </td>
-      <td><span class="badge ${pb}">${d.prob}</span></td>
-      <td class="num" style="font-weight:700;color:var(--green)" data-usd="${d.margin}">$${d.margin}M</td>
-      <td style="font-size:11px;max-width:200px;line-height:1.55">${d.note}</td>
+      <td style="padding:4px 6px"><span class="badge ${pb}" style="font-size:10px">${d.prob}</span></td>
+      <td style="font-weight:700;color:var(--green);font-size:12px;text-align:right;padding:4px 10px;white-space:nowrap">$${d.margin}M</td>
+      <td style="padding:4px 6px">
+        <input type="text" value="${noteVal}" placeholder="현황 입력..."
+          data-divest-note="${d.name}"
+          style="width:100%;padding:2px 6px;background:var(--surface2);border:1px solid var(--border);border-radius:4px;color:var(--t1);font-size:11px;font-family:var(--font);outline:none;box-sizing:border-box">
+      </td>
     </tr>`;
   }).join('');
   const cols8 = [L.divestColName, L.divestColType, L.divestColIso, L.divestColStage, L.divestColProg, L.divestColProb, L.divestColMargin, L.divestColNote];
   document.getElementById('div-table').innerHTML = `
-    <table class="data-table">
-      <thead><tr>${cols8.map((h,i)=>`<th${i===6?' class="num"':''}>${h}</th>`).join('')}</tr></thead>
+    <table class="data-table" style="table-layout:fixed;width:100%;border-collapse:collapse">
+      <colgroup>
+        <col style="width:130px"><col style="width:110px"><col style="width:90px">
+        <col style="width:90px"><col style="width:80px"><col style="width:50px">
+        <col style="width:70px"><col>
+      </colgroup>
+      <thead><tr>${cols8.map(h=>`<th style="padding:6px 8px;font-size:10px">${h}</th>`).join('')}</tr></thead>
       <tbody>${rows}</tbody>
     </table>`;
+
+  // 매각처 편집
+  document.querySelectorAll('[data-divest-buyer]').forEach(inp => {
+    inp.addEventListener('change', () => {
+      const d = DIVEST.find(x => x.name === inp.dataset.divestBuyer);
+      if (d) { d.buyer = inp.value; saveDivestData(); }
+    });
+  });
+  // 현황 편집
+  document.querySelectorAll('[data-divest-note]').forEach(inp => {
+    inp.addEventListener('change', () => {
+      const d = DIVEST.find(x => x.name === inp.dataset.divestNote);
+      if (d) { d.note = inp.value; saveDivestData(); }
+    });
+  });
 
   // 단계 가중치 안내 번역
   const sn = document.getElementById('divest-stage-note');
@@ -3718,6 +3769,11 @@ const LIQUIDITY = [
 function renderLiquidity() {
   const L = LANG[currentLang];
   const isKo = currentLang === 'ko';
+  // localStorage 복원
+  try {
+    const saved = JSON.parse(localStorage.getItem('heuh_liq_notes') || '{}');
+    LIQUIDITY.forEach(l => { if (saved[l.name] !== undefined) l.note = saved[l.name]; });
+  } catch(e) {}
 
   const totalAsset = LIQUIDITY.reduce((s,l) => s + l.asset, 0);
   const totalDebt  = LIQUIDITY.reduce((s,l) => s + l.debt, 0);
@@ -3754,8 +3810,8 @@ function renderLiquidity() {
     </div>`;
 
   const cols = isKo
-    ? ['자산','구분','소유','PV\u00a0MW','BESS\u00a0MW','자산\u00a0$M','부채\u00a0$M','NBV\u00a0$M','예상 Cash-in','Est. Margin','상태','비고']
-    : ['Asset','Group','Owner','PV\u00a0MW','BESS\u00a0MW','Asset\u00a0$M','Debt\u00a0$M','NBV\u00a0$M','Est. Cash-in','Est. Margin','Status','Note'];
+    ? ['자산','구분','소유','PV\u00a0MW','BESS\u00a0MW','자산\u00a0$M','부채\u00a0$M','NBV\u00a0$M','예상 Cash-in','Est. Margin','상태','현황']
+    : ['Asset','Group','Owner','PV\u00a0MW','BESS\u00a0MW','Asset\u00a0$M','Debt\u00a0$M','NBV\u00a0$M','Est. Cash-in','Est. Margin','Status','현황'];
 
   // colgroup 너비 (px): 자산명·비고는 넓게, 숫자 컬럼은 좁게
   const colWidths = ['110','90','80','58','62','62','62','62','100','100','72','auto'];
@@ -3782,7 +3838,11 @@ function renderLiquidity() {
       <td style="padding:8px 10px;font-size:12px;color:var(--green);white-space:nowrap">${l.cashIn}</td>
       <td style="padding:8px 10px;font-size:12px;white-space:nowrap;color:${l.margin?.startsWith('-') ? 'var(--red)' : l.margin === '—' ? 'var(--t3)' : 'var(--green)'}">${l.margin}</td>
       <td style="padding:8px 10px"><span style="font-size:10px;font-weight:700;padding:2px 6px;border-radius:20px;white-space:nowrap;${ss}">${statusLbl}</span></td>
-      <td style="padding:8px 10px;font-size:11px;color:var(--t2);line-height:1.5">${l.note}</td>
+      <td style="padding:6px 8px">
+        <input type="text" value="${(l.note||'').replace(/"/g,'&quot;')}" placeholder="현황 입력..."
+          data-liq-note="${l.name}"
+          style="width:100%;padding:3px 7px;background:var(--surface2);border:1px solid var(--border);border-radius:4px;color:var(--t1);font-size:11px;font-family:var(--font);outline:none;box-sizing:border-box">
+      </td>
     </tr>`;
   }).join('');
 
@@ -3805,7 +3865,76 @@ function renderLiquidity() {
     </table>
     </div>
     </div>`;
+
+  // 현황 편집 이벤트
+  document.querySelectorAll('[data-liq-note]').forEach(inp => {
+    inp.addEventListener('change', () => {
+      const l = LIQUIDITY.find(x => x.name === inp.dataset.liqNote);
+      if (l) {
+        l.note = inp.value;
+        try {
+          const saved = JSON.parse(localStorage.getItem('heuh_liq_notes') || '{}');
+          saved[l.name] = l.note;
+          localStorage.setItem('heuh_liq_notes', JSON.stringify(saved));
+          showToast('저장됨');
+        } catch(e) {}
+      }
+    });
+  });
 }
+
+// ══ 핵심이슈 전체 저장 (Firebase) ══════════════════════════
+async function saveAllIssueData() {
+  const btn = document.getElementById('btn-issues-save');
+  if (btn) { btn.textContent = '저장 중...'; btn.disabled = true; }
+  try {
+    const tasks = [];
+
+    // 매각현황: buyer + note
+    DIVEST.forEach(d => {
+      tasks.push(
+        apiCall('POST', '/divest/' + encodeURIComponent(d.name), {
+          name: d.name, buyer: d.buyer||'', note: d.note||'',
+          stage: d.stage, prog: d.prog, prob: d.prob
+        }).catch(()=>{})
+      );
+    });
+
+    // PPA: stage + note
+    PPA_DATA.forEach(p => {
+      tasks.push(
+        apiCall('POST', '/divest/ppa_' + encodeURIComponent(p.id), {
+          id: p.id, name: p.name, stage: p.stage, note: p.note||''
+        }).catch(()=>{})
+      );
+    });
+
+    // 운영자산: note
+    LIQUIDITY.forEach(l => {
+      tasks.push(
+        apiCall('POST', '/divest/liq_' + encodeURIComponent(l.name), {
+          name: l.name, note: l.note||'', status: l.status
+        }).catch(()=>{})
+      );
+    });
+
+    await Promise.all(tasks);
+    showToast('✅ 저장 완료');
+  } catch(e) {
+    showToast('⚠️ 저장 실패: ' + e.message);
+  } finally {
+    if (btn) { btn.textContent = '💾 저장'; btn.disabled = false; }
+  }
+}
+
+function showToast(msg) {
+  const t = document.createElement('div');
+  t.textContent = msg;
+  t.style.cssText = 'position:fixed;bottom:20px;right:20px;background:#1D9E75;color:#fff;padding:8px 16px;border-radius:8px;font-size:13px;z-index:9999;font-family:var(--font);animation:fadeIn .2s';
+  document.body.appendChild(t);
+  setTimeout(() => t.remove(), 2000);
+}
+
 const PAGES = ['issues','finance','report','ppv','kpi'];
 
 function openPage(name) {
@@ -5093,11 +5222,11 @@ const ATLAS_MS = [
 // localStorage에서 상태 복원
 try {
   const saved = JSON.parse(localStorage.getItem('atlas_ms') || '[]');
-  saved.forEach(s => { const m = ATLAS_MS.find(x=>x.id===s.id); if(m) m.status=s.status; });
+  saved.forEach(s => { const m = ATLAS_MS.find(x=>x.id===s.id); if(m) { m.status=s.status; if(s.note!==undefined) m.note=s.note; } });
 } catch(e) {}
 
 function saveAtlas() {
-  localStorage.setItem('atlas_ms', JSON.stringify(ATLAS_MS.map(m=>({id:m.id,status:m.status}))));
+  localStorage.setItem('atlas_ms', JSON.stringify(ATLAS_MS.map(m=>({id:m.id,status:m.status,note:m.note||''}))));
   // Firebase 동기화
   if(window.FB) window.FB.saveAtlas(ATLAS_MS);
 }
@@ -5150,14 +5279,15 @@ function renderAtlas() {
                      : diff <= 14 ? `<span style="color:var(--amber)">D-${diff}</span>`
                      :               `<span style="color:var(--t3)">D-${diff}</span>`;
       const st = STATUS[m.status] || STATUS.pending;
+      const note = m.note || '';
       return `<tr>
-        <td class="primary" style="line-height:1.5">
+        <td class="primary" style="line-height:1.5;width:220px">
           <div style="font-weight:700;font-size:12px">${m.item}</div>
           <div style="font-size:11px;color:var(--t3);font-weight:400">${m.name}</div>
         </td>
-        <td style="font-size:12px;color:var(--t2)">${m.target}</td>
-        <td style="font-size:12px">${ddayHtml}</td>
-        <td>
+        <td style="font-size:11px;color:var(--t2);white-space:nowrap;width:90px">${m.target}</td>
+        <td style="font-size:11px;width:60px">${ddayHtml}</td>
+        <td style="width:100px">
           <select data-atlas-id="${m.id}" style="padding:3px 8px;border-radius:20px;border:none;cursor:pointer;font-size:11px;font-weight:700;font-family:var(--font);${st.cls}">
             <option value="done"     ${m.status==='done'    ?'selected':''}>완료</option>
             <option value="partial"  ${m.status==='partial' ?'selected':''}>Partially</option>
@@ -5165,16 +5295,22 @@ function renderAtlas() {
             <option value="pending"  ${m.status==='pending' ?'selected':''}>미착수</option>
           </select>
         </td>
+        <td>
+          <input type="text" data-atlas-note="${m.id}" value="${note.replace(/"/g,'&quot;')}"
+            placeholder="현황 메모 입력..."
+            style="width:100%;padding:4px 8px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;color:var(--t1);font-size:11px;font-family:var(--font);outline:none;box-sizing:border-box">
+        </td>
       </tr>`;
   }).join('');
   document.getElementById('atlas-list').innerHTML = `
     <div class="data-table-wrap">
-      <table class="data-table">
+      <table class="data-table" style="table-layout:fixed;width:100%">
         <thead><tr>
-          <th>${L.atlasColItem}</th>
-          <th>${L.atlasColTarget}</th>
-          <th>${L.atlasColDday}</th>
-          <th>${L.atlasColStatus}</th>
+          <th style="width:220px">${L.atlasColItem}</th>
+          <th style="width:90px">${L.atlasColTarget}</th>
+          <th style="width:60px">${L.atlasColDday}</th>
+          <th style="width:100px">${L.atlasColStatus}</th>
+          <th>현황</th>
         </tr></thead>
         <tbody>${atlasRows}</tbody>
       </table>
@@ -5186,6 +5322,13 @@ function renderAtlas() {
       const m = ATLAS_MS.find(x => x.id === sel.dataset.atlasId);
       if (m) { m.status = sel.value; saveAtlas(); renderAtlas(); }
     };
+  });
+  // 현황 메모 입력 이벤트
+  document.querySelectorAll('[data-atlas-note]').forEach(inp => {
+    inp.addEventListener('change', () => {
+      const m = ATLAS_MS.find(x => x.id === inp.dataset.atlasNote);
+      if (m) { m.note = inp.value; saveAtlas(); }
+    });
   });
 }
 
@@ -5216,11 +5359,11 @@ const PPA_DATA = [
 // localStorage 복원
 try {
   const saved = JSON.parse(localStorage.getItem('ppa_data') || '[]');
-  saved.forEach(s => { const p = PPA_DATA.find(x=>x.id===s.id); if(p) p.stage=s.stage; });
+  saved.forEach(s => { const p = PPA_DATA.find(x=>x.id===s.id); if(p) { p.stage=s.stage; if(s.note!==undefined) p.note=s.note; } });
 } catch(e) {}
 
 function savePPA() {
-  localStorage.setItem('ppa_data', JSON.stringify(PPA_DATA.map(p=>({id:p.id,stage:p.stage}))));
+  localStorage.setItem('ppa_data', JSON.stringify(PPA_DATA.map(p=>({id:p.id,stage:p.stage,note:p.note||''}))));
   // Firebase 동기화
   if(window.FB) {
     PPA_DATA.forEach(function(p) {
@@ -5284,7 +5427,11 @@ function renderPPA() {
                 <option value="계약" ${p.stage==='계약'?'selected':''}>${contractLabel}</option>
               </select>
             </td>
-            <td style="font-size:11px;line-height:1.55">${p.note}</td>
+            <td style="padding:4px 6px">
+              <input type="text" value="${(p.note||'').replace(/"/g,'&quot;')}" placeholder="현황 입력..."
+                data-ppa-note="${p.id}"
+                style="width:100%;padding:2px 6px;background:var(--surface2);border:1px solid var(--border);border-radius:4px;color:var(--t1);font-size:11px;font-family:var(--font);outline:none;box-sizing:border-box">
+            </td>
           </tr>`).join('')}
       </tbody>
     </table>`;
@@ -5295,6 +5442,13 @@ function renderPPA() {
       const p = PPA_DATA.find(x => x.id === sel.dataset.ppaId);
       if (p) { p.stage = sel.value; savePPA(); renderPPA(); }
     };
+  });
+  // 현황 편집
+  document.querySelectorAll('[data-ppa-note]').forEach(inp => {
+    inp.addEventListener('change', () => {
+      const p = PPA_DATA.find(x => x.id === inp.dataset.ppaNoteId || x.id === inp.dataset.ppaNote);
+      if (p) { p.note = inp.value; savePPA(); showToast('저장됨'); }
+    });
   });
 }
 
