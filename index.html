@@ -72,7 +72,7 @@ body::before{
 /* 브랜드 */
 .tb-brand{
   display:flex;align-items:center;gap:10px;
-  padding:0 20px;flex-shrink:0;
+  padding:0 14px;flex-shrink:0;
 }
 .tb-logo-mark{
   width:28px;height:28px;
@@ -89,7 +89,7 @@ body::before{
   display:flex;align-items:center;gap:8px;
   padding:0 14px;
 }
-.search-wrap{position:relative;width:240px}
+.search-wrap{position:relative;width:200px}
 .search-wrap input{
   width:100%;padding:6px 12px 6px 30px;
   background:transparent;border:none;
@@ -114,7 +114,7 @@ body::before{
 .search-ai-toggle.active{background:var(--surface3);color:var(--t1);border-color:var(--border2)}
 
 /* 포트폴리오 필터 */
-.tb-filters{display:flex;align-items:center;gap:3px;padding:0 12px}
+.tb-filters{display:flex;align-items:center;gap:3px;padding:0 8px}
 .fchip{
   padding:4px 11px;border-radius:20px;font-size:11px;font-weight:500;
   border:1px solid transparent;background:none;color:var(--t3);
@@ -129,7 +129,7 @@ body::before{
 /* 통계 */
 .tb-stats{
   display:flex;align-items:center;gap:0;
-  padding:0 16px;
+  padding:0 10px;
 }
 .stat-item{
   display:flex;align-items:baseline;gap:5px;
@@ -140,7 +140,7 @@ body::before{
 .stat-item strong.blue{color:var(--blue-h)}
 .stat-item strong.green{color:var(--green)}
 .stat-item .stat-unit{font-size:10px;color:var(--t3)}
-.stat-divider{width:1px;height:16px;background:var(--border);margin:0 14px}
+.stat-divider{width:1px;height:16px;background:var(--border);margin:0 10px}
 
 /* 우측 유틸 */
 .tb-utils{
@@ -176,7 +176,7 @@ body::before{
 }
 .tb-nav-btn{
   display:flex;align-items:center;
-  padding:0 18px;
+  padding:0 14px;
   font-size:12px;font-weight:600;color:var(--t2);
   cursor:pointer;font-family:var(--font);
   background:none;border:none;
@@ -923,6 +923,13 @@ input:focus,textarea:focus,select:focus{outline:none;border-color:var(--border3)
         <strong id="ppv-total" style="color:var(--t1);font-variant-numeric:tabular-nums">—</strong>
         <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="var(--t3)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="margin-left:2px"><polyline points="9 18 15 12 9 6"/></svg>
       </div>
+      <div class="stat-divider"></div>
+      <div class="stat-item" id="btn-kpi" style="cursor:pointer;padding:0 4px;border-radius:var(--r-md);transition:background var(--ease)"
+           onmouseover="this.style.background='var(--surface2)'" onmouseout="this.style.background=''">
+        <span class="stat-label" style="color:var(--amber)">KPI</span>
+        <strong id="kpi-overall" style="color:var(--t1);font-variant-numeric:tabular-nums">—</strong>
+        <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="var(--t3)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="margin-left:2px"><polyline points="9 18 15 12 9 6"/></svg>
+      </div>
     </div>
     <!-- 우측 유틸 (USD 제거) -->
     <div class="tb-utils">
@@ -1210,6 +1217,52 @@ input:focus,textarea:focus,select:focus{outline:none;border-color:var(--border3)
     <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:20px">
       <button onclick="closePPVSettings()" class="btn-cancel">취소</button>
       <button onclick="savePPVSettings()" class="btn-save" style="padding:8px 20px">저장</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ KPI 페이지 ══ -->
+<div id="page-kpi" class="page-overlay" style="display:none">
+  <div style="padding:20px 24px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between">
+    <div>
+      <div style="font-size:16px;font-weight:800;color:var(--t1)">2026 KPI 현황</div>
+      <div style="font-size:11px;color:var(--t3);margin-top:2px">HEUH 전략과제 추진 현황 · 비중 합계 90%</div>
+    </div>
+    <div style="display:flex;align-items:center;gap:12px">
+      <div style="font-size:11px;color:var(--t3)" id="kpi-updated-at">기준: —</div>
+      <button onclick="openKPIEdit()" style="padding:6px 14px;background:var(--blue-d);color:#fff;border:none;border-radius:var(--r-md);font-size:12px;font-weight:700;cursor:pointer;font-family:var(--font)">✏️ 업데이트</button>
+      <button onclick="closeAllPages()" class="page-back-btn">← HEUH Dashboard</button>
+    </div>
+  </div>
+
+  <!-- 전체 달성률 -->
+  <div style="padding:16px 24px;background:var(--surface);border-bottom:1px solid var(--border);display:flex;align-items:center;gap:20px">
+    <div style="font-size:11px;font-weight:700;color:var(--t3);text-transform:uppercase;letter-spacing:.06em;white-space:nowrap">전체 달성률</div>
+    <div style="flex:1;height:8px;background:var(--surface3);border-radius:4px;overflow:hidden">
+      <div id="kpi-bar-total" style="height:100%;border-radius:4px;background:linear-gradient(90deg,var(--blue-d),var(--blue-h));transition:width .6s ease;width:0%"></div>
+    </div>
+    <div style="font-size:18px;font-weight:800;color:var(--t1);font-variant-numeric:tabular-nums;min-width:48px" id="kpi-pct-total">—</div>
+  </div>
+
+  <!-- KPI 목록 -->
+  <div style="overflow-y:auto;max-height:calc(100vh - 160px);padding:16px 24px" id="kpi-list"></div>
+</div>
+
+<!-- KPI 수정 모달 -->
+<div id="kpi-edit-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:800;align-items:center;justify-content:center">
+  <div style="background:var(--surface);border:1px solid var(--border2);border-radius:var(--r-xl);padding:28px;width:520px;max-width:calc(100vw - 32px);max-height:80vh;overflow-y:auto">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px">
+      <div style="font-size:15px;font-weight:800;color:var(--t1)">KPI 현황 업데이트</div>
+      <button onclick="closeKPIEdit()" style="background:none;border:none;color:var(--t2);font-size:18px;cursor:pointer">✕</button>
+    </div>
+    <div style="margin-bottom:14px">
+      <label style="font-size:11px;color:var(--t3);font-weight:700;display:block;margin-bottom:6px">기준 월</label>
+      <input id="kpi-edit-month" type="text" placeholder="예: 2026년 3월" style="width:100%;padding:9px 12px;background:var(--surface2);border:1px solid var(--border2);border-radius:var(--r-md);color:var(--t1);font-size:13px;font-family:var(--font);box-sizing:border-box">
+    </div>
+    <div id="kpi-edit-fields"></div>
+    <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:20px">
+      <button onclick="closeKPIEdit()" style="padding:8px 18px;background:var(--surface2);border:1px solid var(--border2);border-radius:var(--r-md);font-size:13px;color:var(--t2);cursor:pointer;font-family:var(--font)">취소</button>
+      <button onclick="saveKPIData()" style="padding:8px 20px;background:var(--blue-d);color:#fff;border:none;border-radius:var(--r-md);font-size:13px;font-weight:700;cursor:pointer;font-family:var(--font)">저장</button>
     </div>
   </div>
 </div>
@@ -3753,7 +3806,7 @@ function renderLiquidity() {
     </div>
     </div>`;
 }
-const PAGES = ['issues','finance','report','ppv'];
+const PAGES = ['issues','finance','report','ppv','kpi'];
 
 function openPage(name) {
   PAGES.forEach(p => {
@@ -4802,7 +4855,7 @@ function updateFinKPIs() {
 
 
 function setActiveNav(id) {
-  ['btn-issues','btn-finance','btn-report','btn-ppv'].forEach(b => {
+  ['btn-issues','btn-finance','btn-report','btn-ppv','btn-kpi'].forEach(b => {
     const el = document.getElementById(b);
     if (el) el.classList.toggle('active', b === id);
   });
@@ -4817,6 +4870,16 @@ function setActiveNav(id) {
     });
   }
   renderPPVKPI();
+
+  // KPI 버튼 이벤트
+  var kpiBtn = document.getElementById('btn-kpi');
+  if (kpiBtn) {
+    kpiBtn.addEventListener('click', function() {
+      openPage('kpi');
+      setActiveNav('btn-kpi');
+      renderKPIPage();
+    });
+  }
 
   document.getElementById('btn-issues').addEventListener('click', () => {
   openPage('issues');
@@ -5234,6 +5297,195 @@ function renderPPA() {
     };
   });
 }
+
+// ══════════════════════════════════════════════════════════════
+// KPI 시스템
+// ══════════════════════════════════════════════════════════════
+
+const KPI_ITEMS = [
+  {
+    id: 'kpi1', num: 1, weight: 22.5,
+    bu: 'DC/Gas',
+    title: 'Energy Campus Development',
+    target: '(Orion) Ph1 PPA 체결 · Ph3 Pre-FEED 완료 · Ph1 IRR ≥12.2% / (Biz Dev.) 신규 사이트 7개 이상 · 2nd 사이트 Binding LOI 체결',
+    pct: 11, note: 'Orion PPA 협상 진행 중 · Tatooine·Yellow Jacket·Mudcat 3개 사이트 Exclusivity 확보'
+  },
+  {
+    id: 'kpi2', num: 2, weight: 10.0,
+    bu: '개발',
+    title: 'Development Platform Value',
+    target: 'PPV 증분 $254M ($249M → $503M)',
+    metric: { label: 'PPV 증분', actual: '$4.4M', plan: '$254M' },
+    pct: 2, note: '신규 GF 또는 추가 Milestone 달성 없음'
+  },
+  {
+    id: 'kpi3', num: 3, weight: 5.0,
+    bu: '개발',
+    title: 'Organizational Efficiency',
+    target: 'ROIC 효율성 158%+',
+    pct: 32, note: 'PPV $4.4M · Dev Capex $0.1M · SG&A $8.9M 기준'
+  },
+  {
+    id: 'kpi4', num: 4, weight: 12.5,
+    bu: '개발',
+    title: 'LCC Sales Platform',
+    target: '2nd LCC Platform FWA 체결 · Atlas 5/6 포함 2건 매각 완료',
+    pct: 0, note: '투자자 Outreach 착수 예정 · Atlas 5/6 FERC 승인 대기 중'
+  },
+  {
+    id: 'kpi5', num: 5, weight: 12.5,
+    bu: '개발',
+    title: 'Monetization of Legacy Assets',
+    target: 'Laguna BV 100%+ 매각 · Astoria COD 예산 내 달성 · Total JV Exit 전략 수립',
+    pct: 0, note: 'Laguna DD 진행 중(~4/10) · Astoria Settlement 완료 · Total JV TTE·Lotus 협의 중'
+  },
+  {
+    id: 'kpi6', num: 6, weight: 12.5,
+    bu: '리테일',
+    title: 'LSB Portfolio Growth',
+    target: 'Controllable Asset 100MW · Annual Usage 3,202GWh · Gross Margin 15.2%',
+    metric: { label: '현황', actual: 'CA 0MW · 339GWh · GM 13.1%', plan: '100MW · 3,202GWh · 15.2%' },
+    pct: 32, note: 'Controllable Asset 0MW · Usage 339GWh · Gross Margin 13.1%'
+  },
+  {
+    id: 'kpi7', num: 7, weight: 5.0,
+    bu: '스페인',
+    title: 'Spain Retail Business Growth',
+    target: '전력/가스 공급 659GWh · 매출이익 €14.4M',
+    metric: { label: '현황', actual: '67GWh · €1.4M', plan: '659GWh · €14.4M' },
+    pct: 10, note: '전력/가스 67GWh 공급 · 매출이익 €1.4M'
+  },
+  {
+    id: 'kpi8', num: 8, weight: 10.0,
+    bu: '재무',
+    title: 'OCF 재무목표',
+    target: '연간 OCF $626.3M',
+    metric: { label: 'OCF 누적', actual: '-$49M', plan: '$626.3M' },
+    pct: 0, note: 'Jan-Feb 누적 OCF -$49M · 상반기 캐시아웃 구간'
+  }
+];
+
+// localStorage에서 KPI 데이터 로드/저장
+function loadKPIData() {
+  try {
+    const saved = JSON.parse(localStorage.getItem('heuh_kpi_data') || 'null');
+    if (saved && saved.items) {
+      saved.items.forEach(s => {
+        const item = KPI_ITEMS.find(k => k.id === s.id);
+        if (item) { item.pct = s.pct; item.note = s.note; }
+      });
+      return saved.month || '2026년 3월';
+    }
+  } catch(e) {}
+  return '2026년 3월';
+}
+
+function saveKPIData() {
+  const month = document.getElementById('kpi-edit-month').value.trim() || '2026년 3월';
+  KPI_ITEMS.forEach(item => {
+    const pctEl = document.getElementById('kpi-input-pct-' + item.id);
+    const noteEl = document.getElementById('kpi-input-note-' + item.id);
+    if (pctEl) item.pct = Math.min(100, Math.max(0, parseInt(pctEl.value) || 0));
+    if (noteEl) item.note = noteEl.value;
+  });
+  localStorage.setItem('heuh_kpi_data', JSON.stringify({
+    month, items: KPI_ITEMS.map(k => ({ id: k.id, pct: k.pct, note: k.note }))
+  }));
+  closeKPIEdit();
+  renderKPIPage();
+}
+
+function calcTotalKPI() {
+  const totalWeight = KPI_ITEMS.reduce((a, k) => a + k.weight, 0);
+  const weighted = KPI_ITEMS.reduce((a, k) => a + (k.pct * k.weight / 100), 0);
+  return Math.round(weighted / totalWeight * 100);
+}
+
+function getPctColor(pct) {
+  if (pct >= 80) return 'var(--green)';
+  if (pct >= 50) return 'var(--amber)';
+  return 'var(--red)';
+}
+
+function getPctBarColor(pct) {
+  if (pct >= 80) return 'linear-gradient(90deg,#0d7a4e,#1DB97A)';
+  if (pct >= 50) return 'linear-gradient(90deg,#b36a00,#E8961F)';
+  return 'linear-gradient(90deg,#8b0000,#F05252)';
+}
+
+const BU_COLORS = {
+  'DC/Gas': 'rgba(91,76,240,.15)',
+  '개발': 'rgba(74,140,247,.1)',
+  '리테일': 'rgba(16,185,129,.1)',
+  '스페인': 'rgba(232,150,31,.1)',
+  '재무': 'rgba(240,82,82,.1)'
+};
+
+function renderKPIPage() {
+  const month = loadKPIData();
+  const el = document.getElementById('kpi-updated-at');
+  if (el) el.textContent = '기준: ' + month;
+
+  const total = calcTotalKPI();
+  const barEl = document.getElementById('kpi-bar-total');
+  const pctEl = document.getElementById('kpi-pct-total');
+  const overallEl = document.getElementById('kpi-overall');
+  if (barEl) barEl.style.width = total + '%';
+  if (pctEl) { pctEl.textContent = total + '%'; pctEl.style.color = getPctColor(total); }
+  if (overallEl) overallEl.textContent = total + '%';
+
+  const list = document.getElementById('kpi-list');
+  if (!list) return;
+
+  list.innerHTML = KPI_ITEMS.map(item => `
+    <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--r-lg);padding:16px 18px;margin-bottom:10px">
+      <div style="display:flex;align-items:flex-start;gap:12px;margin-bottom:10px">
+        <div style="background:${BU_COLORS[item.bu]||'rgba(74,140,247,.1)'};border-radius:6px;padding:3px 8px;font-size:10px;font-weight:700;color:var(--t2);white-space:nowrap;flex-shrink:0">${item.bu}</div>
+        <div style="flex:1">
+          <div style="font-size:13px;font-weight:700;color:var(--t1)">#${item.num} ${item.title}</div>
+          <div style="font-size:10px;color:var(--t3);margin-top:2px">비중 ${item.weight}%</div>
+        </div>
+        <div style="font-size:20px;font-weight:800;color:${getPctColor(item.pct)};font-variant-numeric:tabular-nums;min-width:48px;text-align:right">${item.pct}%</div>
+      </div>
+      <div style="height:6px;background:var(--surface3);border-radius:3px;overflow:hidden;margin-bottom:10px">
+        <div style="height:100%;border-radius:3px;background:${getPctBarColor(item.pct)};transition:width .6s ease;width:${item.pct}%"></div>
+      </div>
+      ${item.metric ? `
+      <div style="display:flex;gap:6px;margin-bottom:8px;font-size:11px">
+        <span style="color:var(--t3)">${item.metric.label}:</span>
+        <span style="color:var(--t1);font-weight:600">${item.metric.actual}</span>
+        <span style="color:var(--t3)">/ 목표</span>
+        <span style="color:var(--t3)">${item.metric.plan}</span>
+      </div>` : ''}
+      <div style="font-size:11px;color:var(--t3);line-height:1.5">${item.note}</div>
+    </div>
+  `).join('');
+}
+
+function openKPIEdit() {
+  const month = loadKPIData();
+  document.getElementById('kpi-edit-month').value = month;
+  const fields = document.getElementById('kpi-edit-fields');
+  fields.innerHTML = KPI_ITEMS.map(item => `
+    <div style="border:1px solid var(--border);border-radius:var(--r-md);padding:12px 14px;margin-bottom:10px">
+      <div style="font-size:12px;font-weight:700;color:var(--t1);margin-bottom:8px">#${item.num} ${item.title} <span style="color:var(--t3);font-weight:400">(비중 ${item.weight}%)</span></div>
+      <div style="display:flex;gap:10px;align-items:center;margin-bottom:8px">
+        <label style="font-size:11px;color:var(--t3);white-space:nowrap">완료율 (%)</label>
+        <input id="kpi-input-pct-${item.id}" type="number" min="0" max="100" value="${item.pct}"
+          style="width:80px;padding:6px 10px;background:var(--surface2);border:1px solid var(--border2);border-radius:var(--r-md);color:var(--t1);font-size:13px;font-family:var(--font)">
+      </div>
+      <label style="font-size:11px;color:var(--t3);display:block;margin-bottom:4px">현황 메모</label>
+      <textarea id="kpi-input-note-${item.id}" rows="2"
+        style="width:100%;padding:7px 10px;background:var(--surface2);border:1px solid var(--border2);border-radius:var(--r-md);color:var(--t1);font-size:12px;font-family:var(--font);resize:vertical;box-sizing:border-box">${item.note}</textarea>
+    </div>
+  `).join('');
+  document.getElementById('kpi-edit-modal').style.display = 'flex';
+}
+
+function closeKPIEdit() {
+  document.getElementById('kpi-edit-modal').style.display = 'none';
+}
+
 </script>
 
 </body>
