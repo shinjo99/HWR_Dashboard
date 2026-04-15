@@ -1325,7 +1325,7 @@ input:focus,textarea:focus,select:focus{outline:none;border-color:var(--border3)
           📎 엑셀 업로드
           <input type="file" id="retail-excel-input" accept=".xlsx,.xls,.csv" style="display:none">
         </label>
-        <button onclick="closeAllPages()" class="page-back-btn">← HEUH Dashboard</button>
+        <button onclick="goBackToDev()" class="page-back-btn">← HEUH Dashboard</button>
       </div>
     </div>
 
@@ -1418,6 +1418,37 @@ input:focus,textarea:focus,select:focus{outline:none;border-color:var(--border3)
       </div>
       <button class="page-back-btn" onclick="closeAllPages()">← HEUH Dashboard</button>
     </div>
+
+    <!-- BU 탭 -->
+    <div style="display:flex;gap:4px;margin-bottom:20px;border-bottom:1px solid var(--border);padding-bottom:0">
+      <button class="fin-bu-tab active" data-finbu="heuh" onclick="switchFinBU('heuh')"
+        style="padding:7px 16px;font-size:12px;font-weight:600;cursor:pointer;font-family:var(--font);background:none;border:none;border-bottom:2px solid var(--blue);color:var(--t1);margin-bottom:-1px">
+        HEUH 통합
+      </button>
+      <button class="fin-bu-tab" data-finbu="dev" onclick="switchFinBU('dev')"
+        style="padding:7px 16px;font-size:12px;font-weight:600;cursor:pointer;font-family:var(--font);background:none;border:none;border-bottom:2px solid transparent;color:var(--t3);margin-bottom:-1px">
+        개발
+      </button>
+      <button class="fin-bu-tab" data-finbu="retail" onclick="switchFinBU('retail')"
+        style="padding:7px 16px;font-size:12px;font-weight:600;cursor:pointer;font-family:var(--font);background:none;border:none;border-bottom:2px solid transparent;color:var(--t3);margin-bottom:-1px">
+        리테일
+      </button>
+      <button class="fin-bu-tab" data-finbu="material" onclick="switchFinBU('material')"
+        style="padding:7px 16px;font-size:12px;font-weight:600;cursor:pointer;font-family:var(--font);background:none;border:none;border-bottom:2px solid transparent;color:var(--t3);margin-bottom:-1px">
+        소재
+      </button>
+      <button class="fin-bu-tab" data-finbu="dc" onclick="switchFinBU('dc')"
+        style="padding:7px 16px;font-size:12px;font-weight:600;cursor:pointer;font-family:var(--font);background:none;border:none;border-bottom:2px solid transparent;color:var(--t3);margin-bottom:-1px">
+        Data Center
+      </button>
+      <button class="fin-bu-tab" data-finbu="gas" onclick="switchFinBU('gas')"
+        style="padding:7px 16px;font-size:12px;font-weight:600;cursor:pointer;font-family:var(--font);background:none;border:none;border-bottom:2px solid transparent;color:var(--t3);margin-bottom:-1px">
+        Gas
+      </button>
+    </div>
+
+    <!-- HEUH 통합 / 개발 콘텐츠 -->
+    <div id="fin-bu-main">
     <!-- 서브 탭 + 기간 선택 + 통화 -->
     <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:20px;flex-wrap:wrap">
       <div style="display:flex;gap:6px">
@@ -1482,6 +1513,33 @@ input:focus,textarea:focus,select:focus{outline:none;border-color:var(--border3)
         <canvas id="fin-cash-canvas" height="120"></canvas>
       </div>
       <div id="fin-cf-table-wrap"></div>
+    </div>
+
+    </div><!-- fin-bu-main end -->
+
+    <!-- 리테일 BU 재무 -->
+    <div id="fin-bu-retail" style="display:none">
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:24px">
+        <div class="kpi-card"><div class="kpi-label">YTD Revenue</div><div class="kpi-val" style="color:var(--blue-h)">$58.4M</div><div class="kpi-sub">Plan $319M · ERCOT+PJM</div></div>
+        <div class="kpi-card"><div class="kpi-label">YTD Gross Margin</div><div class="kpi-val" style="color:var(--green)">$8.90M</div><div class="kpi-sub">GM% 15.2% · Target 15.2%</div></div>
+        <div class="kpi-card"><div class="kpi-label">YTD Usage</div><div class="kpi-val" style="color:var(--t1)">521 GWh</div><div class="kpi-sub">Plan 600 GWh</div></div>
+      </div>
+      <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--r-lg);padding:20px;text-align:center">
+        <div style="font-size:13px;color:var(--t2);margin-bottom:12px">Chariot 상세 재무 현황은 리테일 대시보드에서 확인하세요</div>
+        <button onclick="document.querySelectorAll('.bu-tab').forEach(b=>b.classList.remove('active'));document.querySelector('.bu-tab[data-bu=retail]').classList.add('active');state.buFilter='retail';const m=document.querySelector('.main');if(m)m.style.display='none';openPage('retail');renderRetailPage();"
+          style="padding:8px 20px;background:var(--blue-d);color:#fff;border:none;border-radius:var(--r-md);font-size:13px;font-weight:700;cursor:pointer;font-family:var(--font)">
+          ⚡ 리테일 대시보드로 이동
+        </button>
+      </div>
+    </div>
+
+    <!-- 소재/DC/Gas BU — 준비 중 -->
+    <div id="fin-bu-empty" style="display:none">
+      <div class="bu-empty" style="height:300px">
+        <div class="bu-empty-icon">🚧</div>
+        <div class="bu-empty-text" id="fin-bu-empty-name">BU 재무 대시보드 준비 중</div>
+        <div class="bu-empty-sub">Phase 1에서 구축 예정입니다</div>
+      </div>
     </div>
 
   </div>
@@ -5057,6 +5115,46 @@ var FIN_PERIODS = (function() {
     },
   };
 })();
+
+function goBackToDev() {
+  closeAllPages();
+  // 개발 BU 탭 활성화
+  document.querySelectorAll('.bu-tab').forEach(b => b.classList.remove('active'));
+  const devTab = document.querySelector('.bu-tab[data-bu="dev"]');
+  if (devTab) devTab.classList.add('active');
+  state.buFilter = 'dev';
+  // 빈 화면 제거, 메인 표시
+  const empty = document.getElementById('bu-empty-state');
+  if (empty) empty.remove();
+  const mainEl = document.querySelector('.main');
+  if (mainEl) mainEl.style.display = '';
+  renderSidebar(); renderStats(); plotProjects();
+}
+
+function switchFinBU(bu) {
+  // 탭 활성화
+  document.querySelectorAll('.fin-bu-tab').forEach(b => {
+    const isActive = b.dataset.finbu === bu;
+    b.style.color = isActive ? 'var(--t1)' : 'var(--t3)';
+    b.style.borderBottom = isActive ? '2px solid var(--blue)' : '2px solid transparent';
+    b.classList.toggle('active', isActive);
+  });
+
+  const main    = document.getElementById('fin-bu-main');
+  const retail  = document.getElementById('fin-bu-retail');
+  const empty   = document.getElementById('fin-bu-empty');
+
+  const names = { heuh:'HEUH 통합', dev:'개발', retail:'리테일', material:'소재', dc:'Data Center', gas:'Gas' };
+  if (main)   main.style.display = '';
+  if (retail) retail.style.display = 'none';
+  if (empty)  empty.style.display  = 'none';
+  // 제목 업데이트
+  const title = document.getElementById('finance-page-title');
+  const sub   = document.getElementById('finance-page-sub');
+  if (title) title.textContent = '📊 재무 현황 — ' + (names[bu]||bu);
+  if (sub)   sub.textContent   = 'P&L · B/S · C/F';
+  loadAndRenderFinance();
+}
 
 function switchFinPeriod(period) {
   currentFinPeriod = period;
