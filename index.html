@@ -1259,7 +1259,7 @@ input:focus,textarea:focus,select:focus{outline:none;border-color:var(--border3)
       <div class="form-field"><label>개발 성공률 가정 (%)</label><input type="number" id="ppv-success" value="65" step="5" style="padding:8px 10px;font-size:13px"></div>
     </div>
     <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:20px">
-      <button onclick="closePPVSettings()" class="btn-cancel">취소</button>
+      <button onclick="closePPVSettings()" class="btn-cancel">Cancel</button>
       <button onclick="savePPVSettings()" class="btn-save" style="padding:8px 20px">저장</button>
     </div>
   </div>
@@ -1274,7 +1274,7 @@ input:focus,textarea:focus,select:focus{outline:none;border-color:var(--border3)
     </div>
     <div style="display:flex;align-items:center;gap:12px">
       <div style="font-size:11px;color:var(--t3)" id="kpi-updated-at">기준: —</div>
-      <button onclick="openKPIEdit()" style="padding:6px 14px;background:var(--blue-d);color:#fff;border:none;border-radius:var(--r-md);font-size:12px;font-weight:700;cursor:pointer;font-family:var(--font)">✏️ 업데이트</button>
+      <button onclick="openKPIEdit()" style="padding:6px 14px;background:var(--blue-d);color:#fff;border:none;border-radius:var(--r-md);font-size:12px;font-weight:700;cursor:pointer;font-family:var(--font)">✏️ Update Brief</button>
       <button onclick="closeAllPages()" class="page-back-btn">← HEUH Dashboard</button>
     </div>
   </div>
@@ -1305,7 +1305,7 @@ input:focus,textarea:focus,select:focus{outline:none;border-color:var(--border3)
     </div>
     <div id="kpi-edit-fields"></div>
     <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:20px">
-      <button onclick="closeKPIEdit()" style="padding:8px 18px;background:var(--surface2);border:1px solid var(--border2);border-radius:var(--r-md);font-size:13px;color:var(--t2);cursor:pointer;font-family:var(--font)">취소</button>
+      <button onclick="closeKPIEdit()" style="padding:8px 18px;background:var(--surface2);border:1px solid var(--border2);border-radius:var(--r-md);font-size:13px;color:var(--t2);cursor:pointer;font-family:var(--font)">Cancel</button>
       <button onclick="saveKPIData()" style="padding:8px 20px;background:var(--blue-d);color:#fff;border:none;border-radius:var(--r-md);font-size:13px;font-weight:700;cursor:pointer;font-family:var(--font)">저장</button>
     </div>
   </div>
@@ -1317,15 +1317,17 @@ input:focus,textarea:focus,select:focus{outline:none;border-color:var(--border3)
   <div class="page-inner">
     <div class="page-header">
       <div class="page-title-block">
-        <div class="page-title">⚡ Retail (Chariot)</div>
-        <div class="page-subtitle">ERCOT · PJM · 월별 Plan vs Actual</div>
+        <div class="page-title">⚡ Retail Dashboard (Chariot)</div>
+        <div class="page-subtitle" id="retail-page-sub">Daily Operations Brief · Chariot Energy</div>
       </div>
       <div style="display:flex;align-items:center;gap:8px">
-        <button onclick="openRetailInput()" style="padding:6px 14px;background:var(--surface2);border:1px solid var(--border2);border-radius:var(--r-md);font-size:12px;font-weight:600;color:var(--t2);cursor:pointer;font-family:var(--font)">✏️ 실적 입력</button>
-        <label style="padding:6px 14px;background:var(--surface2);border:1px solid var(--border2);border-radius:var(--r-md);font-size:12px;font-weight:600;color:var(--t2);cursor:pointer;font-family:var(--font)">
-          📎 엑셀 업로드
-          <input type="file" id="retail-excel-input" accept=".xlsx,.xls,.csv" style="display:none">
-        </label>
+        <div id="retail-monthly-btns" style="display:none;align-items:center;gap:8px">
+          <button onclick="openRetailInput()" style="padding:6px 14px;background:var(--surface2);border:1px solid var(--border2);border-radius:var(--r-md);font-size:12px;font-weight:600;color:var(--t2);cursor:pointer;font-family:var(--font)">✏️ Enter Actuals</button>
+          <label style="padding:6px 14px;background:var(--surface2);border:1px solid var(--border2);border-radius:var(--r-md);font-size:12px;font-weight:600;color:var(--t2);cursor:pointer;font-family:var(--font)">
+            📎 Upload Excel
+            <input type="file" id="retail-excel-input" accept=".xlsx,.xls,.csv" style="display:none">
+          </label>
+        </div>
         <button onclick="goBackToDev()" class="page-back-btn">← HEUH Dashboard</button>
       </div>
     </div>
@@ -1347,7 +1349,7 @@ input:focus,textarea:focus,select:focus{outline:none;border-color:var(--border3)
         <span style="font-size:11px;color:var(--t3)">$/MWh</span>
       </div>
       <div style="display:flex;align-items:baseline;gap:6px">
-        <span style="font-size:10px;color:var(--t3)">스프레드</span>
+        <span style="font-size:10px;color:var(--t3)">Spread</span>
         <span style="font-size:15px;font-weight:700;font-variant-numeric:tabular-nums" id="ercot-spread">—</span>
         <span style="font-size:11px;color:var(--t3)">$/MWh</span>
       </div>
@@ -1356,16 +1358,127 @@ input:focus,textarea:focus,select:focus{outline:none;border-color:var(--border3)
         <span style="font-size:15px;font-weight:700;color:var(--t2);font-variant-numeric:tabular-nums" id="ercot-gas">—</span>
         <span style="font-size:11px;color:var(--t3)">$/MMBtu</span>
       </div>
-      <div style="margin-left:auto;font-size:10px;color:var(--t3)" id="ercot-updated">업데이트 중...</div>
+      <div style="margin-left:auto;font-size:10px;color:var(--t3)" id="ercot-updated">Updating...</div>
     </div>
 
     <!-- ERCOT / PJM 탭 -->
     <div style="display:flex;gap:6px;margin-bottom:20px">
-      <button class="issue-tab active" data-rtab="ercot" onclick="switchRetailTab('ercot')">🔵 ERCOT</button>
-      <button class="issue-tab" data-rtab="pjm" onclick="switchRetailTab('pjm')">🟣 PJM</button>
+      <button class="issue-tab retail-tab active" data-rtab="morning" onclick="switchRetailTab('morning')">🌅 Morning Brief</button>
+      <button class="issue-tab retail-tab" data-rtab="ercot" onclick="switchRetailTab('ercot')">🔵 ERCOT Monthly</button>
+      <button class="issue-tab retail-tab" data-rtab="pjm" onclick="switchRetailTab('pjm')">🟣 PJM Monthly</button>
     </div>
 
-    <!-- YTD 카드 -->
+    <!-- Morning Brief 섹션 -->
+    <div id="retail-tab-morning" style="display:block">
+
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px">
+        <div>
+          <div style="font-size:18px;font-weight:800;color:var(--t1)" id="mb-date-title">—</div>
+          <div style="font-size:11px;color:var(--t3);margin-top:2px">Morning Operations Brief · Chariot Energy</div>
+        </div>
+        <div style="display:flex;align-items:center;gap:10px">
+          <div id="mb-status-badge" style="display:flex;align-items:center;gap:6px;padding:5px 12px;border-radius:20px;font-size:11px;font-weight:700;background:rgba(16,185,129,.12);border:1px solid rgba(16,185,129,.3);color:var(--green)">
+            <span style="width:6px;height:6px;border-radius:50%;background:var(--green);display:inline-block"></span>
+            <span id="mb-status-text">Normal</span>
+          </div>
+          <button onclick="openMorningInput()" style="padding:8px 18px;background:var(--blue-d);color:#fff;border:none;border-radius:var(--r-md);font-size:13px;font-weight:700;cursor:pointer;font-family:var(--font)">✏️ Update Brief</button>
+        </div>
+      </div>
+
+      <!-- 상단 4카드 -->
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:20px">
+        <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--r-lg);padding:16px">
+          <div style="font-size:10px;font-weight:700;color:var(--t3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px">Net Position</div>
+          <div style="font-size:20px;font-weight:800;font-variant-numeric:tabular-nums" id="mb-net-pos">—</div>
+          <div style="font-size:11px;color:var(--t3);margin-top:4px" id="mb-net-sub">—</div>
+        </div>
+        <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--r-lg);padding:16px">
+          <div style="font-size:10px;font-weight:700;color:var(--t3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px">Yesterday P&L</div>
+          <div style="font-size:20px;font-weight:800;font-variant-numeric:tabular-nums" id="mb-yday-pnl">—</div>
+          <div style="font-size:11px;color:var(--t3);margin-top:4px">Settlement Confirmed</div>
+        </div>
+        <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--r-lg);padding:16px">
+          <div style="font-size:10px;font-weight:700;color:var(--t3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px">MTD P&L</div>
+          <div style="font-size:20px;font-weight:800;font-variant-numeric:tabular-nums" id="mb-mtd-pnl">—</div>
+          <div style="font-size:11px;color:var(--t3);margin-top:4px" id="mb-mtd-sub">—</div>
+        </div>
+        <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--r-lg);padding:16px">
+          <div style="font-size:10px;font-weight:700;color:var(--t3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px">DA Coverage</div>
+          <div style="font-size:20px;font-weight:800;font-variant-numeric:tabular-nums" id="mb-da-cov">—</div>
+          <div style="font-size:11px;color:var(--t3);margin-top:4px">DA Hedging Coverage</div>
+        </div>
+      </div>
+
+      <!-- 포지션 + 헷징 -->
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px">
+        <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--r-lg);padding:18px">
+          <div style="font-size:11px;font-weight:700;color:var(--t3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:14px">⚡ Position Summary</div>
+          <div style="display:flex;flex-direction:column;gap:8px">
+            <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 12px;background:rgba(16,185,129,.08);border:1px solid rgba(16,185,129,.2);border-radius:var(--r-md)">
+              <div><div style="font-size:10px;color:var(--t3);font-weight:600">LONG — Owned Assets</div>
+              <div style="font-size:11px;color:var(--t2);margin-top:2px">Oberon 1B · TB2 BESS · Ector SCGT</div></div>
+              <div style="text-align:right"><div style="font-size:18px;font-weight:800;color:var(--green)" id="mb-long-mw">—</div><div style="font-size:10px;color:var(--t3)">MW</div></div>
+            </div>
+            <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 12px;background:rgba(239,68,68,.08);border:1px solid rgba(239,68,68,.2);border-radius:var(--r-md)">
+              <div><div style="font-size:10px;color:var(--t3);font-weight:600">SHORT — Customer Demand</div>
+              <div style="font-size:11px;color:var(--t2);margin-top:2px">Res · SME · C&I Combined</div></div>
+              <div style="text-align:right"><div style="font-size:18px;font-weight:800;color:var(--red)" id="mb-short-mw">—</div><div style="font-size:10px;color:var(--t3)">MW</div></div>
+            </div>
+            <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 12px;background:var(--surface2);border:1px solid var(--border2);border-radius:var(--r-md)">
+              <div style="font-size:10px;color:var(--t3);font-weight:600" id="mb-net-label">NET POSITION</div>
+              <div style="text-align:right"><div style="font-size:20px;font-weight:800;color:var(--amber)" id="mb-net-mw">—</div><div style="font-size:10px;color:var(--t3)">MW</div></div>
+            </div>
+          </div>
+        </div>
+
+        <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--r-lg);padding:18px">
+          <div style="font-size:11px;font-weight:700;color:var(--t3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:14px">🛡 Hedging Status</div>
+          <div style="display:flex;flex-direction:column;gap:10px">
+            <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 12px;background:var(--surface2);border-radius:var(--r-md)">
+              <span style="font-size:12px;color:var(--t2)">DA Coverage</span>
+              <div style="display:flex;align-items:center;gap:8px">
+                <div style="width:80px;height:6px;background:var(--surface3);border-radius:3px;overflow:hidden"><div id="mb-da-bar" style="height:100%;background:var(--blue);border-radius:3px;width:0%;transition:width .5s"></div></div>
+                <span style="font-size:13px;font-weight:700;color:var(--blue);min-width:36px;text-align:right" id="mb-da-pct">—</span>
+              </div>
+            </div>
+            <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 12px;background:var(--surface2);border-radius:var(--r-md)">
+              <span style="font-size:12px;color:var(--t2)">Gas Hedge</span>
+              <div style="display:flex;align-items:center;gap:8px">
+                <div style="width:80px;height:6px;background:var(--surface3);border-radius:3px;overflow:hidden"><div id="mb-gas-bar" style="height:100%;background:var(--amber);border-radius:3px;width:0%;transition:width .5s"></div></div>
+                <span style="font-size:13px;font-weight:700;color:var(--amber);min-width:36px;text-align:right" id="mb-gas-pct">—</span>
+              </div>
+            </div>
+            <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 12px;background:var(--surface2);border-radius:var(--r-md)">
+              <span style="font-size:12px;color:var(--t2)">RT Exposure</span>
+              <span style="font-size:13px;font-weight:700" id="mb-rt-exp">—</span>
+            </div>
+            <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 12px;background:var(--surface2);border-radius:var(--r-md)">
+              <span style="font-size:12px;color:var(--t2)">Waha Gas</span>
+              <span style="font-size:13px;font-weight:700;color:var(--t1)" id="mb-waha">—</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Daily P&L 차트 -->
+      <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--r-lg);padding:18px;margin-bottom:16px">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
+          <div style="font-size:11px;font-weight:700;color:var(--t3);text-transform:uppercase;letter-spacing:.06em">Daily P&L — This Month</div>
+          <div style="font-size:12px;color:var(--t3)">MTD: <span style="font-weight:700;color:var(--t1)" id="mb-chart-mtd">$0</span></div>
+        </div>
+        <div style="position:relative;height:160px"><canvas id="chart-daily-pnl"></canvas></div>
+      </div>
+
+      <!-- 메모 -->
+      <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--r-lg);padding:16px">
+        <div style="font-size:11px;font-weight:700;color:var(--t3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px">📝 Notes</div>
+        <div style="font-size:13px;color:var(--t2);line-height:1.6;white-space:pre-line" id="mb-memo">—</div>
+      </div>
+
+    </div><!-- retail-tab-morning end -->
+
+    <!-- YTD 카드 (ERCOT/PJM) -->
+    <div id="retail-tab-monthly" style="display:none">
     <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:24px" id="retail-kpi-cards"></div>
 
     <!-- 차트 그리드 -->
@@ -1392,9 +1505,52 @@ input:focus,textarea:focus,select:focus{outline:none;border-color:var(--border3)
     <div id="retail-customer-section" style="background:var(--surface);border:1px solid var(--border);border-radius:var(--r-lg);padding:16px">
       <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px">
         <div style="font-size:11px;font-weight:700;color:var(--t3);text-transform:uppercase;letter-spacing:.06em">Customer Count (CRCE/RCE)</div>
-        <span style="font-size:10px;font-weight:700;padding:2px 8px;border-radius:20px;background:rgba(74,140,247,.15);color:var(--blue-h)">ERCOT + PJM 통합</span>
+        <span style="font-size:10px;font-weight:700;padding:2px 8px;border-radius:20px;background:rgba(74,140,247,.15);color:var(--blue-h)">ERCOT + PJM Combined</span>
       </div>
       <div style="position:relative;height:200px"><canvas id="chart-customers"></canvas></div>
+    </div>
+    </div><!-- retail-tab-monthly end -->
+  </div>
+</div>
+
+<!-- Morning Brief 입력 모달 -->
+<div id="mb-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:900;align-items:center;justify-content:center">
+  <div style="background:var(--surface);border:1px solid var(--border2);border-radius:var(--r-xl);padding:28px;width:560px;max-width:calc(100vw-32px);max-height:85vh;overflow-y:auto">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px">
+      <div><div style="font-size:15px;font-weight:800;color:var(--t1)">🌅 Morning Brief</div>
+      <div style="font-size:11px;color:var(--t3);margin-top:2px" id="mb-modal-date">—</div></div>
+      <button onclick="closeMorningInput()" style="background:none;border:none;color:var(--t2);font-size:18px;cursor:pointer">✕</button>
+    </div>
+    <div style="font-size:11px;font-weight:700;color:var(--t3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px">날짜</div>
+    <input id="mb-i-date" type="date" style="width:100%;padding:8px 10px;background:var(--surface2);border:1px solid var(--border2);border-radius:var(--r-md);color:var(--t1);font-size:13px;font-family:var(--font);box-sizing:border-box;margin-bottom:18px">
+    <div style="font-size:11px;font-weight:700;color:var(--t3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px">⚡ Position (MW)</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:18px">
+      <div><label style="font-size:11px;color:var(--t3);display:block;margin-bottom:4px">Ector SCGT (MW)</label><input id="mb-i-ector" type="number" placeholder="324" style="width:100%;padding:8px 10px;background:var(--surface2);border:1px solid var(--border2);border-radius:var(--r-md);color:var(--t1);font-size:13px;font-family:var(--font);box-sizing:border-box"></div>
+      <div><label style="font-size:11px;color:var(--t3);display:block;margin-bottom:4px">TB2 BESS (MW)</label><input id="mb-i-tb2" type="number" placeholder="50" style="width:100%;padding:8px 10px;background:var(--surface2);border:1px solid var(--border2);border-radius:var(--r-md);color:var(--t1);font-size:13px;font-family:var(--font);box-sizing:border-box"></div>
+      <div><label style="font-size:11px;color:var(--t3);display:block;margin-bottom:4px">Oberon 1B (MW)</label><input id="mb-i-ob1b" type="number" placeholder="30" style="width:100%;padding:8px 10px;background:var(--surface2);border:1px solid var(--border2);border-radius:var(--r-md);color:var(--t1);font-size:13px;font-family:var(--font);box-sizing:border-box"></div>
+      <div><label style="font-size:11px;color:var(--t3);display:block;margin-bottom:4px">Demand — Res (MW)</label><input id="mb-i-sres" type="number" placeholder="800" style="width:100%;padding:8px 10px;background:var(--surface2);border:1px solid var(--border2);border-radius:var(--r-md);color:var(--t1);font-size:13px;font-family:var(--font);box-sizing:border-box"></div>
+      <div><label style="font-size:11px;color:var(--t3);display:block;margin-bottom:4px">Demand — SME (MW)</label><input id="mb-i-ssme" type="number" placeholder="500" style="width:100%;padding:8px 10px;background:var(--surface2);border:1px solid var(--border2);border-radius:var(--r-md);color:var(--t1);font-size:13px;font-family:var(--font);box-sizing:border-box"></div>
+      <div><label style="font-size:11px;color:var(--t3);display:block;margin-bottom:4px">Demand — C&I (MW)</label><input id="mb-i-sci" type="number" placeholder="547" style="width:100%;padding:8px 10px;background:var(--surface2);border:1px solid var(--border2);border-radius:var(--r-md);color:var(--t1);font-size:13px;font-family:var(--font);box-sizing:border-box"></div>
+    </div>
+    <div style="font-size:11px;font-weight:700;color:var(--t3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px">💰 Yesterday P&L ($K)</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:18px">
+      <div><label style="font-size:11px;color:var(--t3);display:block;margin-bottom:4px">Revenue ($K)</label><input id="mb-i-rev" type="number" placeholder="0" style="width:100%;padding:8px 10px;background:var(--surface2);border:1px solid var(--border2);border-radius:var(--r-md);color:var(--t1);font-size:13px;font-family:var(--font);box-sizing:border-box"></div>
+      <div><label style="font-size:11px;color:var(--t3);display:block;margin-bottom:4px">Procurement Cost ($K)</label><input id="mb-i-proc" type="number" placeholder="0" style="width:100%;padding:8px 10px;background:var(--surface2);border:1px solid var(--border2);border-radius:var(--r-md);color:var(--t1);font-size:13px;font-family:var(--font);box-sizing:border-box"></div>
+      <div><label style="font-size:11px;color:var(--t3);display:block;margin-bottom:4px">Long Asset Revenue ($K)</label><input id="mb-i-asset" type="number" placeholder="0" style="width:100%;padding:8px 10px;background:var(--surface2);border:1px solid var(--border2);border-radius:var(--r-md);color:var(--t1);font-size:13px;font-family:var(--font);box-sizing:border-box"></div>
+    </div>
+    <div style="font-size:11px;font-weight:700;color:var(--t3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px">🛡 Hedging</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:18px">
+      <div><label style="font-size:11px;color:var(--t3);display:block;margin-bottom:4px">DA Coverage (%)</label><input id="mb-i-dacov" type="number" min="0" max="100" placeholder="70" style="width:100%;padding:8px 10px;background:var(--surface2);border:1px solid var(--border2);border-radius:var(--r-md);color:var(--t1);font-size:13px;font-family:var(--font);box-sizing:border-box"></div>
+      <div><label style="font-size:11px;color:var(--t3);display:block;margin-bottom:4px">Gas Hedge (%)</label><input id="mb-i-gaspct" type="number" min="0" max="100" placeholder="50" style="width:100%;padding:8px 10px;background:var(--surface2);border:1px solid var(--border2);border-radius:var(--r-md);color:var(--t1);font-size:13px;font-family:var(--font);box-sizing:border-box"></div>
+      <div><label style="font-size:11px;color:var(--t3);display:block;margin-bottom:4px">Waha Gas ($/MMBtu)</label><input id="mb-i-waha" type="number" step="0.01" placeholder="6.48" style="width:100%;padding:8px 10px;background:var(--surface2);border:1px solid var(--border2);border-radius:var(--r-md);color:var(--t1);font-size:13px;font-family:var(--font);box-sizing:border-box"></div>
+    </div>
+    <div style="margin-bottom:20px">
+      <label style="font-size:11px;color:var(--t3);display:block;margin-bottom:4px;text-transform:uppercase;letter-spacing:.06em">📝 Notes</label>
+      <textarea id="mb-i-memo" rows="3" placeholder="Notable events, risks, etc." style="width:100%;padding:8px 10px;background:var(--surface2);border:1px solid var(--border2);border-radius:var(--r-md);color:var(--t1);font-size:12px;font-family:var(--font);box-sizing:border-box;resize:vertical"></textarea>
+    </div>
+    <div style="display:flex;gap:8px;justify-content:flex-end">
+      <button onclick="closeMorningInput()" style="padding:8px 18px;background:var(--surface2);border:1px solid var(--border2);border-radius:var(--r-md);font-size:13px;color:var(--t2);cursor:pointer;font-family:var(--font)">Cancel</button>
+      <button onclick="saveMorningBrief()" style="padding:8px 22px;background:var(--blue-d);color:#fff;border:none;border-radius:var(--r-md);font-size:13px;font-weight:700;cursor:pointer;font-family:var(--font)">저장</button>
     </div>
   </div>
 </div>
@@ -1403,7 +1559,7 @@ input:focus,textarea:focus,select:focus{outline:none;border-color:var(--border3)
 <div id="retail-input-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:800;align-items:center;justify-content:center">
   <div style="background:var(--surface);border:1px solid var(--border2);border-radius:var(--r-xl);padding:28px;width:580px;max-width:calc(100vw-32px);max-height:80vh;overflow-y:auto">
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px">
-      <div style="font-size:15px;font-weight:800;color:var(--t1)" id="retail-input-title">실적 입력</div>
+      <div style="font-size:15px;font-weight:800;color:var(--t1)" id="retail-input-title">Enter Actuals</div>
       <button onclick="closeRetailInput()" style="background:none;border:none;color:var(--t2);font-size:18px;cursor:pointer">✕</button>
     </div>
     <div style="display:flex;gap:8px;margin-bottom:16px">
@@ -1412,10 +1568,10 @@ input:focus,textarea:focus,select:focus{outline:none;border-color:var(--border3)
         <option value="pjm">PJM</option>
       </select>
       <select id="retail-input-month" style="padding:7px 12px;background:var(--surface2);border:1px solid var(--border2);border-radius:var(--r-md);color:var(--t1);font-size:13px;font-family:var(--font)">
-        <option value="0">1월</option><option value="1">2월</option><option value="2">3월</option>
-        <option value="3">4월</option><option value="4">5월</option><option value="5">6월</option>
-        <option value="6">7월</option><option value="7">8월</option><option value="8">9월</option>
-        <option value="9">10월</option><option value="10">11월</option><option value="11">12월</option>
+        <option value="0">Jan</option><option value="1">Feb</option><option value="2">Mar</option>
+        <option value="3">Apr</option><option value="4">May</option><option value="5">Jun</option>
+        <option value="6">Jul</option><option value="7">Aug</option><option value="8">Sep</option>
+        <option value="9">Oct</option><option value="10">Nov</option><option value="11">Dec</option>
       </select>
     </div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px" id="retail-input-fields">
@@ -1433,7 +1589,7 @@ input:focus,textarea:focus,select:focus{outline:none;border-color:var(--border3)
         <input id="ri-customers" type="number" style="width:100%;padding:8px 10px;background:var(--surface2);border:1px solid var(--border2);border-radius:var(--r-md);color:var(--t1);font-size:13px;font-family:var(--font);box-sizing:border-box"></div>
     </div>
     <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:20px">
-      <button onclick="closeRetailInput()" style="padding:8px 18px;background:var(--surface2);border:1px solid var(--border2);border-radius:var(--r-md);font-size:13px;color:var(--t2);cursor:pointer;font-family:var(--font)">취소</button>
+      <button onclick="closeRetailInput()" style="padding:8px 18px;background:var(--surface2);border:1px solid var(--border2);border-radius:var(--r-md);font-size:13px;color:var(--t2);cursor:pointer;font-family:var(--font)">Cancel</button>
       <button onclick="saveRetailInput()" style="padding:8px 20px;background:var(--blue-d);color:#fff;border:none;border-radius:var(--r-md);font-size:13px;font-weight:700;cursor:pointer;font-family:var(--font)">저장</button>
     </div>
   </div>
@@ -1598,7 +1754,7 @@ input:focus,textarea:focus,select:focus{outline:none;border-color:var(--border3)
       <div style="display:flex;flex-direction:column;gap:6px" id="fx-yearly-grid"></div>
     </div>
     <div style="display:flex;gap:8px;justify-content:flex-end">
-      <button onclick="closeFXModal()" style="padding:8px 18px;background:none;border:1px solid var(--border2);border-radius:8px;font-size:13px;cursor:pointer;color:var(--t2);font-family:var(--font)">취소</button>
+      <button onclick="closeFXModal()" style="padding:8px 18px;background:none;border:1px solid var(--border2);border-radius:8px;font-size:13px;cursor:pointer;color:var(--t2);font-family:var(--font)">Cancel</button>
       <button onclick="saveFX()" style="padding:8px 18px;background:var(--blue);color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;font-family:var(--font)">저장</button>
     </div>
   </div>
@@ -2482,7 +2638,7 @@ function renderBudget(body,p,pd){
         <div class="form-field"><label>집행 ($M)</label><input id="nb-actual" type="number" placeholder="0"></div>
       </div>
       <div class="form-actions">
-        <button class="btn-cancel" id="cancel-budget">취소</button>
+        <button class="btn-cancel" id="cancel-budget">Cancel</button>
         <button class="btn-save" id="save-budget">추가</button>
       </div>
     </div>`:''}
@@ -2533,7 +2689,7 @@ function renderDocs(body,p,pd){
       </div>
       <div id="doc-preview" style="font-size:12px;color:var(--t2);margin-bottom:8px"></div>
       <div class="form-actions">
-        <button class="btn-cancel" id="cancel-doc">취소</button>
+        <button class="btn-cancel" id="cancel-doc">Cancel</button>
         <button class="btn-save" id="save-doc">업로드</button>
       </div>
     </div>`:''}
@@ -2653,7 +2809,7 @@ function renderSchedule(body,p,pd){
         <div class="form-field"><label>담당자</label><input id="ms-owner" placeholder="담당자"></div>
       </div>
       <div class="form-actions">
-        <button class="btn-cancel" id="cancel-ms">취소</button>
+        <button class="btn-cancel" id="cancel-ms">Cancel</button>
         <button class="btn-save" id="save-ms">추가</button>
       </div>
     </div>`:''}
@@ -4240,7 +4396,7 @@ async function saveAllIssueData() {
     });
 
     await Promise.all(tasks);
-    showToast('✅ 저장 완료');
+    showToast('✅ Saved');
   } catch(e) {
     showToast('⚠️ 저장 실패: ' + e.message);
   } finally {
@@ -4324,7 +4480,7 @@ function updateErcotUI(da, rt, gas, isFallback = false) {
     if (rtEl.textContent === '—') rtEl.textContent = 'N/A';
     if (spreadEl.textContent === '—') spreadEl.textContent = 'N/A';
     if (dotEl) dotEl.style.background = 'var(--amber)';
-    if (updatedEl) updatedEl.textContent = '데이터 없음 (API 연결 확인 필요)';
+    if (updatedEl) updatedEl.textContent = 'No data (Check API connection)';
     return;
   }
 
@@ -4430,7 +4586,7 @@ let RETAIL_ACTUAL = {
   }
 };
 
-let currentRetailTab = 'ercot';
+let currentRetailTab = 'morning';
 let retailCharts = {};
 
 function loadRetailData() {
@@ -4444,13 +4600,205 @@ function saveRetailData() {
   localStorage.setItem('heuh_retail', JSON.stringify(RETAIL_ACTUAL));
 }
 
+// ══ MORNING BRIEF ════════════════════════════════════════════
+const MB_MONTH_TARGET = 4800; // 월 목표 P&L $K
+let MB_DATA = { date:'', ector:324, tb2:50, ob1b:30, sres:0, ssme:0, sci:0, rev:0, proc:0, asset:0, daCov:0, gasPct:0, waha:0, memo:'', daily:[] };
+
+function loadMB() { try { const s = JSON.parse(localStorage.getItem('heuh_mb')||'null'); if(s) MB_DATA = {...MB_DATA, ...s}; } catch(e) {} }
+function saveMB() { localStorage.setItem('heuh_mb', JSON.stringify(MB_DATA)); }
+
+function fmtK(v) {
+  if (!v && v !== 0) return '—';
+  const n = parseFloat(v), sign = n >= 0 ? '+' : '';
+  if (Math.abs(n) >= 1000) return sign + '$' + (n/1000).toFixed(2) + 'M';
+  return sign + '$' + n.toFixed(0) + 'K';
+}
+
+function renderMorningBrief() {
+  loadMB();
+  const d = MB_DATA;
+
+  // 날짜
+  const dateEl = document.getElementById('mb-date-title');
+  if (dateEl && d.date) {
+    const dt = new Date(d.date + 'T12:00:00');
+    dateEl.textContent = dt.toLocaleDateString('en-US', { weekday:'long', year:'numeric', month:'long', day:'numeric' });
+  }
+
+  // 상태 뱃지 — DA Coverage 기준
+  const badge = document.getElementById('mb-status-badge');
+  const badgeText = document.getElementById('mb-status-text');
+  if (badge && badgeText) {
+    const da = parseFloat(d.daCov) || 0;
+    const rtExpVal = shortT && da ? shortT * (1 - da/100) : 0;
+    let status, color, bg, border;
+    if (!d.rev && !d.sres) {
+      status = 'Not Updated'; color = 'var(--t3)'; bg = 'rgba(255,255,255,.05)'; border = 'rgba(255,255,255,.1)';
+    } else if (da < 50 || rtExpVal > 300) {
+      status = '⚠️ Alert'; color = 'var(--red)'; bg = 'rgba(239,68,68,.12)'; border = 'rgba(239,68,68,.3)';
+    } else if (da < 70 || rtExpVal > 150) {
+      status = 'Caution'; color = 'var(--amber)'; bg = 'rgba(232,150,31,.12)'; border = 'rgba(232,150,31,.3)';
+    } else {
+      status = 'Normal'; color = 'var(--green)'; bg = 'rgba(16,185,129,.12)'; border = 'rgba(16,185,129,.3)';
+    }
+    badgeText.textContent = status;
+    badge.style.color = color;
+    badge.style.background = bg;
+    badge.style.border = '1px solid ' + border;
+    badge.querySelector('span').style.background = color;
+  }
+
+  // 포지션
+  const longT  = (d.ector !== '' ? parseFloat(d.ector)||0 : 324) + (d.tb2 !== '' ? parseFloat(d.tb2)||0 : 50) + (d.ob1b !== '' ? parseFloat(d.ob1b)||0 : 30);
+  const shortT = (parseFloat(d.sres)||0) + (parseFloat(d.ssme)||0) + (parseFloat(d.sci)||0);
+  const net    = shortT - longT;
+  const set = (id, v, color) => { const e = document.getElementById(id); if(e){ e.textContent = v; if(color) e.style.color = color; } };
+
+  set('mb-long-mw',  longT + ' MW', 'var(--green)');
+  set('mb-short-mw', shortT ? shortT + ' MW' : '—', 'var(--red)');
+  set('mb-net-mw',   shortT ? Math.abs(net) + ' MW' : '—', net > 0 ? 'var(--red)' : 'var(--green)');
+  set('mb-net-label', net > 0 ? 'NET SHORT — Market Procurement Needed' : net < 0 ? 'NET LONG — Available to Sell' : 'NET FLAT');
+  set('mb-net-pos',   shortT ? (net > 0 ? 'Short ' : 'Long ') + Math.abs(net) + ' MW' : '—', net > 0 ? 'var(--red)' : 'var(--green)');
+  set('mb-net-sub',   longT ? `Long ${longT}MW · Short ${shortT}MW` : 'Input required');
+
+  // P&L
+  const netPnl = (parseFloat(d.rev)||0) - (parseFloat(d.proc)||0) + (parseFloat(d.asset)||0);
+  set('mb-yday-pnl', (d.rev !== undefined && d.rev !== '') || (d.proc !== undefined && d.proc !== '') || (d.asset !== undefined && d.asset !== '') ? fmtK(netPnl) : '—', netPnl >= 0 ? 'var(--green)' : 'var(--red)');
+
+  // MTD
+  const ym = new Date().toISOString().slice(0,7);
+  const mtd = (d.daily||[]).filter(x => x.date.startsWith(ym)).reduce((s,x) => s + x.pnl, 0);
+  set('mb-mtd-pnl', mtd ? fmtK(mtd) : '—', mtd >= 0 ? 'var(--green)' : 'var(--red)');
+  set('mb-mtd-sub', ym + ' Cumulative');
+
+  // DA Coverage
+  const daEl = document.getElementById('mb-da-cov');
+  if (daEl) { daEl.textContent = d.daCov ? d.daCov + '%' : '—'; daEl.style.color = d.daCov >= 70 ? 'var(--green)' : d.daCov >= 50 ? 'var(--amber)' : 'var(--red)'; }
+
+  // 헷징 바
+  const setBar = (barId, pctId, val, color) => {
+    const bar = document.getElementById(barId); const pct = document.getElementById(pctId);
+    if (bar) bar.style.width = Math.min(100, parseFloat(val)||0) + '%';
+    if (pct) { pct.textContent = val ? val + '%' : '—'; pct.style.color = color; }
+  };
+  setBar('mb-da-bar',  'mb-da-pct',  d.daCov,  'var(--blue)');
+  setBar('mb-gas-bar', 'mb-gas-pct', d.gasPct, 'var(--amber)');
+
+  const rtExp = shortT && d.daCov ? Math.round(shortT * (1 - d.daCov/100)) : null;
+  set('mb-rt-exp', rtExp !== null ? rtExp + ' MW' : '—', rtExp > 200 ? 'var(--red)' : rtExp > 100 ? 'var(--amber)' : 'var(--green)');
+  set('mb-waha', d.waha ? '$' + parseFloat(d.waha).toFixed(2) + '/MMBtu' : '—');
+
+  // 메모
+  set('mb-memo', d.memo || 'No notes entered.');
+
+  // Daily P&L 차트
+  if (typeof Chart === 'undefined') return;
+  const now = new Date(), daysInMonth = new Date(now.getFullYear(), now.getMonth()+1, 0).getDate();
+  const labels = [], vals = [];
+  for (let i = 1; i <= daysInMonth; i++) {
+    const ds = ym + '-' + String(i).padStart(2,'0');
+    labels.push(String(i));
+    const found = (d.daily||[]).find(x => x.date === ds);
+    vals.push(found ? found.pnl : null);
+  }
+  const mtdFinal = vals.filter(v => v !== null).reduce((a,b) => a+b, 0);
+  set('mb-chart-mtd', fmtK(mtdFinal));
+
+  if (retailCharts['dpnl']) retailCharts['dpnl'].destroy();
+  const ctx = document.getElementById('chart-daily-pnl');
+  if (!ctx) return;
+  retailCharts['dpnl'] = new Chart(ctx, {
+    type: 'bar',
+    data: { labels, datasets: [{ data: vals,
+      backgroundColor: vals.map(v => v === null ? 'transparent' : v >= 0 ? 'rgba(16,185,129,.75)' : 'rgba(239,68,68,.75)'),
+      borderColor:     vals.map(v => v === null ? 'transparent' : v >= 0 ? '#10B981' : '#EF4444'),
+      borderWidth: 1, borderRadius: 3 }]
+    },
+    options: { responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { display: false }, tooltip: { callbacks: { label: c => fmtK(c.raw) } } },
+      scales: {
+        x: { ticks: { color:'#8b8a9b', font:{ size:9 } }, grid: { color:'rgba(255,255,255,.04)' } },
+        y: { ticks: { color:'#8b8a9b', font:{ size:10 }, callback: v => '$'+v+'K' }, grid: { color:'rgba(255,255,255,.06)' } }
+      }
+    }
+  });
+}
+
+function openMorningInput() {
+  loadMB();
+  const yest = new Date(); yest.setDate(yest.getDate()-1);
+  document.getElementById('mb-i-date').value   = MB_DATA.date || yest.toISOString().slice(0,10);
+  document.getElementById('mb-i-ector').value  = MB_DATA.ector || '';
+  document.getElementById('mb-i-tb2').value    = MB_DATA.tb2   || '';
+  document.getElementById('mb-i-ob1b').value   = MB_DATA.ob1b  || '';
+  document.getElementById('mb-i-sres').value   = MB_DATA.sres  || '';
+  document.getElementById('mb-i-ssme').value   = MB_DATA.ssme  || '';
+  document.getElementById('mb-i-sci').value    = MB_DATA.sci   || '';
+  document.getElementById('mb-i-rev').value    = MB_DATA.rev   || '';
+  document.getElementById('mb-i-proc').value   = MB_DATA.proc  || '';
+  document.getElementById('mb-i-asset').value  = MB_DATA.asset || '';
+  document.getElementById('mb-i-dacov').value  = MB_DATA.daCov || '';
+  document.getElementById('mb-i-gaspct').value = MB_DATA.gasPct|| '';
+  document.getElementById('mb-i-waha').value   = MB_DATA.waha  || '';
+  document.getElementById('mb-i-memo').value   = MB_DATA.memo  || '';
+  const dl = document.getElementById('mb-modal-date');
+  if (dl) dl.textContent = MB_DATA.date || yest.toISOString().slice(0,10);
+  document.getElementById('mb-modal').style.display = 'flex';
+}
+
+function closeMorningInput() { document.getElementById('mb-modal').style.display = 'none'; }
+
+function saveMorningBrief() {
+  const date = document.getElementById('mb-i-date').value;
+  const raw = id => document.getElementById(id).value.trim();
+  const num = id => raw(id) !== '' ? parseFloat(raw(id)) : '';
+  const netPnl = (parseFloat(raw('mb-i-rev'))||0) - (parseFloat(raw('mb-i-proc'))||0) + (parseFloat(raw('mb-i-asset'))||0);
+  MB_DATA = { ...MB_DATA, date,
+    ector: num('mb-i-ector') !== '' ? num('mb-i-ector') : 324,
+    tb2:   num('mb-i-tb2')   !== '' ? num('mb-i-tb2')   : 50,
+    ob1b:  num('mb-i-ob1b')  !== '' ? num('mb-i-ob1b')  : 30,
+    sres: num('mb-i-sres'), ssme: num('mb-i-ssme'), sci: num('mb-i-sci'),
+    rev:  num('mb-i-rev'),  proc: num('mb-i-proc'), asset: num('mb-i-asset'),
+    daCov: num('mb-i-dacov'), gasPct: num('mb-i-gaspct'), waha: num('mb-i-waha'),
+    memo: raw('mb-i-memo'),
+  };
+  if (date) {
+    const idx = (MB_DATA.daily||[]).findIndex(d => d.date === date);
+    if (idx >= 0) MB_DATA.daily[idx].pnl = netPnl;
+    else { MB_DATA.daily = [...(MB_DATA.daily||[]), {date, pnl: netPnl}]; MB_DATA.daily.sort((a,b) => a.date.localeCompare(b.date)); }
+  }
+  saveMB(); closeMorningInput(); renderMorningBrief(); showToast('✅ Morning Brief Saved');
+}
+
 function switchRetailTab(tab) {
   currentRetailTab = tab;
-  document.querySelectorAll('[data-rtab]').forEach(b => b.classList.toggle('active', b.dataset.rtab === tab));
-  renderRetailPage();
+  // ⚠️ 리테일 페이지 내부 탭만 토글 (보고탭 data-rtab과 충돌 방지)
+  document.querySelectorAll('#page-retail .retail-tab').forEach(b => b.classList.toggle('active', b.dataset.rtab === tab));
+
+  const morningEl = document.getElementById('retail-tab-morning');
+  const monthlyEl = document.getElementById('retail-tab-monthly');
+
+  if (tab === 'morning') {
+    if (morningEl) morningEl.style.display = '';
+    if (monthlyEl) monthlyEl.style.display = 'none';
+    const btns = document.getElementById('retail-monthly-btns');
+    if (btns) btns.style.display = 'none';
+    const sub = document.getElementById('retail-page-sub');
+    if (sub) sub.textContent = 'Morning Operations Brief · Chariot Energy';
+    renderMorningBrief();
+  } else {
+    if (morningEl) morningEl.style.display = 'none';
+    if (monthlyEl) monthlyEl.style.display = '';
+    const btns = document.getElementById('retail-monthly-btns');
+    if (btns) btns.style.display = 'flex';
+    const sub = document.getElementById('retail-page-sub');
+    if (sub) sub.textContent = (tab === 'ercot' ? 'ERCOT' : 'PJM') + ' · Monthly Plan vs Actual';
+    renderRetailPage();
+  }
 }
 
 function renderRetailPage() {
+  if (currentRetailTab === 'morning') { renderMorningBrief(); return; }
   startErcotFeed();
   loadRetailData();
   const plan   = RETAIL_PLAN[currentRetailTab];
@@ -4665,7 +5013,7 @@ function saveRetailInput() {
   saveRetailData();
   closeRetailInput();
   renderRetailPage();
-  showToast('✅ 저장 완료');
+  showToast('✅ Saved');
 }
 
 // 엑셀 업로드 파싱 (SheetJS)
