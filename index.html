@@ -4322,19 +4322,36 @@ function renderRetailPage() {
     }}
   });
 
-  // 2. Gross Margin
+  // 2. Gross Margin — 라인 차트
   mkChart('chart-gm', {
-    type: 'bar',
+    type: 'line',
     data: {
       labels: RETAIL_MONTHS,
       datasets: [
-        { label: 'Plan', data: plan.gm, backgroundColor: planColor, borderColor: planBorder, borderWidth: 1 },
-        { label: 'Actual', data: actual.gm.map(v => v || null), backgroundColor: 'rgba(16,185,129,.7)', borderColor: '#10B981', borderWidth: 1 },
+        { label: 'Plan',
+          data: plan.gm,
+          borderColor: planBorder, backgroundColor: 'transparent',
+          borderDash: [5,4], pointRadius: 4, pointStyle: 'circle', tension: .4 },
+        { label: 'Actual',
+          data: actual.gm.map(v => v || null),
+          borderColor: '#10B981', backgroundColor: 'rgba(16,185,129,.08)',
+          borderWidth: 2.5, pointRadius: 6, pointHoverRadius: 9,
+          tension: .4, fill: true },
       ]
     },
-    options: { ...chartDefaults, scales: { ...chartDefaults.scales,
-      y: { ...chartDefaults.scales.y, ticks: { ...chartDefaults.scales.y.ticks, callback: v => '$'+v+'M' } }
-    }}
+    options: {
+      ...chartDefaults,
+      plugins: {
+        ...chartDefaults.plugins,
+        tooltip: { mode: 'index', intersect: false },
+        datalabels: false,
+      },
+      scales: { ...chartDefaults.scales,
+        y: { ...chartDefaults.scales.y,
+          ticks: { ...chartDefaults.scales.y.ticks, callback: v => '$'+v+'M' }
+        }
+      }
+    }
   });
 
   // 3. GM%
