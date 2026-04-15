@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>HWR Dashboard</title>
+<title>HEUH Dashboard</title>
 <link rel="preconnect" href="https://cdn.jsdelivr.net">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable.min.css">
 <script src="https://cdn.jsdelivr.net/npm/d3@7/dist/d3.min.js" onerror="console.warn('D3 CDN 로딩 실패')"></script>
@@ -858,6 +858,7 @@ input:focus,textarea:focus,select:focus{outline:none;border-color:var(--border3)
       showLoginModal();
     });
   </script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 </head>
 <body>
 
@@ -865,7 +866,7 @@ input:focus,textarea:focus,select:focus{outline:none;border-color:var(--border3)
 <div id="login-modal" style="display:flex;position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:9999;align-items:center;justify-content:center;flex-direction:column">
   <div style="background:var(--surface);border:1px solid var(--border2);border-radius:var(--r-xl);padding:36px;width:360px;max-width:calc(100vw - 40px)">
     <div style="margin-bottom:24px">
-      <div style="font-size:18px;font-weight:800;color:var(--t1);margin-bottom:4px">HWR Dashboard</div>
+      <div style="font-size:18px;font-weight:800;color:var(--t1);margin-bottom:4px">HEUH Dashboard</div>
       <div style="font-size:12px;color:var(--t3)">Hanwha Renewables USA</div>
     </div>
     <div style="display:flex;flex-direction:column;gap:10px;margin-bottom:16px">
@@ -887,9 +888,9 @@ input:focus,textarea:focus,select:focus{outline:none;border-color:var(--border3)
   <div class="topbar">
     <!-- 브랜드 -->
     <div class="tb-brand">
-      <div class="tb-logo-mark">HWR</div>
+      <div class="tb-logo-mark">HEUH</div>
       <div>
-        <div class="tb-title">HWR Dashboard</div>
+        <div class="tb-title">HEUH Dashboard</div>
         <div class="tb-sub">Hanwha Renewables USA</div>
       </div>
     </div>
@@ -957,7 +958,7 @@ input:focus,textarea:focus,select:focus{outline:none;border-color:var(--border3)
       <svg id="map-svg"></svg>
       <div class="map-legend">
         <div class="legend-title">포트폴리오</div>
-        <div class="legend-row"><span style="width:10px;height:10px;border-radius:50%;background:var(--hwr);display:inline-block"></span> HWR</div>
+        <div class="legend-row"><span style="width:10px;height:10px;border-radius:50%;background:var(--hwr);display:inline-block"></span> HEUH</div>
         <div class="legend-row"><span style="width:10px;height:10px;border-radius:50%;background:var(--qcells);display:inline-block"></span> Q-cells</div>
         <div class="legend-title" style="margin-top:8px">유형</div>
         <div class="legend-row"><span style="width:10px;height:10px;border-radius:50%;background:#fff;display:inline-block;opacity:.7"></span> PV</div>
@@ -991,7 +992,7 @@ input:focus,textarea:focus,select:focus{outline:none;border-color:var(--border3)
         <div class="page-title" id="issues-page-title">🔥 핵심 이슈</div>
         <div class="page-subtitle" id="issues-page-sub">매각현황 · PPA · Atlas Milestone</div>
       </div>
-      <button id="close-issues" class="page-back-btn" onclick="closeAllPages()">← HWR Dashboard</button>
+      <button id="close-issues" class="page-back-btn" onclick="closeAllPages()">← HEUH Dashboard</button>
     </div>
     <div class="sub-tabs" id="issues-tabs" style="margin-bottom:22px">
       <button class="issue-tab active" data-tab="divestment" onclick="switchIssueTab('divestment')">💰 매각현황</button>
@@ -1034,7 +1035,7 @@ input:focus,textarea:focus,select:focus{outline:none;border-color:var(--border3)
         <div class="page-title" id="report-page-title">📋 보고</div>
         <div class="page-subtitle" id="report-page-sub">주간·월간·전략·투자심의·품의·기타</div>
       </div>
-      <button class="page-back-btn" onclick="closeAllPages()">← HWR Dashboard</button>
+      <button class="page-back-btn" onclick="closeAllPages()">← HEUH Dashboard</button>
     </div>
     <!-- 서브 탭 -->
     <div style="display:flex;gap:6px;margin-bottom:24px;flex-wrap:wrap" id="report-tabs">
@@ -1146,7 +1147,7 @@ input:focus,textarea:focus,select:focus{outline:none;border-color:var(--border3)
       <div style="display:flex;gap:8px;align-items:center">
         <button onclick="takeSnapshot()" style="padding:7px 14px;background:var(--green-sub);border:1px solid rgba(16,185,129,.25);border-radius:var(--r-md);font-size:12px;font-weight:600;color:var(--green);cursor:pointer;font-family:var(--font)">📸 스냅샷</button>
         <button onclick="openPPVSettings()" style="padding:7px 14px;background:var(--surface2);border:1px solid var(--border2);border-radius:var(--r-md);font-size:12px;font-weight:600;color:var(--t2);cursor:pointer;font-family:var(--font)">⚙ 가정치</button>
-        <button class="page-back-btn" onclick="closeAllPages()">← HWR Dashboard</button>
+        <button class="page-back-btn" onclick="closeAllPages()">← HEUH Dashboard</button>
       </div>
     </div>
 
@@ -1221,7 +1222,7 @@ input:focus,textarea:focus,select:focus{outline:none;border-color:var(--border3)
         <div class="page-title" id="finance-page-title">📊 재무 현황</div>
         <div class="page-subtitle" id="finance-page-sub">P&L · B/S · C/F</div>
       </div>
-      <button class="page-back-btn" onclick="closeAllPages()">← HWR Dashboard</button>
+      <button class="page-back-btn" onclick="closeAllPages()">← HEUH Dashboard</button>
     </div>
     <!-- 서브 탭 + 기간 선택 + 통화 -->
     <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:20px;flex-wrap:wrap">
@@ -1348,6 +1349,13 @@ input:focus,textarea:focus,select:focus{outline:none;border-color:var(--border3)
       위 버튼으로 빠르게 시작하거나 질문을 입력하세요.
       </div>
     </div>
+  </div>
+  <div id="ai-upload-bar" style="padding:8px 12px;border-top:1px solid var(--border)">
+    <label for="ai-file-input" id="ai-file-label" style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:11px;color:var(--t3);padding:6px 10px;background:var(--surface2);border:1px dashed var(--border2);border-radius:8px;transition:all .2s">
+      📎 <span id="ai-file-name">보고서 업로드 (PDF · 엑셀 · Word)</span>
+    </label>
+    <input type="file" id="ai-file-input" accept=".pdf,.xlsx,.xls,.csv,.docx,.doc" style="display:none">
+    <button id="ai-parse-btn" style="display:none;margin-top:6px;width:100%;padding:7px;background:linear-gradient(135deg,#5B4CF0,#8B6FE8);color:#fff;border:none;border-radius:8px;font-size:11px;font-weight:700;cursor:pointer">✨ AI 파싱 → 대시보드 업데이트</button>
   </div>
   <div class="ai-input-row">
     <textarea class="ai-input" id="ai-input" placeholder="예: PJM 지역 대용량 ESS 프로젝트 현황은?" rows="1"></textarea>
@@ -2729,12 +2737,165 @@ ${JSON.stringify(financialData, null, 0)}
   }
 }
 
+// ─── 보고서 업로드 → Claude 파싱 → Firebase 저장 ──────────────
+function fileToBase64(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result.split(',')[1]);
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+
+// 엑셀 → 텍스트 변환 (SheetJS)
+async function excelToText(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const wb = XLSX.read(e.target.result, { type: 'array' });
+        let text = '';
+        wb.SheetNames.forEach(name => {
+          const ws = wb.Sheets[name];
+          const csv = XLSX.utils.sheet_to_csv(ws, { blankrows: false });
+          if (csv.trim()) text += `[시트: ${name}]\n${csv}\n\n`;
+        });
+        resolve(text);
+      } catch(err) { reject(err); }
+    };
+    reader.onerror = reject;
+    reader.readAsArrayBuffer(file);
+  });
+}
+
+const PARSE_SYSTEM = `당신은 한화에너지 재무 보고서 파싱 전문가입니다.
+업로드된 문서에서 재무 데이터를 추출하여 반드시 아래 JSON 형식으로만 답변하세요.
+다른 텍스트는 절대 포함하지 마세요. JSON만 반환하세요.
+
+추출할 항목:
+- 연도(year), 월(month) 
+- P&L: rev(매출), gp(매출총이익), ebit(영업이익), ni(당기순이익) - 단위: $M
+- B/S: ta(총자산), liab(총부채), equity(자본) - 단위: $M
+- C/F: cfo(영업활동CF), cfi(투자활동CF), cff(재무활동CF) - 단위: $M
+- 특이사항: notes(문자열)
+
+없는 항목은 null로 표시.
+
+응답 형식:
+{
+  "year": 2026,
+  "month": 3,
+  "pl": {"rev": 124, "gp": 142, "ebit": -3, "ni": -8},
+  "bs": {"ta": 450, "liab": 320, "equity": 130},
+  "cf": {"cfo": null, "cfi": null, "cff": null},
+  "notes": "특이사항 없음"
+}`;
+
+async function parseAndUpdateDashboard(file) {
+  const parseBtn = document.getElementById('ai-parse-btn');
+  parseBtn.disabled = true;
+  parseBtn.textContent = '⏳ 파싱 중...';
+  
+  appendAIMsg('user', `📎 ${file.name} 파일을 분석하여 대시보드를 업데이트합니다.`);
+  const typingEl = appendAIMsg('assistant', '', true);
+
+  try {
+    const ext = file.name.split('.').pop().toLowerCase();
+    let messages;
+
+    if (ext === 'pdf') {
+      const base64 = await fileToBase64(file);
+      messages = [{
+        role: 'user',
+        content: [
+          { type: 'document', source: { type: 'base64', media_type: 'application/pdf', data: base64 } },
+          { type: 'text', text: '이 문서에서 재무 데이터를 추출해주세요. JSON만 반환하세요.' }
+        ]
+      }];
+    } else if (['xlsx','xls','csv'].includes(ext)) {
+      const text = await excelToText(file);
+      messages = [{
+        role: 'user',
+        content: `파일명: ${file.name}\n\n아래는 엑셀 데이터입니다. 재무 수치를 추출해주세요. JSON만 반환하세요.\n\n${text.substring(0, 8000)}`
+      }];
+    } else if (['docx','doc'].includes(ext)) {
+      // Word는 텍스트 추출 시도
+      messages = [{
+        role: 'user',
+        content: `파일명: ${file.name}\n\n이 Word 문서의 재무 데이터를 추출해주세요. JSON만 반환하세요.`
+      }];
+    } else {
+      throw new Error('지원하지 않는 파일 형식입니다. PDF, 엑셀, Word만 지원합니다.');
+    }
+
+    const raw = await callClaude(messages, PARSE_SYSTEM, 1000);
+    
+    // JSON 파싱
+    let parsed;
+    try {
+      const jsonMatch = raw.match(/\{[\s\S]*\}/);
+      parsed = JSON.parse(jsonMatch ? jsonMatch[0] : raw);
+    } catch(e) {
+      throw new Error('JSON 파싱 실패: ' + raw.substring(0, 100));
+    }
+
+    // 확인 메시지 표시
+    typingEl.remove();
+    const confirmMsg = `📊 **파싱 완료** — ${parsed.year}년 ${parsed.month}월 데이터\n\n` +
+      (parsed.pl ? `**P&L**: 매출 $${parsed.pl.rev}M / GP $${parsed.pl.gp}M / EBIT $${parsed.pl.ebit}M / NI $${parsed.pl.ni}M\n` : '') +
+      (parsed.bs ? `**B/S**: 총자산 $${parsed.bs.ta}M / 부채 $${parsed.bs.liab}M / 자본 $${parsed.bs.equity}M\n` : '') +
+      (parsed.notes ? `**비고**: ${parsed.notes}\n` : '') +
+      `\n대시보드에 저장할까요?`;
+    
+    const confirmEl = appendAIMsg('assistant', confirmMsg);
+    
+    // 저장 / 취소 버튼
+    const btnRow = document.createElement('div');
+    btnRow.style.cssText = 'display:flex;gap:8px;margin-top:8px;padding:0 12px 12px';
+    btnRow.innerHTML = `
+      <button id="confirm-save-btn" style="flex:1;padding:7px;background:linear-gradient(135deg,#5B4CF0,#8B6FE8);color:#fff;border:none;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer">✅ 저장</button>
+      <button id="confirm-cancel-btn" style="flex:1;padding:7px;background:var(--surface2);color:var(--t2);border:1px solid var(--border2);border-radius:8px;font-size:12px;cursor:pointer">❌ 취소</button>
+    `;
+    document.getElementById('ai-messages').appendChild(btnRow);
+    document.getElementById('ai-messages').scrollTop = 99999;
+
+    document.getElementById('confirm-save-btn').onclick = async () => {
+      btnRow.remove();
+      try {
+        if (parsed.pl) await apiCall('POST', '/financial/pl', { year: parsed.year, month: parsed.month, data: parsed.pl });
+        if (parsed.bs) await apiCall('POST', '/financial/bs', { year: parsed.year, month: parsed.month, data: parsed.bs });
+        if (parsed.cf) await apiCall('POST', '/financial/cf', { year: parsed.year, month: parsed.month, data: parsed.cf });
+        appendAIMsg('assistant', `✅ **저장 완료!** ${parsed.year}년 ${parsed.month}월 재무 데이터가 대시보드에 반영되었습니다. 재무 탭을 새로고침하면 확인할 수 있습니다.`);
+        // 파일 입력 초기화
+        document.getElementById('ai-file-input').value = '';
+        document.getElementById('ai-file-name').textContent = '보고서 업로드 (PDF · 엑셀 · Word)';
+        document.getElementById('ai-file-label').style.borderColor = '';
+        document.getElementById('ai-parse-btn').style.display = 'none';
+      } catch(e) {
+        appendAIMsg('assistant', '⚠️ 저장 실패: ' + e.message);
+      }
+    };
+
+    document.getElementById('confirm-cancel-btn').onclick = () => {
+      btnRow.remove();
+      appendAIMsg('assistant', '저장을 취소했습니다.');
+    };
+
+  } catch(e) {
+    typingEl.remove();
+    appendAIMsg('assistant', '⚠️ 파싱 오류: ' + e.message);
+  }
+
+  parseBtn.disabled = false;
+  parseBtn.textContent = '✨ AI 파싱 → 대시보드 업데이트';
+}
+
 // Quick actions - 데이터는 sendAIMessage의 system 프롬프트에 포함됨
 const QUICK_PROMPTS = {
-  report: `전체 포트폴리오 경영진 보고용 요약 리포트를 작성해주세요. HWR/Q-cells 포트폴리오별 현황, ISO별 분포, COD 연도별 파이프라인, 총 용량(PV+ESS), 매각 대상 현황을 포함해주세요.`,
+  report: `전체 포트폴리오 경영진 보고용 요약 리포트를 작성해주세요. HEUH(개발/리테일/DC/Gas) 포트폴리오별 현황, ISO별 분포, COD 연도별 파이프라인, 총 용량(PV+ESS), 매각 대상 현황을 포함해주세요.`,
   risk: `현재 포트폴리오의 주요 리스크 요인을 분석해주세요. BLM 프로젝트 리스크, ISO 집중도 리스크, COD 일정 리스크, 매각 성사 불확실성, Atlas Milestone 지연 리스크를 구체적 프로젝트명과 함께 분석해주세요.`,
   cod: `COD 연도별 프로젝트 현황을 정리해주세요. 2026년부터 연도별 프로젝트 수, 총 용량(PV+ESS MWac), 주요 프로젝트명을 표 형식으로 보여주세요.`,
-  finance: `포트폴리오 재무 분석을 해주세요. HWR/Q-cells별 총 PV·ESS 용량, 평균 프로젝트 규모, PV vs ESS 비중, Safe Harbor 투자 현황을 분석해주세요.`,
+  finance: `포트폴리오 재무 분석을 해주세요. HEUH BU별 총 PV·ESS 용량, 평균 프로젝트 규모, PV vs ESS 비중, Safe Harbor 투자 현황을 분석해주세요.`,
 };
 
 // ─── AI Document Analysis ─────────────────────────
@@ -2936,6 +3097,25 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('ai-send').onclick = () => sendAIMessage(aiInput.value);
   aiInput.addEventListener('keydown', e => {
     if(e.key==='Enter' && !e.shiftKey){ e.preventDefault(); sendAIMessage(aiInput.value); }
+  });
+
+  // 파일 업로드 이벤트
+  const fileInput = document.getElementById('ai-file-input');
+  const fileLabel = document.getElementById('ai-file-label');
+  const fileName  = document.getElementById('ai-file-name');
+  const parseBtn  = document.getElementById('ai-parse-btn');
+
+  fileInput.addEventListener('change', () => {
+    if (fileInput.files.length > 0) {
+      fileName.textContent = fileInput.files[0].name;
+      fileLabel.style.borderColor = 'rgba(91,76,240,.7)';
+      fileLabel.style.color = 'var(--t1)';
+      parseBtn.style.display = 'block';
+    }
+  });
+
+  parseBtn.addEventListener('click', () => {
+    if (fileInput.files.length > 0) parseAndUpdateDashboard(fileInput.files[0]);
   });
   aiInput.addEventListener('input', () => {
     aiInput.style.height = 'auto';
@@ -3170,7 +3350,7 @@ const LANG = {
     selectPrompt: '프로젝트를 선택하세요',
     overview: '개요', financial: '재무', budget: '예산', docs: '문서', schedule: '일정',
     divestBtn: '💰 매각현황', atlasBtn: '🏔 Atlas', ppaBtn: '⚡ PPA',
-    backBtn: '← HWR Dashboard',
+    backBtn: '← HEUH Dashboard',
     // 지도 범례
     legendPortfolio: '포트폴리오', legendType: '유형',
     // Atlas
@@ -3218,7 +3398,7 @@ const LANG = {
     selectPrompt: 'Select a project',
     overview: 'Overview', financial: 'Financial', budget: 'Budget', docs: 'Documents', schedule: 'Schedule',
     divestBtn: '💰 Divestment', atlasBtn: '🏔 Atlas', ppaBtn: '⚡ PPA',
-    backBtn: '← HWR Dashboard',
+    backBtn: '← HEUH Dashboard',
     // Map legend
     legendPortfolio: 'Portfolio', legendType: 'Type',
     // Atlas
