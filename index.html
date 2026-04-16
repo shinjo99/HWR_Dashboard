@@ -3960,7 +3960,7 @@ async function doNLSearch(query) {
   const prompt = `다음 프로젝트 목록에서 "${query}"에 해당하는 프로젝트들을 찾아주세요.
 
 프로젝트 목록 (id: 이름, 포트폴리오, 주, ISO, COD, 유형, PV MWac, ESS MW, 카테고리):
-${PROJECTS.map(p=>`${p.id}: ${p.name}, ${p.portfolio}, ${p.state}, ${p.iso}, COD${p.cod}, ${p.type}, PV:${p.pv}, ESS:${p.ess}, Cat:${p.cat}`).join('\n')}
+${PROJECTS.map(p=>`${p.id}: ${p.name}, ${p.portfolio}, ${p.state}, ${p.iso}, COD${p.cod}, ${p.type}, PV:${p.pv}, ESS:${p.ess}, Cat:${p.cat}`).join(' | ')}
 
 조건에 맞는 프로젝트의 id만 JSON 배열로 반환하세요. 예: ["h01","h05","p03"]
 JSON 배열만 반환하고 다른 텍스트는 없어야 합니다.`;
@@ -5854,7 +5854,7 @@ async function parseRetailExcel(file) {
         const ws = wb.Sheets[wb.SheetNames[0]];
         const rows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: 0 });
         // Claude API로 파싱
-        const text = rows.map(r => r.join('\t')).join('\n');
+        const text = rows.map(r => r.join('\t')).join(' | ');
         callClaude([{ role: 'user', content: `아래 Chariot KPI 엑셀 데이터에서 ERCOT과 PJM의 Revenue, Gross Margin, Usage(Res/SME/C&I), Customer Count 월별 Actual/Forecast 수치를 추출하세요.\n\n반드시 JSON만 반환:\n{"ercot":{"revenue":[1월,...,12월],"gm":[...],"usageRes":[...],"usageSme":[...],"usageCi":[...],"customers":[...]},"pjm":{...}}\n\n데이터:\n${text.substring(0,6000)}` }],
           `엑셀 데이터 파싱 전문가. JSON만 반환. 없는 달은 0으로.`, 1500)
           .then(raw => {
@@ -8794,102 +8794,73 @@ function valDrawChart(detail) {
   html += '</div>';
 
   // ── CF 자동 해석
-  html += valInterpretCF(detail, vals);
-
   chartSec.innerHTML = html;
+
+  // AI 분석 비동기 실행 (차트 먼저 표시 후 분석 결과 주입)
+  valInterpretCF(detail, vals).then(function(interpretHtml) {
+    if (interpretHtml) {
+      chartSec.innerHTML += interpretHtml;
+    }
+  });
 }
 
-function valInterpretCF(detail, vals) {
+async function valInterpretCF(detail, vals) {
   if (!detail || !vals || detail.length === 0) return '';
 
-  // 주요 지표 추출
-  var maxVal = Math.max.apply(null, vals);
-  var minVal = Math.min.apply(null, vals);
-  var maxYr  = detail[vals.indexOf(maxVal)];
-  var minYr  = detail[vals.indexOf(minVal)];
+  // 로딩 상태 먼저 반환
+  var loadingHtml = '<div style="margin-top:20px;border-top:1px solid var(--border);padding-top:16px">'
+    + '<div style="font-size:9px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--t3);margin-bottom:12px">CF 패턴 해석</div>'
+    + '<div id="cf-ai-result" style="padding:12px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--r-md);font-size:10px;color:var(--t3)">⏳ AI 분석 중...</div>'
+    + '</div>';
 
-  // DS 종료 연도 감지 (전년 대비 CF가 크게 증가하는 시점)
-  var dsEndYr = null;
-  for (var i = 1; i < vals.length; i++) {
-    if (vals[i] > vals[i-1] * 3 && vals[i] > 0 && vals[i-1] >= 0) {
-      dsEndYr = detail[i].yr;
-      break;
-    }
-  }
+  // CF 데이터를 AI에게 전달할 구조체 생성
+  var cfTable = detail.map(function(d, i) {
+    return 'Y' + d.yr + ': Sponsor CF $' + (vals[i]/1000).toFixed(1) + 'M'
+      + ' | EBITDA $' + (d.ebitda/1000).toFixed(1) + 'M'
+      + ' | DS $' + (d.ds/1000).toFixed(1) + 'M'
+      + (d.aug > 0 ? ' | BESS 증설 -$' + (d.aug/1000).toFixed(1) + 'M' : '');
+  }).join(' | ');
 
-  // 엔진 데이터 기반 지표
-  var totalInflow = vals.filter(function(v){return v>0;}).reduce(function(a,b){return a+b;},0);
-  var augYrs = detail.filter(function(d){return d.aug>0;}).map(function(d){return 'Y'+d.yr;});
+  var projName = (document.getElementById('val-proj-select') || {}).value || '프로젝트';
 
-  var insights = [];
+  var prompt = '미국 태양광+BESS PF(프로젝트 파이낸스) 전문가로서 아래 연도별 Sponsor Cash Flow를 분석해줘.\n\n' + '프로젝트: ' + projName + '\n\n' + cfTable + '\n\n' + '다음 관점으로 3~4개의 핵심 인사이트를 한국어로 작성해줘:\n' + '1. 연도별 CF 패턴의 주요 특징 (MACRS 세금혜택, DS 기간, BESS 증설 등)\n' + '2. CF 급등/급락 시점과 원인\n' + '3. 회수 구조 평가 (Back-loaded 정도, 리스크)\n' + '4. 투자자 관점 핵심 체크포인트\n\n' + '응답 형식 (JSON만 반환, 다른 텍스트 없이):\n' + '{"insights":[{"icon":"아이콘이모지","title":"제목(20자 이내)","body":"설명(100자 이내)"}]}';
 
-  // ① DS 종료 임팩트
-  if (dsEndYr) {
-    var beforeDS = vals.slice(0, dsEndYr-detail[0].yr).filter(function(v){return v>0;});
-    var avgBefore = beforeDS.length ? beforeDS.reduce(function(a,b){return a+b;},0)/beforeDS.length : 0;
-    var dsRatio = avgBefore > 0 ? (maxVal/avgBefore).toFixed(1) : '—';
-    insights.push({
-      icon: '📈',
-      title: 'Y'+dsEndYr+' — 부채 상환 완료',
-      body: 'DS 종료 시점부터 Sponsor CF가 약 '+dsRatio+'배 폭증합니다. '+
-            '이 구간(Y'+dsEndYr+'~Y'+(dsEndYr+1)+')이 핵심 회수 구간입니다.'
+
+  try {
+    var res = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 1000,
+        messages: [{ role: 'user', content: prompt }]
+      })
     });
-  }
+    var data = await res.json();
+    var text = (data.content || []).map(function(b){ return b.text || ''; }).join('');
+    var clean = text.replace(/```json|```/g, '').trim();
+    var parsed = JSON.parse(clean);
+    var insights = parsed.insights || [];
 
-  // ② BESS Toll 만료
-  var tollDropYr = null;
-  for (var j = 1; j < vals.length; j++) {
-    if (vals[j] < vals[j-1] * 0.4 && vals[j-1] > 0) {
-      tollDropYr = detail[j].yr;
-      break;
-    }
-  }
-  if (tollDropYr) {
-    insights.push({
-      icon: '⚡',
-      title: 'Y'+tollDropYr+' — BESS Toll 만료',
-      body: '계약 수익의 핵심인 BESS Toll이 만료되며 CF가 급감합니다. '+
-            'Y'+tollDropYr+' 이후 PPA 단독 수익으로 전환됩니다.'
+    var html = '';
+    insights.forEach(function(ins) {
+      html += '<div style="display:flex;gap:10px;padding:10px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--r-md);margin-bottom:8px">'
+        + '<div style="font-size:16px;flex-shrink:0;margin-top:1px">' + ins.icon + '</div>'
+        + '<div>'
+        + '<div style="font-size:11px;font-weight:700;color:var(--t1);margin-bottom:3px">' + ins.title + '</div>'
+        + '<div style="font-size:10px;color:var(--t3);line-height:1.6">' + ins.body + '</div>'
+        + '</div></div>';
     });
+
+    var el = document.getElementById('cf-ai-result');
+    if (el) el.outerHTML = html;
+
+  } catch(e) {
+    var el2 = document.getElementById('cf-ai-result');
+    if (el2) el2.textContent = '⚠️ AI 분석 실패: ' + e.message;
   }
 
-  // ③ 증자(Augmentation) 영향
-  if (augYrs.length > 0) {
-    insights.push({
-      icon: '🔋',
-      title: 'BESS 증설 — ' + augYrs.join(', '),
-      body: '배터리 증설 비용이 해당 연도 CF를 일시 감소시킵니다. '+
-            'Y'+minYr.yr+'가 최저점($'+(minVal/1000).toFixed(1)+'M)이며 증설 비용 포함입니다.'
-    });
-  }
-
-  // ④ 회수 구조 종합
-  var positive = vals.filter(function(v){return v>0;}).length;
-  var negative = vals.filter(function(v){return v<0;}).length;
-  insights.push({
-    icon: '💡',
-    title: '회수 구조',
-    body: 'Y1~Y10 중 '+positive+'개년 흑자 / '+negative+'개년 적자. '+
-          'DS 기간 동안 연평균 Sponsor CF가 낮게 유지되다가 '+
-          'DS 완료 후 집중 회수되는 Back-loaded 구조입니다.'
-  });
-
-  // HTML 생성
-  var html = '<div style="margin-top:20px;border-top:1px solid var(--border);padding-top:16px">';
-  html += '<div style="font-size:9px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--t3);margin-bottom:12px">CF 패턴 해석</div>';
-  html += '<div style="display:flex;flex-direction:column;gap:8px">';
-
-  insights.forEach(function(ins) {
-    html += '<div style="display:flex;gap:10px;padding:10px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--r-md)">';
-    html += '<div style="font-size:16px;flex-shrink:0;margin-top:1px">'+ins.icon+'</div>';
-    html += '<div>';
-    html += '<div style="font-size:11px;font-weight:700;color:var(--t1);margin-bottom:3px">'+ins.title+'</div>';
-    html += '<div style="font-size:10px;color:var(--t3);line-height:1.6">'+ins.body+'</div>';
-    html += '</div></div>';
-  });
-
-  html += '</div></div>';
-  return html;
+  return loadingHtml;
 }
 
 
