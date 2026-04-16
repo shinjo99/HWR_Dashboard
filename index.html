@@ -64,7 +64,7 @@ body::before{
 /* 세로 구분선 공통 */
 .tb-brand,.tb-search-zone,.tb-filters,.tb-stats{
   border-right:1px solid var(--border);
-}
+min-width:0;overflow:hidden;}
 .tb-nav{
   border-left:1px solid var(--border);
 }
@@ -172,17 +172,17 @@ body::before{
 /* 메인 네비 — 단색 미니멀 */
 .tb-nav{
   display:flex;align-items:stretch;gap:0;
-  padding:0;
+  padding:0;flex-shrink:0;
 }
 .tb-nav-btn{
   display:flex;align-items:center;
-  padding:0 14px;
-  font-size:12px;font-weight:600;color:var(--t2);
+  padding:0 12px;
+  font-size:11px;font-weight:600;color:var(--t2);
   cursor:pointer;font-family:var(--font);
   background:none;border:none;
   border-left:1px solid var(--border);
   border-bottom:2px solid transparent;
-  transition:all var(--ease);letter-spacing:-.1px;
+  transition:all var(--ease);letter-spacing:-.1px;white-space:nowrap;
   position:relative;
 }
 .tb-nav-btn:hover{color:var(--t1);background:var(--surface2)}
@@ -961,6 +961,10 @@ input:focus,textarea:focus,select:focus{outline:none;border-color:var(--border3)
         <strong id="kpi-overall" style="color:var(--t1);font-variant-numeric:tabular-nums">—</strong>
         <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="var(--t3)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="margin-left:2px"><polyline points="9 18 15 12 9 6"/></svg>
       </div>
+      <div class="stat-divider"></div>
+      <button id="btn-valuation" style="padding:0 6px;background:transparent;border:none;cursor:pointer;font-family:var(--font);font-size:11px;font-weight:800;color:var(--amber);letter-spacing:.04em;display:flex;align-items:center;gap:4px;border-bottom:2px solid transparent;height:100%;transition:border-color .15s" onmouseover="this.style.borderBottomColor='var(--amber)'" onmouseout="if(!this.classList.contains('active'))this.style.borderBottomColor='transparent'">
+        Valuation
+      </button>
     </div>
     <!-- 우측 유틸 (USD 제거) -->
     <div class="tb-utils">
@@ -2486,7 +2490,7 @@ function renderDetailPanel() {
     <div class="dp-tabs" id="dp-tabs">
       <button class="dp-tab${state.activeTab==='overview'?' active':''}" data-tab="overview">개요</button>
       <button class="dp-tab${state.activeTab==='permits'?' active':''}" data-tab="permits">${currentLang==='en'?'Permits':'인허가'}</button>
-      <button class="dp-tab${state.activeTab==='financial'?' active':''}" data-tab="financial">재무모델</button>
+
       <button class="dp-tab${state.activeTab==='budget'?' active':''}" data-tab="budget">예산</button>
       <button class="dp-tab${state.activeTab==='docs'?' active':''}" data-tab="docs">${currentLang==='en'?'Approvals':'품의'}</button>
       <button class="dp-tab${state.activeTab==='schedule'?' active':''}" data-tab="schedule">일정</button>
@@ -2514,7 +2518,6 @@ function renderTab() {
   
   if(state.activeTab==='overview') renderOverview(body,p,pd);
   if(state.activeTab==='permits') renderPermits(body,p,pd);
-  if(state.activeTab==='financial') renderFinancial(body,p,pd);
   if(state.activeTab==='budget') renderBudget(body,p,pd);
   if(state.activeTab==='docs') renderDocs(body,p,pd);
   if(state.activeTab==='schedule') renderSchedule(body,p,pd);
@@ -2728,6 +2731,316 @@ function renderFinancial(body,p,pd){
       </div>
     `;
   };
+}
+
+
+// ─── VALUATION TAB ───────────────────────────────────────────
+function renderValuation(body, p, pd) {
+  const safeId = p.id.replace(/[/.]/g,'_');
+  
+  // Load existing data from Firebase
+  let vdata = null;
+  
+  body.innerHTML = `
+    <div style="padding:4px 0">
+
+      <!-- UPLOAD SECTION -->
+      <div class="fin-section">
+        <div class="fin-section-title" style="display:flex;justify-content:space-between;align-items:center">
+          <span>PF Model Upload</span>
+          <span id="vl-badge" style="font-size:9px;padding:2px 8px;border-radius:10px;background:var(--surface3);color:var(--t3)">No data</span>
+        </div>
+        <div style="display:flex;gap:8px;align-items:center;margin-bottom:6px">
+          <label style="flex:1;display:flex;align-items:center;gap:8px;padding:7px 10px;background:var(--surface3);border:1px dashed var(--border2);border-radius:8px;cursor:pointer;font-size:11px;color:var(--t2)">
+            <span>📎</span><span id="vl-fname">Select .xlsb / .xlsx</span>
+            <input type="file" id="vl-file" accept=".xlsb,.xlsx" style="display:none">
+          </label>
+          <button id="vl-btn" style="padding:7px 14px;background:var(--blue-d);color:#fff;border:none;border-radius:8px;font-size:11px;font-weight:700;cursor:pointer;opacity:0.4;pointer-events:none">Upload</button>
+        </div>
+        <div id="vl-status" style="font-size:10px;color:var(--t3)"></div>
+      </div>
+
+      <!-- OUTPUT CARDS -->
+      <div class="fin-section" id="vl-output" style="display:none">
+        <div class="fin-section-title">Results</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;margin-bottom:10px">
+          <div style="background:linear-gradient(135deg,var(--blue-d),#4F46E5);border-radius:8px;padding:10px;text-align:center">
+            <div style="font-size:9px;color:rgba(255,255,255,0.7);margin-bottom:3px">DEV MARGIN</div>
+            <div id="vl-dev-margin" style="font-size:18px;font-weight:800;color:#fff">—</div>
+          </div>
+          <div style="background:linear-gradient(135deg,#0F6E56,#1D9E75);border-radius:8px;padding:10px;text-align:center">
+            <div style="font-size:9px;color:rgba(255,255,255,0.7);margin-bottom:3px">EPC MARGIN</div>
+            <div id="vl-epc-margin" style="font-size:18px;font-weight:800;color:#fff">—</div>
+          </div>
+          <div style="background:linear-gradient(135deg,#854F0B,#BA7517);border-radius:8px;padding:10px;text-align:center">
+            <div style="font-size:9px;color:rgba(255,255,255,0.7);margin-bottom:3px">TOTAL MARGIN</div>
+            <div id="vl-total-margin" style="font-size:18px;font-weight:800;color:#fff">—</div>
+          </div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;margin-bottom:10px">
+          <div class="fin-result-item"><div class="fin-result-label">Levered IRR</div><div id="vl-lirr" class="fin-result-val good">—</div></div>
+          <div class="fin-result-item"><div class="fin-result-label">Unlevered IRR</div><div id="vl-uirr" class="fin-result-val">—</div></div>
+          <div class="fin-result-item"><div class="fin-result-label">Sponsor IRR</div><div id="vl-sirr" class="fin-result-val good">—</div></div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px">
+          <div style="background:var(--surface3);border-radius:6px;padding:8px">
+            <div style="font-size:9px;color:var(--t3);margin-bottom:2px">Total Capex</div>
+            <div id="vl-capex" style="font-size:13px;font-weight:700;color:var(--t1)">—</div>
+          </div>
+          <div style="background:var(--surface3);border-radius:6px;padding:8px">
+            <div style="font-size:9px;color:var(--t3);margin-bottom:2px">Debt</div>
+            <div id="vl-debt" style="font-size:13px;font-weight:700;color:var(--t1)">—</div>
+          </div>
+          <div style="background:var(--surface3);border-radius:6px;padding:8px">
+            <div style="font-size:9px;color:var(--t3);margin-bottom:2px">Tax Equity</div>
+            <div id="vl-te" style="font-size:13px;font-weight:700;color:var(--t1)">—</div>
+          </div>
+          <div style="background:var(--surface3);border-radius:6px;padding:8px">
+            <div style="font-size:9px;color:var(--t3);margin-bottom:2px">Sponsor Equity</div>
+            <div id="vl-eq" style="font-size:13px;font-weight:700;color:var(--t1)">—</div>
+          </div>
+          <div style="background:var(--surface3);border-radius:6px;padding:8px">
+            <div style="font-size:9px;color:var(--t3);margin-bottom:2px">PPA Price</div>
+            <div id="vl-ppa" style="font-size:13px;font-weight:700;color:var(--t1)">—</div>
+          </div>
+          <div style="background:var(--surface3);border-radius:6px;padding:8px">
+            <div style="font-size:9px;color:var(--t3);margin-bottom:2px">BESS Toll</div>
+            <div id="vl-toll" style="font-size:13px;font-weight:700;color:var(--t1)">—</div>
+          </div>
+        </div>
+        <div id="vl-meta" style="font-size:9px;color:var(--t3);margin-top:8px;text-align:right"></div>
+      </div>
+
+      <!-- INPUTS: CAPEX -->
+      <div class="fin-section">
+        <div class="fin-section-title">CAPEX Inputs</div>
+        <div class="fin-grid">
+          <div class="fin-field"><label>Module (c/Wp)</label><input id="vi-module" type="number" step="0.1" placeholder="31.5"></div>
+          <div class="fin-field"><label>BOS (c/Wp)</label><input id="vi-bos" type="number" step="0.1" placeholder="42.9"></div>
+          <div class="fin-field"><label>ESS Equipment ($/kWh)</label><input id="vi-ess-equip" type="number" step="1" placeholder="234.5"></div>
+          <div class="fin-field"><label>EPC Contingency (%)</label><input id="vi-epc-cont" type="number" step="0.1" placeholder="8"></div>
+          <div class="fin-field"><label>Owner's Cost (%)</label><input id="vi-owner" type="number" step="0.1" placeholder="3"></div>
+          <div class="fin-field"><label>기타 ($M)</label><input id="vi-capex-etc" type="number" step="0.1" placeholder="0"></div>
+        </div>
+        <div style="margin-top:8px;padding:8px;background:var(--surface3);border-radius:6px;display:flex;justify-content:space-between;align-items:center">
+          <span style="font-size:10px;color:var(--t3)">Total CAPEX (est.)</span>
+          <span id="vi-capex-total" style="font-size:14px;font-weight:700;color:var(--blue-h)">—</span>
+        </div>
+      </div>
+
+      <!-- INPUTS: OPEX -->
+      <div class="fin-section">
+        <div class="fin-section-title">OPEX Inputs (Annual)</div>
+        <div class="fin-grid">
+          <div class="fin-field"><label>PV O&M ($/kW-yr)</label><input id="vi-pv-om" type="number" step="0.1" placeholder="4.5"></div>
+          <div class="fin-field"><label>BESS O&M ($/kW-yr)</label><input id="vi-bess-om" type="number" step="0.1" placeholder="8.6"></div>
+          <div class="fin-field"><label>Insurance ($/kW-yr)</label><input id="vi-ins" type="number" step="0.1" placeholder="5.0"></div>
+          <div class="fin-field"><label>Asset Mgmt ($K/yr)</label><input id="vi-assetmgmt" type="number" step="1" placeholder="150"></div>
+          <div class="fin-field"><label>기타 ($M/yr)</label><input id="vi-opex-etc" type="number" step="0.1" placeholder="0"></div>
+        </div>
+      </div>
+
+      <!-- INPUTS: BESS AUGMENTATION -->
+      <div class="fin-section">
+        <div class="fin-section-title">BESS Augmentation</div>
+        <div class="fin-grid">
+          <div class="fin-field"><label>단가 ($/kWh)</label><input id="vi-aug-price" type="number" step="1" placeholder="150"></div>
+          <div class="fin-field"><label>용량 (MWh)</label><input id="vi-aug-mwh" type="number" step="1" placeholder="796"></div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-top:8px">
+          <div class="fin-field"><label>시점 1 (Year)</label><input id="vi-aug-y1" type="number" step="1" placeholder="4"></div>
+          <div class="fin-field"><label>시점 2 (Year)</label><input id="vi-aug-y2" type="number" step="1" placeholder="8"></div>
+          <div class="fin-field"><label>시점 3 (Year)</label><input id="vi-aug-y3" type="number" step="1" placeholder="12"></div>
+        </div>
+      </div>
+
+      <!-- INPUTS: REVENUE -->
+      <div class="fin-section">
+        <div class="fin-section-title">Revenue Structure</div>
+        <div class="fin-grid">
+          <div class="fin-field"><label>PPA Price ($/MWh)</label><input id="vi-ppa-p" type="number" step="0.01" placeholder="68.82"></div>
+          <div class="fin-field"><label>PPA Term (yr)</label><input id="vi-ppa-t" type="number" step="1" placeholder="25"></div>
+          <div class="fin-field"><label>PPA Escalation (%)</label><input id="vi-ppa-esc" type="number" step="0.1" placeholder="0"></div>
+          <div class="fin-field"><label>BESS Toll ($/kW-mo)</label><input id="vi-toll-p" type="number" step="0.01" placeholder="13.68"></div>
+          <div class="fin-field"><label>BESS Toll Term (yr)</label><input id="vi-toll-t" type="number" step="1" placeholder="20"></div>
+        </div>
+      </div>
+
+      <!-- INPUTS: FINANCING -->
+      <div class="fin-section">
+        <div class="fin-section-title">Financing Structure</div>
+        <div class="fin-grid">
+          <div class="fin-field"><label>Debt Ratio (%)</label><input id="vi-debt-r" type="number" step="1" placeholder="70"></div>
+          <div class="fin-field"><label>Interest Rate (%)</label><input id="vi-int-r" type="number" step="0.1" placeholder="5.5"></div>
+          <div class="fin-field"><label>Loan Term (yr)</label><input id="vi-loan-t" type="number" step="1" placeholder="18"></div>
+          <div class="fin-field"><label>DSCR Target (x)</label><input id="vi-dscr" type="number" step="0.05" placeholder="1.30"></div>
+        </div>
+      </div>
+
+      <!-- INPUTS: TAX EQUITY -->
+      <div class="fin-section">
+        <div class="fin-section-title">Tax Equity Structure</div>
+        <div style="display:flex;gap:8px;margin-bottom:12px">
+          <button id="vi-itc-btn" onclick="vlSetCredit('ITC')" style="flex:1;padding:8px;border:1px solid var(--blue);border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;background:var(--blue-d);color:#fff">ITC</button>
+          <button id="vi-ptc-btn" onclick="vlSetCredit('PTC')" style="flex:1;padding:8px;border:1px solid var(--border2);border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;background:var(--surface3);color:var(--t2)">PTC</button>
+        </div>
+        <div class="fin-grid">
+          <div class="fin-field"><label>ITC Eligibility (%)</label><input id="vi-itc-elig" type="number" step="1" placeholder="97"></div>
+          <div class="fin-field"><label id="vi-credit-label">PTC Rate ($/kWh)</label><input id="vi-credit-val" type="number" step="0.001" placeholder="0.027"></div>
+          <div class="fin-field"><label>Flip Yield (%)</label><input id="vi-flip-y" type="number" step="0.25" placeholder="8.75"></div>
+          <div class="fin-field"><label>Flip Term (yr)</label><input id="vi-flip-t" type="number" step="1" placeholder="7"></div>
+          <div class="fin-field"><label>TE Upfront Fee (%)</label><input id="vi-te-fee" type="number" step="0.1" placeholder="2"></div>
+        </div>
+      </div>
+
+      <!-- CALCULATE BUTTON -->
+      <button id="vl-calc-btn" style="width:100%;padding:12px;background:linear-gradient(135deg,var(--blue-d),#4F46E5);color:#fff;border:none;border-radius:10px;font-size:13px;font-weight:700;cursor:pointer;margin-bottom:10px;font-family:var(--font)">
+        📊 Calculate IRR / Margin
+      </button>
+      <div id="vl-calc-status" style="font-size:11px;color:var(--t3);text-align:center;margin-bottom:10px"></div>
+
+      <!-- VERSION HISTORY -->
+      <div class="fin-section" id="vl-history" style="display:none">
+        <div class="fin-section-title">Version History</div>
+        <div id="vl-history-list"></div>
+      </div>
+
+    </div>
+  `;
+
+  // ── 파일 선택 핸들러
+  document.getElementById('vl-file').onchange = function(){
+    var f=this.files[0]; if(!f) return;
+    document.getElementById('vl-fname').textContent = f.name;
+    var btn=document.getElementById('vl-btn');
+    btn.style.opacity='1'; btn.style.pointerEvents='auto';
+  };
+
+  // ── 업로드 핸들러
+  document.getElementById('vl-btn').onclick = async function(){
+    var file=document.getElementById('vl-file').files[0]; if(!file) return;
+    var st=document.getElementById('vl-status');
+    this.textContent='⏳ Parsing...'; this.disabled=true;
+    st.textContent='Uploading and parsing... (10~30 sec)';
+    try {
+      var token=window._authToken||localStorage.getItem('hwr_token');
+      var form=new FormData();
+      form.append('project_id', safeId);
+      form.append('scenario','');
+      form.append('file', file);
+      var res=await fetch('https://hwr-api-production.up.railway.app/valuation/upload',{
+        method:'POST', headers:{'Authorization':'Bearer '+token}, body:form
+      });
+      var data=await res.json();
+      if(!res.ok) throw new Error(data.detail||'Upload failed');
+      st.textContent='✅ Saved. Loading results...';
+      st.style.color='var(--green)';
+      showSaveToast();
+      vlLoadData(safeId, data.parsed);
+    } catch(e){
+      st.textContent='⚠️ '+e.message; st.style.color='var(--red,#e55)';
+    } finally { this.textContent='Upload'; this.disabled=false; }
+  };
+
+  // ── ITC/PTC 토글
+  window.vlSetCredit = function(type){
+    var itcBtn=document.getElementById('vi-itc-btn');
+    var ptcBtn=document.getElementById('vi-ptc-btn');
+    var lbl=document.getElementById('vi-credit-label');
+    if(type==='ITC'){
+      itcBtn.style.background='var(--blue-d)'; itcBtn.style.color='#fff'; itcBtn.style.borderColor='var(--blue)';
+      ptcBtn.style.background='var(--surface3)'; ptcBtn.style.color='var(--t2)'; ptcBtn.style.borderColor='var(--border2)';
+      lbl.textContent='ITC Rate (%)';
+      document.getElementById('vi-credit-val').placeholder='30';
+    } else {
+      ptcBtn.style.background='var(--blue-d)'; ptcBtn.style.color='#fff'; ptcBtn.style.borderColor='var(--blue)';
+      itcBtn.style.background='var(--surface3)'; itcBtn.style.color='var(--t2)'; itcBtn.style.borderColor='var(--border2)';
+      lbl.textContent='PTC Rate ($/kWh)';
+      document.getElementById('vi-credit-val').placeholder='0.027';
+    }
+  };
+
+  // ── Calculate 버튼 (Phase 2에서 API 연결)
+  document.getElementById('vl-calc-btn').onclick = function(){
+    document.getElementById('vl-calc-status').textContent = '⚙️ Calculation engine coming soon...';
+  };
+
+  // ── Firebase에서 데이터 로드
+  apiCall('GET', '/valuation/'+safeId+'/latest').then(function(data){
+    if(!data||!data.outputs) return;
+    vlLoadData(safeId, {assumptions: data.assumptions, outputs: data.outputs});
+    // Load version history
+    apiCall('GET', '/valuation/'+safeId+'/versions').then(function(vers){
+      if(!vers) return;
+      var keys=Object.keys(vers).sort().reverse();
+      if(keys.length<2) return;
+      var histEl=document.getElementById('vl-history');
+      var listEl=document.getElementById('vl-history-list');
+      if(histEl) histEl.style.display='block';
+      if(listEl) listEl.innerHTML=keys.map(function(k){
+        var v=vers[k];
+        return '<div style="display:flex;justify-content:space-between;align-items:center;padding:7px 0;border-bottom:1px solid var(--border)">'+
+          '<div><div style="font-size:11px;color:var(--t1);font-weight:600">'+(v.filename||k)+'</div>'+
+          '<div style="font-size:10px;color:var(--t3)">'+(v.uploaded_at||'').substring(0,16)+' · '+(v.uploaded_by||'')+'</div></div>'+
+          '<div style="font-size:12px;font-weight:700;color:var(--green)">'+(v.outputs&&v.outputs.levered_irr?(v.outputs.levered_irr*100).toFixed(2)+'%':'—')+'</div>'+
+        '</div>';
+      }).join('');
+    }).catch(function(){});
+  }).catch(function(){});
+}
+
+// ── Valuation 데이터 UI 반영
+function vlLoadData(safeId, parsed){
+  var a=parsed.assumptions||{};
+  var o=parsed.outputs||{};
+
+  // Show output section
+  var outEl=document.getElementById('vl-output');
+  if(outEl) outEl.style.display='block';
+
+  // Badge
+  var badge=document.getElementById('vl-badge');
+  if(badge){ badge.textContent='✓ Loaded'; badge.style.background='var(--green-sub)'; badge.style.color='var(--green)'; }
+
+  // Margin cards
+  function fmt(v){ return v?'$'+(v/1000).toFixed(1)+'M':'—'; }
+  function fmtPct(v){ return v?(v*100).toFixed(2)+'%':'—'; }
+
+  var dm=document.getElementById('vl-dev-margin');
+  var em=document.getElementById('vl-epc-margin');
+  var tm=document.getElementById('vl-total-margin');
+  if(dm) dm.textContent = o.dev_margin?'$'+(o.dev_margin/1000).toFixed(1)+'M':'—';
+  if(em) em.textContent = o.total_margin&&o.dev_margin?'$'+((o.total_margin-o.dev_margin)/1000).toFixed(1)+'M':'—';
+  if(tm) tm.textContent = o.total_margin?'$'+(o.total_margin/1000).toFixed(1)+'M':'—';
+
+  // IRR
+  var li=document.getElementById('vl-lirr'); if(li) li.textContent=fmtPct(o.levered_irr);
+  var ui=document.getElementById('vl-uirr'); if(ui) ui.textContent=fmtPct(o.unlevered_irr);
+  var si=document.getElementById('vl-sirr'); if(si) si.textContent=fmtPct(o.sponsor_irr_contract);
+
+  // Capital structure
+  var cap=document.getElementById('vl-capex'); if(cap) cap.textContent=fmt(o.capex_total);
+  var dbt=document.getElementById('vl-debt'); if(dbt) dbt.textContent=fmt(o.debt);
+  var te=document.getElementById('vl-te'); if(te) te.textContent=fmt(o.tax_equity);
+  var eq=document.getElementById('vl-eq'); if(eq) eq.textContent=fmt(o.sponsor_equity);
+  var ppa=document.getElementById('vl-ppa'); if(ppa) ppa.textContent=o.ppa_price?'$'+o.ppa_price+'/MWh':'—';
+  var toll=document.getElementById('vl-toll'); if(toll) toll.textContent=o.bess_toll&&o.bess_toll>0?'$'+o.bess_toll+'/kW-mo':'—';
+
+  // Fill inputs from assumptions
+  function setVal(id, val){ var el=document.getElementById(id); if(el&&val!=null) el.value=val; }
+  setVal('vi-ppa-p', a.ppa_price||o.ppa_price);
+  setVal('vi-ppa-t', a.ppa_term||o.ppa_term);
+  setVal('vi-toll-p', a.bess_toll||o.bess_toll);
+  setVal('vi-toll-t', a.bess_toll_term||o.bess_toll_term);
+  setVal('vi-flip-y', a.flip_yield?a.flip_yield*100:8.75);
+  setVal('vi-flip-t', a.flip_term||7);
+  setVal('vi-te-fee', a.te_upfront_fee?a.te_upfront_fee*100:2);
+  setVal('vi-itc-elig', a.itc_eligibility?a.itc_eligibility*100:97);
+  setVal('vi-pv-om', a.pv_om_covered||4.5);
+  setVal('vi-bess-om', a.bess_mw&&a.pv_mwac?8.6:8.6);
+  setVal('vi-assetmgmt', a.asset_mgmt_sm||150);
+  setVal('vi-dscr', a.dscr_p50||1.30);
+  setVal('vi-aug-y1', 4); setVal('vi-aug-y2', 8); setVal('vi-aug-y3', 12);
 }
 
 // ─── BUDGET ──────────────────────────────────────────────────
@@ -3700,10 +4013,13 @@ renderFinancial = function(body, p, pd) {
     '<div id="val-status" style="margin-top:6px;font-size:11px;color:var(--t3)"></div>';
   body.appendChild(valDiv);
 
-  // 2. 기존 renderFinancial 실행
+  // 2. 기존 renderFinancial 실행 (body.innerHTML= 으로 덮어씀)
   _origRenderFinancial2(body, p, pd);
 
-  // 3. Firebase에서 기존 Valuation 로드
+  // 3. 기존 콘텐츠 앞에 Valuation 섹션 삽입 (prepend)
+  body.insertBefore(valDiv, body.firstChild);
+
+  // 4. Firebase에서 기존 Valuation 로드
   apiCall('GET', '/valuation/' + safeId + '/latest').then(function(data) {
     if (!data || !data.outputs) return;
     var o = data.outputs;
@@ -4222,7 +4538,7 @@ function applyLang() {
   const br = document.getElementById('btn-report');
   const bf = document.getElementById('btn-finance');
   if (bi) bi.textContent = currentLang==='ko' ? '핵심이슈' : 'Issues';
-  if (br) br.textContent = currentLang==='ko' ? '보고' : 'Reports';
+  if (br) br.textContent = currentLang==='ko' ? '보고' : 'Report';
   if (bf) bf.textContent = currentLang==='ko' ? '재무' : 'Finance';
 
   // 보고 페이지 제목
@@ -4983,7 +5299,7 @@ function showToast(msg) {
   setTimeout(() => t.remove(), 2000);
 }
 
-const PAGES = ['issues','finance','report','ppv','kpi','retail'];
+const PAGES = ['issues','finance','report','ppv','kpi','retail','valuation'];
 
 // ══════════════════════════════════════════════════════════════
 // RETAIL (CHARIOT) 대시보드
@@ -6636,7 +6952,7 @@ function updateFinKPIs() {
 
 
 function setActiveNav(id) {
-  ['btn-issues','btn-finance','btn-report','btn-ppv','btn-kpi'].forEach(b => {
+  ['btn-issues','btn-finance','btn-report','btn-ppv','btn-kpi','btn-valuation'].forEach(b => {
     const el = document.getElementById(b);
     if (el) el.classList.toggle('active', b === id);
   });
@@ -7316,7 +7632,2128 @@ function closeKPIEdit() {
   document.getElementById('kpi-edit-modal').style.display = 'none';
 }
 
+
+// ══ VALUATION PAGE ══════════════════════════════════════════════
+function openValuationPage() {
+  openPage('valuation');
+  setActiveNav('btn-valuation');
+  initValuationPage();
+}
+
+function initValuationPage() {
+  // Populate project dropdown
+  var sel = document.getElementById('val-proj-select');
+  if (!sel) return;
+  if (sel.options.length === 0) {
+    PROJECTS.forEach(function(p) {
+      var opt = document.createElement('option');
+      opt.value = p.id;
+      opt.textContent = p.name + ' (' + p.state + ', ' + p.iso + ')';
+      sel.appendChild(opt);
+    });
+    sel.onchange = function() { valLoadProject(this.value); };
+  }
+  // Load first project or currently selected
+  if (sel.value) valLoadProject(sel.value);
+}
+
+function valLoadProject(projectId) {
+  var safeId = projectId.replace(/[/.]/g, '_');
+  // Reset outputs
+  ['vo-dev-margin','vo-epc-margin','vo-total-margin','vo-lirr','vo-uirr','vo-sirr',
+   'vo-capex','vo-debt','vo-te','vo-eq','vo-ppa','vo-toll','vo-specs','vo-dates'].forEach(function(id) {
+    var el = document.getElementById(id); if (el) el.textContent = '—';
+  });
+  var badge = document.getElementById('val-data-badge');
+  if (badge) { badge.textContent = 'Loading...'; badge.style.background='var(--surface3)'; badge.style.color='var(--t3)'; }
+
+  // Load from Firebase
+  apiCall('GET', '/valuation/' + safeId + '/latest').then(function(data) {
+    if (!data || !data.outputs) {
+      if (badge) { badge.textContent = 'No data — upload model'; }
+      return;
+    }
+    valDisplayData(data, safeId);
+  }).catch(function() {
+    if (badge) badge.textContent = 'Load failed';
+  });
+}
+
+function valDisplayData(data, safeId) {
+  var a = data.assumptions || {};
+  var o = data.outputs || {};
+  var badge = document.getElementById('val-data-badge');
+
+  if (badge) {
+    badge.textContent = '✓ ' + (data.uploaded_at||'').substring(0,10);
+    badge.style.background = 'var(--green-sub)';
+    badge.style.color = 'var(--green)';
+  }
+
+  function fmt(v) { return v ? '$' + (v/1000).toFixed(1) + 'M' : '—'; }
+  function fmtPct(v) { return v ? (v*100).toFixed(2) + '%' : '—'; }
+
+  // Margins
+  var devM = o.dev_margin || 0;
+  var totalM = o.total_margin || 0;
+  var epcM = totalM - devM;
+  var el;
+  el = document.getElementById('vo-dev-margin'); if(el) el.textContent = devM ? '$'+(devM/1000).toFixed(1)+'M' : '—';
+  el = document.getElementById('vo-epc-margin'); if(el) el.textContent = epcM > 0 ? '$'+(epcM/1000).toFixed(1)+'M' : '—';
+  el = document.getElementById('vo-total-margin'); if(el) el.textContent = totalM ? '$'+(totalM/1000).toFixed(1)+'M' : '—';
+  el = document.getElementById('vo-margin-cwp'); if(el && o.margin_cwp) el.textContent = o.margin_cwp.toFixed(2)+' c/Wp';
+
+  // IRRs
+  el = document.getElementById('vo-lirr'); if(el) el.textContent = fmtPct(o.levered_irr);
+  el = document.getElementById('vo-uirr'); if(el) el.textContent = fmtPct(o.unlevered_irr);
+  el = document.getElementById('vo-sirr'); if(el) el.textContent = fmtPct(o.sponsor_irr_contract);
+
+  // Capital structure
+  el = document.getElementById('vo-capex'); if(el) el.textContent = fmt(o.capex_total);
+  el = document.getElementById('vo-debt');  if(el) el.textContent = fmt(o.debt);
+  el = document.getElementById('vo-te');    if(el) el.textContent = fmt(o.tax_equity);
+  el = document.getElementById('vo-eq');    if(el) el.textContent = fmt(o.sponsor_equity);
+
+  // Deal terms
+  el = document.getElementById('vo-ppa');
+  if(el) el.textContent = o.ppa_price ? '$'+o.ppa_price+'/MWh · '+o.ppa_term+'yr' : '—';
+  el = document.getElementById('vo-toll');
+  if(el) el.textContent = o.bess_toll&&o.bess_toll>0 ? '$'+o.bess_toll+'/kW-mo · '+o.bess_toll_term+'yr' : '—';
+  el = document.getElementById('vo-specs');
+  if(el) el.textContent = (a.pv_mwac||'—')+' MWac PV · '+(a.bess_mw||'—')+' MW '+(a.bess_duration||'');
+  el = document.getElementById('vo-dates');
+  if(el) el.textContent = 'COD '+(a.cod||'—')+' · NTP '+(a.ntp||'—');
+
+  // Meta
+  el = document.getElementById('vo-meta');
+  if(el) el.textContent = (data.filename||'') + ' · ' + (data.scenario||'') + ' · ' + (data.uploaded_by||'');
+
+  // Fill inputs
+  function setV(id, v) { var e=document.getElementById(id); if(e&&v!=null&&v!==undefined) e.value=v; }
+  // Revenue
+  setV('vi-ppa-p', o.ppa_price || a.ppa_price);
+  setV('vi-ppa-t', o.ppa_term  || a.ppa_term);
+  setV('vi-ppa-esc', a.ppa_escalation ? a.ppa_escalation*100 : 0);
+  setV('vi-toll-p', o.bess_toll_y1_effective || o.bess_toll || a.bess_toll);
+  setV('vi-toll-t', o.bess_toll_term || a.bess_toll_term);
+  // Project specs
+  setV('vi-pv-mwac', a.pv_mwac);
+  setV('vi-dev-kwac', a.dev_fee_kwac || 200);
+  // OPEX
+  setV('vi-pv-om', a.pv_om_covered || a.pv_om);
+  setV('vi-bess-om', a.bess_om || 8.6);
+  setV('vi-assetmgmt', a.asset_mgmt_sm || 150);
+  // Financing — derive debt ratio from outputs
+  if (o.capex_total && o.debt) setV('vi-debt-r', Math.round(o.debt/o.capex_total*1000)/10);
+  // Tax Equity
+  setV('vi-flip-y', a.flip_yield ? a.flip_yield*100 : 8.75);
+  setV('vi-flip-t', a.flip_term || 7);
+  setV('vi-te-fee', a.te_upfront_fee ? a.te_upfront_fee*100 : 2);
+  setV('vi-itc-elig', a.itc_eligibility ? a.itc_eligibility*100 : 97);
+  setV('vi-credit-val', a.itc_rate ? a.itc_rate*100 : 30);
+  setV('vi-dscr', a.dscr_p50 || 1.30);
+  setV('vi-aug-y1', 4); setV('vi-aug-y2', 8); setV('vi-aug-y3', 12);
+
+  // Version history
+  apiCall('GET', '/valuation/'+safeId+'/versions').then(function(vers) {
+    if (!vers) return;
+    var keys = Object.keys(vers).sort().reverse();
+    if (!keys.length) return;
+    var lst = document.getElementById('vo-history-list');
+    var emp = document.getElementById('val-empty-hist');
+    if (emp) emp.style.display = 'none';
+    if (lst) {
+      lst.style.display = 'block';
+      lst.innerHTML = keys.slice(0,10).map(function(k) {
+        var v = vers[k];
+        var irr = v.outputs && v.outputs.sponsor_irr ? (v.outputs.sponsor_irr*100).toFixed(2)+'%' : '—';
+        var margin = v.outputs && v.outputs.dev_margin ? '$'+(v.outputs.dev_margin/1000).toFixed(1)+'M' : '—';
+        var date = (v.uploaded_at||k).substring(0,16).replace('T',' ');
+        var name = v.filename || k;
+        var scenario = v.scenario && v.scenario!==name ? ' · '+v.scenario : '';
+        var reason = v.reason || '';
+        var approver = v.approver || '';
+        var reasonHtml = reason
+          ? '<div style="margin-top:5px;padding:4px 8px;background:rgba(255,255,255,.03);border-left:2px solid var(--border2);border-radius:0 4px 4px 0;font-size:10px;color:var(--t3);">📝 '+reason+(approver?' · ✅ '+approver:'')+'</div>'
+          : (approver ? '<div style="font-size:10px;color:var(--green);margin-top:2px">✅ '+approver+'</div>' : '');
+        var vEnc = encodeURIComponent(JSON.stringify(v));
+        return '<div class="val-history-item" onclick="valLoadVersionEncoded(this)" data-ver="'+vEnc+'" data-sid="'+safeId+'" title="클릭하여 로드" style="flex-direction:column;align-items:stretch">' +
+          '<div style="display:flex;justify-content:space-between;align-items:flex-start">' +
+            '<div style="flex:1;min-width:0">' +
+              '<div class="val-hi-name">'+name+scenario+'</div>' +
+              '<div class="val-hi-meta">'+date+' · '+(v.uploaded_by||'')+'</div>' +
+            '</div>' +
+            '<div style="text-align:right;flex-shrink:0;margin-left:12px">' +
+              '<div class="val-hi-irr">'+irr+'</div>' +
+              '<div style="font-size:10px;color:var(--t3)">Dev '+margin+'</div>' +
+            '</div>' +
+          '</div>' +
+          reasonHtml +
+        '</div>';
+      }).join('');
+    }
+  }).catch(function(){});
+}
+
+function valLoadVersionEncoded(el) {
+  var v = JSON.parse(decodeURIComponent(el.dataset.ver));
+  var safeId = el.dataset.sid;
+  valLoadVersion(v, safeId);
+}
+function valLoadVersion(v, safeId) {
+  valDisplayData(v, safeId);
+  // Switch to overview tab
+  var btn = document.querySelector('.val-tab');
+  if (btn) valSwitchTab('overview', btn);
+  var msg = document.getElementById('val-calc-msg');
+  if (msg) { msg.textContent = '✓ 버전 로드됨: ' + (v.filename||''); msg.style.color='var(--green)'; }
+}
+
+// ── IC Summary PDF Export
+function valExportPDF() {
+  var doc = document.getElementById('val-print-doc');
+  if (!doc) return;
+
+  function txt(id) { var el=document.getElementById(id); return el?el.textContent.trim():'—'; }
+  var projSel = document.getElementById('val-proj-select');
+  var projName = projSel ? (projSel.options[projSel.selectedIndex]||{}).text||'—' : '—';
+
+  var devMargin = txt('vo-dev-margin'), lirr = txt('vo-lirr'), uirr = txt('vo-uirr');
+  var sirr = txt('vo-sirr'), capex = txt('vo-capex');
+  var debt = txt('vo-debt'), debtPct = txt('vo-debt-pct');
+  var te = txt('vo-te'), tePct = txt('vo-te-pct');
+  var eq = txt('vo-eq'), eqPct = txt('vo-eq-pct');
+  var ppa = txt('vo-ppa'), toll = txt('vo-toll'), specs = txt('vo-specs');
+  var dates = txt('vo-dates'), debtTerms = txt('vo-debt-terms');
+  var flip = txt('vo-flip'), credit = txt('vo-credit-display');
+  var ebitdaY1 = txt('vo-ebitda-y1'), ebitdaYield = txt('vo-ebitda-yield');
+
+  var debtN = parseFloat((debt||'').replace(/[^0-9.]/g,''))||0;
+  var teN   = parseFloat((te||'').replace(/[^0-9.]/g,''))||0;
+  var eqN   = parseFloat((eq||'').replace(/[^0-9.]/g,''))||0;
+  var total = debtN+teN+eqN||1;
+  var dW = (debtN/total*100).toFixed(1)+'%';
+  var tW = (teN/total*100).toFixed(1)+'%';
+  var eW = (eqN/total*100).toFixed(1)+'%';
+
+  function scVal(sc, idx) {
+    var el = document.getElementById('val-sc-result-'+sc);
+    if (!el || el.style.display==='none') return '—';
+    var rows = el.querySelectorAll('.val-sc-kpi-row');
+    return rows[idx] ? rows[idx].querySelector('.val-sc-kpi-val').textContent.trim() : '—';
+  }
+  function scInp(sc, field) {
+    var card = document.getElementById('val-sc-'+sc);
+    if (!card) return '—';
+    var inp = card.querySelector('.val-sc-inp[data-field="'+field+'"]');
+    if (!inp || !inp.value) return '—';
+    var v = parseFloat(inp.value);
+    if (field==='ppa_price') return '$'+v.toFixed(2);
+    if (field==='capex_total_override') return '$'+v.toFixed(0)+'M';
+    return v+'%';
+  }
+  var hasSc = document.getElementById('val-sc-result-base') &&
+              document.getElementById('val-sc-result-base').style.display !== 'none';
+
+  var histItems = document.querySelectorAll('#vo-history-list .val-history-item');
+  var histRows = []; var shown = 0;
+  histItems.forEach(function(item) {
+    if (shown>=3) return;
+    var name = (item.querySelector('.val-hi-name')||{}).textContent||'';
+    var meta = (item.querySelector('.val-hi-meta')||{}).textContent||'';
+    var rEl = item.querySelector('[style*="border-left"]');
+    var reason = rEl ? rEl.textContent.replace('📝','').trim() : '';
+    histRows.push('<tr><td>'+meta.split('·')[0].trim()+'</td><td>'+name+'</td><td class="reason">'+reason+'</td></tr>');
+    shown++;
+  });
+  if (!histRows.length) histRows.push('<tr><td colspan="3" style="color:#94A3B8;font-style:italic">버전 이력 없음</td></tr>');
+
+  var today = new Date().toLocaleDateString('ko-KR',{year:'numeric',month:'2-digit',day:'2-digit'});
+  var prepBy = (window._authUser||{}).email || 'HEUH Team';
+
+  var scHtml = '';
+  if (hasSc) {
+    scHtml = [
+      '<div class="vp-sec-title" style="margin-top:12px">Scenario Analysis</div>',
+      '<table class="vp-sc-table"><thead><tr>',
+      '<th class="lbl">Metric</th><th class="base">BASE</th><th class="up">UPSIDE</th><th class="stress">STRESS</th>',
+      '</tr></thead><tbody>',
+      '<tr class="key"><td class="lbl">PPA ($/MWh)</td>',
+      '<td class="hi" style="color:#1D4ED8">'+scInp('base','ppa_price')+'</td>',
+      '<td class="hi" style="color:#15803D">'+scInp('upside','ppa_price')+'</td>',
+      '<td class="hi" style="color:#DC2626">'+scInp('stress','ppa_price')+'</td></tr>',
+      '<tr><td class="lbl">CAPEX</td>',
+      '<td>'+scInp('base','capex_total_override')+'</td>',
+      '<td>'+scInp('upside','capex_total_override')+'</td>',
+      '<td>'+scInp('stress','capex_total_override')+'</td></tr>',
+      '<tr class="key subtotal"><td class="lbl">Sponsor IRR</td>',
+      '<td class="hi" style="color:#1D4ED8">'+scVal('base',0)+'</td>',
+      '<td class="hi" style="color:#15803D">'+scVal('upside',0)+'</td>',
+      '<td class="hi" style="color:#DC2626">'+scVal('stress',0)+'</td></tr>',
+      '<tr class="subtotal"><td class="lbl">Dev Margin</td>',
+      '<td style="color:#1D4ED8">'+scVal('base',1)+'</td>',
+      '<td style="color:#15803D">'+scVal('upside',1)+'</td>',
+      '<td style="color:#DC2626">'+scVal('stress',1)+'</td></tr>',
+      '</tbody></table>'
+    ].join('');
+  }
+
+  var parts = [
+    '<div class="vp-page">',
+    '<div class="vp-header">',
+    '<div class="vp-header-left">',
+    '<div><div class="vp-logo-block">HEUH</div><div class="vp-doc-type">Hanwha Energy USA Holdings</div></div>',
+    '<div><div style="font-size:9pt;font-weight:700;color:#0A2647;margin-top:2px">Investment Decision Summary</div>',
+    '<div style="font-size:7.5pt;color:#64748B">Project Finance · IRR &amp; Margin Analysis</div></div>',
+    '</div>',
+    '<div class="vp-header-right">',
+    '<div class="vp-proj-name">'+projName+'</div>',
+    '<div class="vp-proj-meta">'+specs+'</div>',
+    '<div class="vp-proj-meta">'+dates+'</div>',
+    '<div class="vp-confidential">Confidential &middot; Not for Distribution</div>',
+    '</div></div>',
+
+    '<div class="vp-sec-title">Key Financial Metrics</div>',
+    '<div class="vp-info-grid">',
+    '<div class="vp-info-cell"><div class="vp-info-lbl">Sponsor IRR</div><div class="vp-info-val" style="color:#15803D">'+sirr+'</div></div>',
+    '<div class="vp-info-cell"><div class="vp-info-lbl">Dev Margin</div><div class="vp-info-val" style="color:#B45309">'+devMargin+'</div></div>',
+    '<div class="vp-info-cell"><div class="vp-info-lbl">EBITDA Yield</div><div class="vp-info-val">'+ebitdaYield+'</div></div>',
+    '<div class="vp-info-cell"><div class="vp-info-lbl">EBITDA Y1</div><div class="vp-info-val">'+ebitdaY1+'</div></div>',
+    '</div>',
+    '<div class="vp-info-grid" style="margin-top:6px">',
+    '<div class="vp-info-cell"><div class="vp-info-lbl">Levered IRR</div><div class="vp-info-val">'+lirr+'</div></div>',
+    '<div class="vp-info-cell"><div class="vp-info-lbl">Unlevered IRR</div><div class="vp-info-val">'+uirr+'</div></div>',
+    '<div class="vp-info-cell"><div class="vp-info-lbl">PPA</div><div class="vp-info-val" style="font-size:8.5pt">'+ppa+'</div></div>',
+    '<div class="vp-info-cell"><div class="vp-info-lbl">BESS Toll</div><div class="vp-info-val" style="font-size:8.5pt">'+toll+'</div></div>',
+    '</div>',
+
+    scHtml,
+
+    '<div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:4px">',
+    '<div>',
+    '<div class="vp-sec-title">Capital Structure</div>',
+    '<div class="vp-cs-wrap">',
+    '<div class="vp-cs-bar">',
+    '<div class="vp-cs-seg-debt" style="width:'+dW+'"><span>Debt '+debt+' ('+debtPct+')</span></div>',
+    '<div class="vp-cs-seg-te"   style="width:'+tW+'"><span>TE '+te+'</span></div>',
+    '<div class="vp-cs-seg-eq"   style="width:'+eW+'"><span>Eq '+eq+'</span></div>',
+    '</div>',
+    '<div class="vp-cs-legend">',
+    '<div class="vp-cs-legend-item"><div class="vp-cs-dot" style="background:#3B82F6"></div><span class="vp-cs-legend-lbl">Debt</span><span class="vp-cs-legend-val">'+debt+'</span></div>',
+    '<div class="vp-cs-legend-item"><div class="vp-cs-dot" style="background:#8B5CF6"></div><span class="vp-cs-legend-lbl">Tax Equity</span><span class="vp-cs-legend-val">'+te+'</span></div>',
+    '<div class="vp-cs-legend-item"><div class="vp-cs-dot" style="background:#F59E0B"></div><span class="vp-cs-legend-lbl">Sponsor Eq</span><span class="vp-cs-legend-val">'+eq+'</span></div>',
+    '</div></div>',
+    '<div class="vp-sec-title" style="margin-top:12px">Key Assumptions</div>',
+    '<div class="vp-assum-grid">',
+    '<div class="vp-assum-item"><span class="vp-assum-lbl">Debt / Interest</span><span class="vp-assum-val">'+debtTerms+'</span></div>',
+    '<div class="vp-assum-item"><span class="vp-assum-lbl">Flip Yield / Term</span><span class="vp-assum-val">'+flip+'</span></div>',
+    '<div class="vp-assum-item"><span class="vp-assum-lbl">Tax Credit</span><span class="vp-assum-val">'+credit+'</span></div>',
+    '</div></div>',
+    '<div>',
+    '<div class="vp-sec-title">변경 이력 (최근 3건)</div>',
+    '<table class="vp-hist-table"><tbody>'+histRows.join('')+'</tbody></table>',
+    '</div></div>',
+
+    '<div class="vp-footer">',
+    '<div class="vp-footer-left">Hanwha Energy USA Holdings &middot; Retail/Development Strategy Team<br>본 문서는 내부 검토용으로 작성되었으며 외부 배포를 금합니다.</div>',
+    '<div class="vp-footer-right">Prepared by: '+prepBy+'<br>Date: '+today+'</div>',
+    '</div></div>'
+  ];
+
+  doc.innerHTML = parts.join('');
+  doc.style.display = 'block';
+  setTimeout(function() {
+    window.print();
+    setTimeout(function(){ doc.style.display='none'; }, 1000);
+  }, 200);
+}
+
+// ── Benchmark: 전체 프로젝트 비교
+var _bmLoaded = false;
+async function valLoadBenchmark() {
+  _bmLoaded = false;
+  var loadEl = document.getElementById('val-bm-loading');
+  var tableEl = document.getElementById('val-bm-table');
+  var statsEl = document.getElementById('val-bm-stats');
+  var chartEl = document.getElementById('val-bm-chart');
+  if(loadEl) loadEl.style.display='flex';
+  if(tableEl) tableEl.style.display='none';
+
+  var token = window._authToken || localStorage.getItem('hwr_token');
+  var currentProjId = (document.getElementById('val-proj-select')||{}).value||'';
+
+  try {
+    var allData = await apiCall('GET', '/valuation');
+    if (!allData) throw new Error('No data');
+
+    var rows = [];
+    Object.keys(allData).forEach(function(pid) {
+      var d = allData[pid];
+      if (!d || !d.outputs) return;
+      var o = d.outputs; var a = d.assumptions||{};
+      // Match project name from PROJECTS array
+      var projName = pid;
+      if (typeof PROJECTS !== 'undefined') {
+        var found = PROJECTS.find(function(p){ return p.id===pid||(p.id||'').replace(/[/.]/g,'_')===pid; });
+        if (found) projName = found.name || pid;
+      }
+      rows.push({
+        pid: pid,
+        name: projName,
+        ppa: o.ppa_price||a.ppa_price||0,
+        ppa_term: o.ppa_term||a.ppa_term||0,
+        bess_toll: o.bess_toll||a.bess_toll||0,
+        capex: (o.capex_total||0)/1000,
+        dev_margin: (o.dev_margin||0)/1000,
+        sponsor_irr: o.sponsor_irr||0,
+        ebitda_yield: o.ebitda_yield||0,
+        sponsor_eq: (o.sponsor_equity||0)/1000,
+        pv_mwac: a.pv_mwac||0,
+        uploaded_at: (d.uploaded_at||'').substring(0,10),
+        filename: d.filename||'',
+        isCurrent: pid === currentProjId || pid === currentProjId.replace(/[/.]/g,'_')
+      });
+    });
+
+    if (!rows.length) {
+      if(loadEl) loadEl.innerHTML='<div class="val-empty-icon">📭</div><div class="val-empty-title">아직 업로드된 Valuation 데이터가 없습니다</div>';
+      return;
+    }
+
+    // Sort by sponsor IRR desc
+    rows.sort(function(a,b){ return b.sponsor_irr - a.sponsor_irr; });
+
+    // Stats
+    var irrs = rows.filter(function(r){return r.sponsor_irr>0;}).map(function(r){return r.sponsor_irr;});
+    var avgIRR = irrs.length ? irrs.reduce(function(a,b){return a+b;},0)/irrs.length : 0;
+    var maxIRR = irrs.length ? Math.max.apply(null,irrs) : 0;
+    var avgPPA = rows.filter(function(r){return r.ppa>0;}).reduce(function(s,r){return s+r.ppa;},0) / (rows.filter(function(r){return r.ppa>0;}).length||1);
+    var avgMargin = rows.filter(function(r){return r.dev_margin>0;}).reduce(function(s,r){return s+r.dev_margin;},0) / (rows.filter(function(r){return r.dev_margin>0;}).length||1);
+
+    if(statsEl) statsEl.innerHTML = [
+      {lbl:'프로젝트 수', val:rows.length+'개', c:'var(--blue-h)'},
+      {lbl:'평균 Sponsor IRR', val:(avgIRR*100).toFixed(2)+'%', c:'var(--green)'},
+      {lbl:'평균 PPA', val:'$'+avgPPA.toFixed(2)+'/MWh', c:'var(--amber)'},
+      {lbl:'평균 Dev Margin', val:'$'+avgMargin.toFixed(1)+'M', c:'var(--purple)'},
+    ].map(function(s){
+      return '<div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--r-lg);padding:12px 14px">' +
+        '<div style="font-size:9px;color:var(--t3);font-weight:700;letter-spacing:.08em;text-transform:uppercase;margin-bottom:6px">'+s.lbl+'</div>'+
+        '<div style="font-size:18px;font-weight:800;color:'+s.c+';font-variant-numeric:tabular-nums">'+s.val+'</div>'+
+      '</div>';
+    }).join('');
+
+    // Mini IRR bar chart
+    if(chartEl && irrs.length) {
+      var maxVal = Math.max(maxIRR*100, 15);
+      chartEl.innerHTML = '<div style="font-size:9px;color:var(--t3);font-weight:700;letter-spacing:.08em;text-transform:uppercase;margin-bottom:8px">Sponsor IRR 분포</div>' +
+        rows.filter(function(r){return r.sponsor_irr>0;}).map(function(r){
+          var pct = (r.sponsor_irr*100/maxVal*100).toFixed(1);
+          var col = r.sponsor_irr>=0.10?'var(--green)':r.sponsor_irr>=0.07?'var(--amber)':'var(--red)';
+          var isCur = r.isCurrent;
+          return '<div style="display:flex;align-items:center;gap:8px;margin-bottom:3px;cursor:pointer" onclick="valLoadBenchmarkProject(this.dataset.pid)" data-pid="'+r.pid+'" title="'+r.name+'">' +
+            '<div style="width:100px;font-size:9px;color:'+(isCur?'var(--t1)':'var(--t3)')+';font-weight:'+(isCur?'700':'400')+';overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+r.name+'</div>'+
+            '<div style="flex:1;height:14px;background:rgba(255,255,255,.04);border-radius:3px;overflow:hidden">'+
+              '<div style="width:'+pct+'%;height:100%;background:'+col+';border-radius:3px;opacity:'+(isCur?'1':'0.7')+';transition:width .4s ease"></div>'+
+            '</div>'+
+            '<div style="width:44px;text-align:right;font-size:10px;font-weight:700;color:'+col+'">'+( r.sponsor_irr*100).toFixed(2)+'%</div>'+
+          '</div>';
+        }).join('');
+    }
+
+    // Table
+    var cols = ['프로젝트','PPA ($/MWh)','PPA Term','BESS Toll','CAPEX ($M)','Dev Margin','Sponsor IRR','EBITDA Yield','업로드일'];
+    var html = '<table style="width:100%;border-collapse:collapse;font-size:11px;font-variant-numeric:tabular-nums">';
+    html += '<thead><tr style="border-bottom:1px solid var(--border)">';
+    cols.forEach(function(col,i){
+      html += '<th style="padding:9px 12px;text-align:'+(i===0?'left':'right')+';font-size:9px;color:var(--t3);font-weight:700;letter-spacing:.06em;background:var(--surface2);white-space:nowrap">'+col+'</th>';
+    });
+    html += '</tr></thead><tbody>';
+
+    rows.forEach(function(r) {
+      var isCur = r.isCurrent;
+      var bg = isCur ? 'background:rgba(37,99,235,.08);' : '';
+      var sirrColor = r.sponsor_irr>=0.10?'var(--green)':r.sponsor_irr>=0.07?'var(--amber)':'var(--red)';
+      html += '<tr style="border-bottom:1px solid rgba(255,255,255,.04);'+bg+'cursor:pointer" onclick="valLoadBenchmarkProject(this.dataset.pid)" data-pid="'+r.pid+'" title="클릭하여 로드">';
+      html += '<td style="padding:8px 12px;font-weight:'+(isCur?'700':'400')+';color:var(--t1)">'+r.name+(isCur?' ◀':'')+'</td>';
+      html += '<td style="padding:8px 12px;text-align:right;color:var(--t2)">'+(r.ppa?'$'+r.ppa.toFixed(2):'—')+'</td>';
+      html += '<td style="padding:8px 12px;text-align:right;color:var(--t2)">'+(r.ppa_term?r.ppa_term+'yr':'—')+'</td>';
+      html += '<td style="padding:8px 12px;text-align:right;color:var(--t2)">'+(r.bess_toll?'$'+r.bess_toll.toFixed(2):'—')+'</td>';
+      html += '<td style="padding:8px 12px;text-align:right;color:var(--t2)">'+(r.capex?'$'+r.capex.toFixed(0)+'M':'—')+'</td>';
+      html += '<td style="padding:8px 12px;text-align:right;font-weight:700;color:var(--amber)">'+(r.dev_margin?'$'+r.dev_margin.toFixed(1)+'M':'—')+'</td>';
+      html += '<td style="padding:8px 12px;text-align:right;font-weight:700;color:'+sirrColor+'">'+(r.sponsor_irr?(r.sponsor_irr*100).toFixed(2)+'%':'—')+'</td>';
+      html += '<td style="padding:8px 12px;text-align:right;color:var(--t2)">'+(r.ebitda_yield?r.ebitda_yield.toFixed(1)+'%':'—')+'</td>';
+      html += '<td style="padding:8px 12px;text-align:right;font-size:10px;color:var(--t3)">'+r.uploaded_at+'</td>';
+      html += '</tr>';
+    });
+
+    // Average row
+    html += '<tr style="border-top:1px solid var(--border2);background:var(--surface2)">';
+    html += '<td style="padding:8px 12px;font-size:9px;font-weight:700;color:var(--t3);text-transform:uppercase;letter-spacing:.06em">Average</td>';
+    html += '<td style="padding:8px 12px;text-align:right;font-weight:600;color:var(--t2)">$'+avgPPA.toFixed(2)+'</td>';
+    html += '<td colspan="3" style="padding:8px 12px"></td>';
+    html += '<td style="padding:8px 12px;text-align:right;font-weight:700;color:var(--amber)">$'+avgMargin.toFixed(1)+'M</td>';
+    html += '<td style="padding:8px 12px;text-align:right;font-weight:700;color:var(--green)">'+(avgIRR*100).toFixed(2)+'%</td>';
+    html += '<td colspan="2"></td></tr>';
+    html += '</tbody></table>';
+    tableEl.innerHTML = html;
+    if(loadEl) loadEl.style.display='none';
+    if(tableEl) tableEl.style.display='block';
+    _bmLoaded = true;
+  } catch(e) {
+    if(loadEl) loadEl.innerHTML='<div class="val-empty-icon">⚠️</div><div class="val-empty-title">로드 실패: '+e.message+'</div>';
+  }
+}
+
+async function valLoadBenchmarkProject(pid) {
+  var safeId = pid.replace(/[/.]/g,'_');
+  // 프로젝트 드롭다운 변경
+  var sel = document.getElementById('val-proj-select');
+  if (sel) {
+    // Find matching option
+    for(var i=0;i<sel.options.length;i++){
+      if(sel.options[i].value===pid||sel.options[i].value.replace(/[/.]/g,'_')===safeId){
+        sel.value=sel.options[i].value; break;
+      }
+    }
+  }
+  // Load latest valuation data
+  try {
+    var data = await apiCall('GET', '/valuation/'+safeId+'/latest');
+    if(data) {
+      valDisplayData(data, safeId);
+      // Switch to overview
+      var overviewBtn = document.querySelector('.val-tab');
+      if(overviewBtn) valSwitchTab('overview', overviewBtn);
+    }
+  } catch(e) { console.error(e); }
+}
+
+// ── Scenario 비교 실행
+function valInitScenarios(baseInputs) {
+  if (!baseInputs) return;
+  // Base = 현재 인풋 그대로
+  var capexM = baseInputs.capex_total_override || (baseInputs.capex_total ? baseInputs.capex_total/1000 : null);
+  function setScenario(prefix, mults) {
+    var card = document.getElementById('val-sc-'+prefix);
+    if (!card) return;
+    var inps = card.querySelectorAll('.val-sc-inp');
+    var defaults = {
+      ppa_price: (baseInputs.ppa_price || 68.82) * (mults.ppa||1),
+      bess_toll: (baseInputs.bess_toll || 14.50) * (mults.toll||1),
+      capex_total_override: capexM ? capexM * (mults.capex||1) : '',
+      debt_ratio: (baseInputs.debt_ratio || 47.6),
+      flip_yield: (baseInputs.flip_yield || 8.75)
+    };
+    inps.forEach(function(inp) {
+      var field = inp.dataset.field;
+      var val = defaults[field];
+      inp.value = val ? parseFloat(val).toFixed(field==='ppa_price'||field==='bess_toll'?2:1) : '';
+    });
+  }
+  setScenario('base',   {ppa:1.0,  toll:1.0,  capex:1.0});
+  setScenario('upside', {ppa:1.05, toll:1.05, capex:0.97});
+  setScenario('stress', {ppa:0.93, toll:0.95, capex:1.04});
+  // Enable run button
+  var btn = document.getElementById('val-run-scenarios-btn');
+  if (btn) { btn.style.opacity='1'; btn.style.pointerEvents='auto'; }
+}
+
+async function valRunScenarios() {
+  var btn = document.getElementById('val-run-scenarios-btn');
+  if (btn) { btn.textContent='⏳ Calculating...'; btn.style.opacity='.6'; btn.style.pointerEvents='none'; }
+
+  var token = window._authToken || localStorage.getItem('hwr_token');
+  var projectId = document.getElementById('val-proj-select') ? document.getElementById('val-proj-select').value : '';
+  var baseInputs = window._valBaseInputs || {};
+
+  var scenarios = ['base','upside','stress'];
+  var promises = scenarios.map(function(sc) {
+    var card = document.getElementById('val-sc-'+sc);
+    var inps = card ? card.querySelectorAll('.val-sc-inp') : [];
+    var override = {};
+    inps.forEach(function(inp) {
+      var v = parseFloat(inp.value);
+      if (!isNaN(v)) override[inp.dataset.field] = v;
+    });
+    var inputs = Object.assign({}, baseInputs, override);
+    return fetch('https://hwr-api-production.up.railway.app/valuation/calculate', {
+      method:'POST',
+      headers:{'Authorization':'Bearer '+token,'Content-Type':'application/json'},
+      body: JSON.stringify({project_id: projectId, inputs: inputs})
+    }).then(function(r){ return r.json(); }).catch(function(){ return {ok:false}; });
+  });
+
+  var results = await Promise.all(promises);
+  var rObjs = results.map(function(res){ return (res.ok && res.result) ? res.result : null; });
+
+  // Show per-card mini results
+  scenarios.forEach(function(sc, i) {
+    var r = rObjs[i]; if (!r) return;
+    var el = document.getElementById('val-sc-result-'+sc);
+    if (!el) return;
+    var sirr = (r.sponsor_irr_contract||r.sponsor_irr||0)*100;
+    var sirrColor = sirr>=10?'var(--green)':sirr>=7?'var(--amber)':'var(--red)';
+    el.style.display = 'block';
+    el.innerHTML =
+      '<div class="val-sc-kpi-row"><span class="val-sc-kpi-lbl">Sponsor IRR</span><span class="val-sc-kpi-val" style="color:'+sirrColor+'">'+sirr.toFixed(2)+'%</span></div>'+
+      '<div class="val-sc-kpi-row"><span class="val-sc-kpi-lbl">Dev Margin</span><span class="val-sc-kpi-val" style="color:var(--amber)">$'+(r.dev_margin/1000).toFixed(1)+'M</span></div>'+
+      '<div class="val-sc-kpi-row"><span class="val-sc-kpi-lbl">EBITDA Yield</span><span class="val-sc-kpi-val">'+r.ebitda_yield.toFixed(1)+'%</span></div>'+
+      '<div class="val-sc-kpi-row"><span class="val-sc-kpi-lbl">Sponsor Equity</span><span class="val-sc-kpi-val">$'+(r.sponsor_equity/1000).toFixed(1)+'M</span></div>';
+  });
+
+  // Show comparison table
+  var tbody = document.getElementById('val-sc-compare-body');
+  var compareDiv = document.getElementById('val-sc-compare');
+  if (tbody && rObjs.some(Boolean)) {
+    var metrics = [
+      {lbl:'Sponsor IRR', fn:function(r){ var v=(r.sponsor_irr_contract||r.sponsor_irr||0)*100; return {txt:v.toFixed(2)+'%', val:v, color:v>=10?'var(--green)':v>=7?'var(--amber)':'var(--red)'}; }},
+      {lbl:'Levered IRR',  fn:function(r){ var v=(r.levered_irr||0)*100; return {txt:v.toFixed(2)+'%',val:v}; }},
+      {lbl:'EBITDA Yield', fn:function(r){ return {txt:r.ebitda_yield.toFixed(1)+'%',val:r.ebitda_yield}; }},
+      {lbl:'Dev Margin',   fn:function(r){ return {txt:'$'+(r.dev_margin/1000).toFixed(1)+'M',val:r.dev_margin}; }},
+      {lbl:'Total CAPEX',  fn:function(r){ return {txt:'$'+(r.capex_total/1000).toFixed(1)+'M',val:r.capex_total}; }},
+      {lbl:'Debt',         fn:function(r){ return {txt:'$'+(r.debt/1000).toFixed(1)+'M',val:r.debt}; }},
+      {lbl:'Tax Equity',   fn:function(r){ return {txt:'$'+((r.te_invest||0)/1000).toFixed(1)+'M',val:r.te_invest||0}; }},
+      {lbl:'Sponsor Equity',fn:function(r){ return {txt:'$'+(r.sponsor_equity/1000).toFixed(1)+'M',val:r.sponsor_equity}; }},
+    ];
+    tbody.innerHTML = metrics.map(function(m) {
+      var cells = rObjs.map(function(r){ return r ? m.fn(r) : {txt:'—',val:0}; });
+      // Highlight best/worst
+      var vals = cells.map(function(c){return c.val||0;});
+      var maxV = Math.max.apply(null,vals); var minV = Math.min.apply(null,vals);
+      var isHigherBetter = ['Sponsor IRR','Levered IRR','EBITDA Yield','Dev Margin'].indexOf(m.lbl)>=0;
+      return '<tr style="border-bottom:1px solid rgba(255,255,255,.04)">' +
+        '<td style="padding:8px 14px;font-size:10px;color:var(--t3);font-weight:600">'+m.lbl+'</td>' +
+        cells.map(function(cell,i){
+          var highlight='';
+          if(rObjs[i]&&vals[i]===maxV&&maxV!==minV) highlight=isHigherBetter?'font-weight:800;':'';
+          if(rObjs[i]&&vals[i]===minV&&maxV!==minV) highlight=isHigherBetter?'':'font-weight:800;';
+          var color = cell.color||'var(--t1)';
+          return '<td style="padding:8px 14px;text-align:right;'+highlight+'color:'+color+'">'+cell.txt+'</td>';
+        }).join('') +
+      '</tr>';
+    }).join('');
+    compareDiv.style.display = 'block';
+  }
+
+  if (btn) { btn.textContent='▶ Run Scenarios'; btn.style.opacity='1'; btn.style.pointerEvents='auto'; }
+}
+
+// ITC/PTC toggle
+function valSetCredit(type) {
+  var itcBtn = document.getElementById('vi-itc-btn');
+  var ptcBtn = document.getElementById('vi-ptc-btn');
+  var lbl = document.getElementById('vi-credit-lbl');
+  var inp = document.getElementById('vi-credit-val');
+  if (type === 'ITC') {
+    itcBtn.style.background='var(--blue-d)'; itcBtn.style.color='#fff'; itcBtn.style.borderColor='var(--blue)';
+    ptcBtn.style.background='var(--surface3)'; ptcBtn.style.color='var(--t2)'; ptcBtn.style.borderColor='var(--border2)';
+    if(lbl) lbl.textContent='ITC Rate (%)'; if(inp) inp.placeholder='30';
+  } else {
+    ptcBtn.style.background='var(--blue-d)'; ptcBtn.style.color='#fff'; ptcBtn.style.borderColor='var(--blue)';
+    itcBtn.style.background='var(--surface3)'; itcBtn.style.color='var(--t2)'; itcBtn.style.borderColor='var(--border2)';
+    if(lbl) lbl.textContent='PTC Rate ($/kWh)'; if(inp) inp.placeholder='0.027';
+  }
+}
+
+// Upload handler
+document.addEventListener('DOMContentLoaded', function() {
+  var fileInput = document.getElementById('val-upload-file');
+  var uploadBtn = document.getElementById('val-upload-btn2');
+  if (fileInput) {
+    fileInput.onchange = function() {
+      var f = this.files[0]; if (!f) return;
+      document.getElementById('val-upload-fname').textContent = f.name;
+      uploadBtn.style.opacity = '1'; uploadBtn.style.pointerEvents = 'auto';
+    };
+  }
+  if (uploadBtn) {
+    uploadBtn.onclick = async function() {
+      var file = document.getElementById('val-upload-file').files[0]; if (!file) return;
+      var sel = document.getElementById('val-proj-select');
+      var projectId = sel ? sel.value : '';
+      if (!projectId) { alert('Select a project first'); return; }
+      var safeId = projectId.replace(/[/.]/g,'_');
+      var st = document.getElementById('val-upload-status');
+      this.textContent = '⏳ Parsing...'; this.disabled = true;
+      st.textContent = 'Uploading and parsing... (10~30 sec)';
+      try {
+        var token = window._authToken || localStorage.getItem('hwr_token');
+        var form = new FormData();
+        form.append('project_id', safeId);
+        var scenarioName = (document.getElementById('val-scenario-name')||{}).value||'';
+        var changeReason = (document.getElementById('val-change-reason')||{}).value||'';
+        var approver = (document.getElementById('val-approver')||{}).value||'';
+        form.append('scenario', scenarioName);
+        form.append('reason', changeReason);
+        form.append('approver', approver);
+        form.append('file', file);
+        var res = await fetch('https://hwr-api-production.up.railway.app/valuation/upload', {
+          method: 'POST',
+          headers: { 'Authorization': 'Bearer ' + token },
+          body: form
+        });
+        var data = await res.json();
+        if (!res.ok) throw new Error(data.detail || 'Upload failed');
+        st.textContent = '✅ Saved!';
+        st.style.color = 'var(--green)';
+        showSaveToast();
+        valDisplayData({
+          assumptions: data.parsed.assumptions,
+          outputs: data.parsed.outputs,
+          uploaded_at: new Date().toISOString(),
+          uploaded_by: 'admin',
+          filename: file.name
+        }, safeId);
+      } catch(e) {
+        st.textContent = '⚠️ ' + e.message;
+        st.style.color = 'var(--red,#e55)';
+      } finally {
+        this.textContent = 'Upload & Parse'; this.disabled = false;
+      }
+    };
+  }
+
+  // Calculate button (Phase 2)
+  var calcBtn = document.getElementById('val-calc-btn');
+  if (calcBtn) {
+    calcBtn.onclick = async function() {
+      var sel = document.getElementById('val-proj-select');
+      var projectId = sel ? sel.value : '';
+      if (!projectId) { alert('Select a project first'); return; }
+
+      var msg = document.getElementById('val-calc-msg');
+      this.textContent = '⏳ Calculating...'; this.disabled = true;
+      msg.textContent = 'Running calculation engine...';
+      msg.style.color = 'var(--t3)';
+
+      // Gather all inputs
+      function gv(id, def) {
+        var el = document.getElementById(id);
+        if (!el || el.value === '') return def;
+        return parseFloat(el.value);
+      }
+
+      var inputs = {
+        dev_margin_kwac: gv('vi-dev-kwac', 200.0),
+        pv_mwac: gv('vi-pv-mwac', null) || null,  // overridden below from project
+        ppa_price:  gv('vi-ppa-p', 68.82),
+        ppa_term:   gv('vi-ppa-t', 25),
+        ppa_esc:    gv('vi-ppa-esc', 0),
+        bess_toll:  gv('vi-toll-p', 13.68),
+        bess_toll_term: gv('vi-toll-t', 20),
+        module_cwp: gv('vi-module', 31.5),
+        bos_cwp:    gv('vi-bos', 42.9),
+        ess_per_kwh: gv('vi-ess-eq', 234.5),
+        epc_cont_pct: gv('vi-epc-cont', 8.0),
+        owner_pct:  gv('vi-owner', 3.0),
+        pv_om:      gv('vi-pv-om', 4.5),
+        bess_om:    gv('vi-bess-om', 8.64),
+        insurance_pv: gv('vi-ins', 10.57),
+        asset_mgmt: gv('vi-assetmgmt', 210),
+        aug_price:  gv('vi-aug-price', 150),
+        aug_mwh_pct: gv('vi-aug-mwh', 796) > 0 ? (gv('vi-aug-mwh',796) / 796 * 100) : 18.8,
+        aug_y1:     gv('vi-aug-y1', 4),
+        aug_y2:     gv('vi-aug-y2', 8),
+        aug_y3:     gv('vi-aug-y3', 12),
+        debt_ratio: gv('vi-debt-r', 47.6),
+        int_rate:   gv('vi-int-r', 5.5),
+        loan_term:  gv('vi-loan-t', 18),
+        dscr:       gv('vi-dscr', 1.3),
+        flip_yield: gv('vi-flip-y', 8.75),
+        flip_term:  gv('vi-flip-t', 7),
+        te_fee:     gv('vi-te-fee', 2),
+        itc_elig:   gv('vi-itc-elig', 97),
+        credit_val: gv('vi-credit-val', 30),
+      };
+
+      // Inject project specs from PROJECTS array
+      var proj = PROJECTS.find(function(p){ return p.id === projectId; });
+      if (proj) {
+        inputs.pv_mwac = proj.pv || 199;
+        inputs.bess_mw = proj.ess || 0;
+        inputs.bess_mwh = (proj.ess || 0) * 4;
+      }
+
+      // If Firebase has valuation data, use parsed capex override
+      try {
+        var safeId = projectId.replace(/[/.]/g,'_');
+        var vdata = await apiCall('GET', '/valuation/'+safeId+'/latest');
+        if (vdata && vdata.outputs && vdata.outputs.capex_total) {
+          inputs.capex_total_override = vdata.outputs.capex_total / 1000;
+        }
+        if (vdata && vdata.assumptions) {
+          var a = vdata.assumptions;
+          if (a.pv_mwac) inputs.pv_mwac = a.pv_mwac;
+          if (a.bess_mw) inputs.bess_mw = a.bess_mw;
+          if (a.bess_mwh) inputs.bess_mwh = a.bess_mwh;
+          if (a.degradation) inputs.degradation = a.degradation;
+          if (a.availability_yr1) inputs.availability_yr1 = a.availability_yr1;
+          if (a.availability_yr2) inputs.availability_yr2 = a.availability_yr2;
+        }
+      } catch(e) {}
+
+      try {
+        var token = window._authToken || localStorage.getItem('hwr_token');
+        var res = await fetch('https://hwr-api-production.up.railway.app/valuation/calculate', {
+          method: 'POST',
+          headers: { 'Authorization': 'Bearer '+token, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ project_id: projectId, inputs: inputs })
+        });
+        var data = await res.json();
+        if (!res.ok) throw new Error(data.detail || 'Calculation failed');
+
+        var r = data.result;
+        msg.textContent = '✅ Calculated';
+        msg.style.color = 'var(--green)';
+        // Save calculate result to Firebase versions
+        if (projectId) {
+          var ts2 = new Date().toISOString().replace(/[-:T.]/g,'').substring(0,14);
+          var calcReason = (document.getElementById('val-change-reason')||{}).value||'';
+          var calcApprover = (document.getElementById('val-approver')||{}).value||'';
+          var calcScenario = (document.getElementById('val-scenario-name')||{}).value||'Manual Estimate';
+          var calcPayload = {
+            uploaded_at: new Date().toISOString(),
+            uploaded_by: (window._authUser||{}).email||'user',
+            filename: calcScenario || 'Manual Estimate',
+            scenario: calcScenario,
+            reason: calcReason,
+            approver: calcApprover,
+            assumptions: inputs,
+            outputs: r
+          };
+          var safeId2 = projectId.replace(/[\/.]/g,'_');
+          apiCall('POST', '/valuation/'+safeId2+'/save', calcPayload).catch(function(){});
+        }
+
+        // Update output cards
+        function fmtM(v) { return v ? '$'+(v/1000).toFixed(1)+'M' : '—'; }
+        function fmtPct(v) { return v ? (v*100).toFixed(2)+'%' : '—'; }
+
+        var dm = document.getElementById('vo-dev-margin'); if(dm) dm.textContent = fmtM(r.dev_margin);
+        var em = document.getElementById('vo-epc-margin'); if(em) em.textContent = fmtM(r.epc_margin);
+        var tm = document.getElementById('vo-total-margin'); if(tm) tm.textContent = fmtM(r.total_margin);
+        function setIRR(id, barId, val, goodThr, okThr) {
+          var el=document.getElementById(id); if(!el) return;
+          var pct=(val||0)*100;
+          el.textContent = val ? fmtPct(val) : '—';
+          var col = pct>=goodThr?'var(--green)':pct>=okThr?'var(--amber)':'var(--red)';
+          el.style.color = val ? col : 'var(--t1)';
+          el.classList.remove('animated'); void el.offsetWidth; el.classList.add('animated');
+          if(barId) {
+            var bar=document.getElementById(barId);
+            if(bar) { bar.style.background=col; setTimeout(function(){ bar.style.width=Math.min(100,pct/16*100)+'%'; },150); }
+          }
+        }
+        setIRR('vo-lirr',null,r.levered_irr,8,5);
+        setIRR('vo-uirr',null,r.unlevered_irr,7,4);
+        setIRR('vo-sirr','vo-sirr-bar',r.sponsor_irr_contract||r.sponsor_irr,10,7);
+        // EBITDA Yield bar
+        var yb=document.getElementById('vo-yield-bar');
+        if(yb&&r.ebitda_yield) setTimeout(function(){ yb.style.width=Math.min(100,r.ebitda_yield/10*100)+'%'; },200);
+        var cap=document.getElementById('vo-capex'); if(cap) cap.textContent=fmtM(r.capex_total);
+        // vo-capex shown in capital structure legend
+        var dbt=document.getElementById('vo-debt');  if(dbt) dbt.textContent=fmtM(r.debt);
+        var teEl=document.getElementById('vo-te');   if(teEl) teEl.textContent=r.te_invest?fmtM(r.te_invest):'—';
+        var eqKpi=document.getElementById('vo-eq-kpi'); if(eqKpi) eqKpi.textContent=r.sponsor_equity?fmtM(r.sponsor_equity):fmtM(r.equity);
+        var eq=document.getElementById('vo-eq');     if(eq) eq.textContent=r.sponsor_equity?fmtM(r.sponsor_equity):fmtM(r.equity);
+
+        // Show output section
+        var outSec = document.getElementById('vo-sensitivity');
+        if (outSec) {
+          outSec.style.display = 'block';
+          valRunSensitivity(projectId, inputs, r);
+        }
+
+        // Draw visualizations
+        valDrawChart(r.annual_detail);
+        valUpdateGauges(r);
+        valDrawWaterfall(r);
+
+        // Run heatmap (async, non-blocking)
+        setTimeout(function(){ valRunHeatmap(projectId, inputs); }, 500);
+
+        // Attach debounce for auto-recalc
+        valAttachDebounce();
+
+      } catch(e) {
+        msg.textContent = '⚠️ ' + e.message;
+        msg.style.color = 'var(--red,#e55)';
+      } finally {
+        this.textContent = '📊 Calculate IRR / Margin';
+        this.disabled = false;
+      }
+    };
+  }
+
+  // Nav button
+  var valNavBtn = document.getElementById('btn-valuation');
+  if (valNavBtn) {
+    valNavBtn.addEventListener('click', openValuationPage);
+  }
+});
+
+
+// ── Valuation: Sensitivity Table
+async function valRunSensitivity(projectId, baseInputs, baseResult) {
+  var sensEl = document.getElementById('vo-sens-table');
+  if (!sensEl) return;
+
+  var token = window._authToken || localStorage.getItem('hwr_token');
+  var baseMargin = baseResult.total_margin;
+  var basePPA = baseInputs.ppa_price;
+  var rows = [];
+
+  // PPA sensitivity: -$5 to +$5 in $1 steps
+  var promises = [];
+  var ppas = [];
+  for (var delta = -5; delta <= 5; delta++) {
+    var ppa = Math.round((basePPA + delta) * 100) / 100;
+    ppas.push(ppa);
+    var inp = Object.assign({}, baseInputs, { ppa_price: ppa });
+    promises.push(
+      fetch('https://hwr-api-production.up.railway.app/valuation/calculate', {
+        method: 'POST',
+        headers: { 'Authorization': 'Bearer '+token, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ project_id: projectId, inputs: inp })
+      }).then(function(r){ return r.json(); })
+    );
+  }
+
+  try {
+    var results = await Promise.all(promises);
+    var html = '<table style="width:100%;border-collapse:collapse;font-size:11px">';
+    html += '<thead><tr style="border-bottom:1px solid var(--border)">';
+    html += '<th style="text-align:left;padding:6px 8px;color:var(--t3);font-weight:700">PPA ($/MWh)</th>';
+    html += '<th style="text-align:right;padding:6px 8px;color:var(--t3);font-weight:700">Dev Margin</th>';
+    html += '<th style="text-align:right;padding:6px 8px;color:var(--t3);font-weight:700">Sponsor IRR</th>';
+    html += '<th style="text-align:right;padding:6px 8px;color:var(--t3);font-weight:700">EBITDA Yield</th>';
+    html += '</tr></thead><tbody>';
+
+    results.forEach(function(res, i) {
+      if (!res.ok || !res.result) return;
+      var r = res.result;
+      var ppa = ppas[i];
+      var isBase = Math.abs(ppa - basePPA) < 0.01;
+      var bg = isBase ? 'background:var(--surface3);' : '';
+      var marginDelta = r.total_margin - baseMargin;
+      var deltaStr = marginDelta >= 0 ? '+$'+(marginDelta/1000).toFixed(1)+'M' : '-$'+(Math.abs(marginDelta)/1000).toFixed(1)+'M';
+      var deltaColor = marginDelta > 0 ? 'var(--green)' : marginDelta < 0 ? 'var(--red,#e55)' : 'var(--t3)';
+
+      html += '<tr style="border-bottom:1px solid var(--border);'+bg+'">';
+      html += '<td style="padding:6px 8px;font-weight:'+(isBase?'700':'400')+';color:var(--t1)">$'+ppa.toFixed(2)+(isBase?' ← base':'')+'</td>';
+      var sirr = r.sponsor_irr_contract||r.sponsor_irr||0;
+      var sirrColor = sirr>=0.10?'var(--green)':sirr>=0.07?'var(--amber)':'var(--red)';
+      html += '<td style="text-align:right;padding:6px 8px;font-weight:700;color:'+deltaColor+'">$'+(r.dev_margin/1000).toFixed(1)+'M <span style="font-size:10px">'+deltaStr+'</span></td>';
+      html += '<td style="text-align:right;padding:6px 8px;font-weight:700;color:'+sirrColor+'">'+(sirr*100).toFixed(2)+'%</td>';
+      html += '<td style="text-align:right;padding:6px 8px;color:var(--t2)">'+r.ebitda_yield.toFixed(2)+'%</td>';
+      html += '</tr>';
+    });
+
+    html += '</tbody></table>';
+    sensEl.innerHTML = html;
+    document.getElementById('vo-sensitivity').style.display = 'block';
+  } catch(e) {
+    sensEl.innerHTML = '<div style="font-size:11px;color:var(--t3)">Sensitivity calc failed: '+e.message+'</div>';
+  }
+}
+
+// ── Valuation: EBITDA Bar Chart (Canvas)
+function valDrawChart(detail) {
+  if (!detail || detail.length === 0) return;
+
+  // Create or reuse chart container
+  var chartSec = document.getElementById('vo-chart-section');
+  if (!chartSec) {
+    chartSec = document.createElement('div');
+    chartSec.id = 'vo-chart-section';
+    chartSec.className = 'fin-section';
+    chartSec.style.marginBottom = '0';
+    var histSec = document.getElementById('vo-history-section');
+    if (histSec) histSec.parentNode.insertBefore(chartSec, histSec);
+  }
+
+  chartSec.innerHTML = '<div class="fin-section-title">Annual Cash Flow (Y1–Y10, $000)</div>'
+    + '<canvas id="val-cf-canvas" style="width:100%;height:160px"></canvas>';
+
+  setTimeout(function() {
+    var canvas = document.getElementById('val-cf-canvas');
+    if (!canvas) return;
+    var ctx = canvas.getContext('2d');
+    var W = canvas.offsetWidth; var H = 160;
+    canvas.width = W; canvas.height = H;
+
+    var vals = detail.map(function(d){ return d.ebitda; });
+    var maxV = Math.max.apply(null, vals) * 1.1;
+    var minV = Math.min.apply(null, [0].concat(vals)) * 1.1;
+    var range = maxV - minV;
+
+    var pad = { t:16, r:12, b:28, l:52 };
+    var barW = (W - pad.l - pad.r) / vals.length * 0.7;
+    var gap   = (W - pad.l - pad.r) / vals.length;
+
+    // Grid
+    ctx.strokeStyle = getComputedStyle(document.documentElement).getPropertyValue('--border') || 'rgba(255,255,255,0.08)';
+    ctx.lineWidth = 0.5;
+    [0, 0.25, 0.5, 0.75, 1].forEach(function(frac) {
+      var y = pad.t + (1-frac) * (H - pad.t - pad.b);
+      ctx.beginPath(); ctx.moveTo(pad.l, y); ctx.lineTo(W-pad.r, y); ctx.stroke();
+      var label = ((minV + frac*range)/1000).toFixed(0)+'K';
+      ctx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue('--color-text-tertiary') || '#666';
+      ctx.font = '9px sans-serif'; ctx.textAlign = 'right';
+      ctx.fillText(label, pad.l-4, y+3);
+    });
+
+    // Bars
+    vals.forEach(function(v, i) {
+      var x = pad.l + i * gap + (gap - barW) / 2;
+      var zeroY = pad.t + (1 - (0-minV)/range) * (H-pad.t-pad.b);
+      var barH = (v/range) * (H-pad.t-pad.b);
+      var y = v >= 0 ? zeroY - barH : zeroY;
+      barH = Math.abs(barH);
+
+      // Augmentation year gets different color
+      var isAug = detail[i].aug > 0;
+      ctx.fillStyle = v < 0 ? '#E24B4A' : isAug ? '#BA7517' : '#1D9E75';
+      ctx.beginPath();
+      ctx.roundRect ? ctx.roundRect(x, y, barW, barH, 2) : ctx.rect(x, y, barW, barH);
+      ctx.fill();
+
+      // X label
+      ctx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue('--color-text-secondary') || '#999';
+      ctx.font = '9px sans-serif'; ctx.textAlign = 'center';
+      ctx.fillText('Y'+detail[i].yr, x+barW/2, H-pad.b+11);
+    });
+  }, 50);
+}
+
+
+// ══ STAGE 4: UI 고도화 ══════════════════════════════════════════
+
+// ── 1. IRR 게이지 차트
+function valDrawIRRGauge(canvasId, value, label, min, max, good, ok) {
+  var canvas = document.getElementById(canvasId);
+  if (!canvas) return;
+  var W = canvas.offsetWidth || 120, H = 80;
+  canvas.width = W; canvas.height = H;
+  var ctx = canvas.getContext('2d');
+  var cx = W/2, cy = H - 12, r = Math.min(W,H*2)*0.38;
+  var startA = Math.PI, endA = 2*Math.PI;
+
+  // Background arc
+  ctx.beginPath();
+  ctx.arc(cx, cy, r, startA, endA);
+  ctx.strokeStyle = 'rgba(128,128,128,0.15)';
+  ctx.lineWidth = 8; ctx.lineCap = 'round';
+  ctx.stroke();
+
+  // Value arc
+  var pct = Math.min(1, Math.max(0, (value - min) / (max - min)));
+  var valA = startA + pct * Math.PI;
+  var color = value >= good ? '#1D9E75' : value >= ok ? '#BA7517' : '#E24B4A';
+  ctx.beginPath();
+  ctx.arc(cx, cy, r, startA, valA);
+  ctx.strokeStyle = color;
+  ctx.lineWidth = 8; ctx.lineCap = 'round';
+  ctx.stroke();
+
+  // Value text
+  ctx.fillStyle = color;
+  ctx.font = 'bold 15px sans-serif';
+  ctx.textAlign = 'center';
+  ctx.fillText(value ? (value*100).toFixed(2)+'%' : '—', cx, cy - 4);
+
+  // Label
+  ctx.fillStyle = 'rgba(128,128,128,0.7)';
+  ctx.font = '9px sans-serif';
+  ctx.fillText(label, cx, cy + 10);
+}
+
+function valUpdateGauges(r) {
+  if (!r) return;
+  setTimeout(function() {
+    valDrawIRRGauge('gauge-lirr',  r.levered_irr||0,  'Levered IRR',    -0.05, 0.15, 0.09, 0.06);
+    valDrawIRRGauge('gauge-uirr',  r.unlevered_irr||0,'Unlevered IRR',  -0.05, 0.12, 0.07, 0.04);
+    valDrawIRRGauge('gauge-sirr',  r.sponsor_irr_contract||r.sponsor_irr||0, 'Sponsor IRR', -0.05, 0.18, 0.10, 0.07);
+  }, 50);
+}
+
+// ── 2. Capital Structure 워터폴
+function valDrawWaterfall(r) {
+  if (!r) return;
+  var sec = document.getElementById('vo-waterfall');
+  if (!sec) return;
+  sec.style.display = 'block';
+
+  var canvas = document.getElementById('vo-wf-canvas');
+  if (!canvas) return;
+
+  var items = [
+    { label: 'Capex', value: r.capex_total, color: '#888780', type: 'total' },
+    { label: 'Debt',   value: -r.debt,         color: '#185FA5', type: 'sub' },
+    { label: 'Tax Eq.', value: -(r.te_invest||0), color: '#534AB7', type: 'sub' },
+    { label: 'Eq.', value: r.sponsor_equity||r.equity, color: '#BA7517', type: 'result' },
+  ];
+
+  var W = canvas.offsetWidth || 300, H = 160;
+  canvas.width = W; canvas.height = H;
+  var ctx = canvas.getContext('2d');
+  var pad = { t:16, r:12, b:32, l:52 };
+  var maxV = r.capex_total * 1.1;
+  var bW = (W - pad.l - pad.r) / items.length * 0.6;
+  var gap = (W - pad.l - pad.r) / items.length;
+
+  // Y axis
+  [0, 0.25, 0.5, 0.75, 1].forEach(function(f) {
+    var y = pad.t + (1-f)*(H-pad.t-pad.b);
+    ctx.strokeStyle = 'rgba(128,128,128,0.1)';
+    ctx.lineWidth = 0.5;
+    ctx.beginPath(); ctx.moveTo(pad.l, y); ctx.lineTo(W-pad.r, y); ctx.stroke();
+    ctx.fillStyle = 'rgba(128,128,128,0.6)';
+    ctx.font = '9px sans-serif'; ctx.textAlign = 'right';
+    ctx.fillText('$'+(f*maxV/1000/1000).toFixed(0)+'B', pad.l-4, y+3);
+  });
+
+  var running = 0;
+  items.forEach(function(item, i) {
+    var x = pad.l + i*gap + (gap-bW)/2;
+    var v = Math.abs(item.value);
+    var barH = (v/maxV)*(H-pad.t-pad.b);
+    var baseY;
+
+    if (item.type === 'total') {
+      baseY = H - pad.b - barH; running = v;
+    } else if (item.type === 'sub') {
+      running -= Math.abs(item.value);
+      baseY = H - pad.b - (running + Math.abs(item.value)) * (H-pad.t-pad.b)/maxV;
+    } else {
+      baseY = H - pad.b - v*(H-pad.t-pad.b)/maxV;
+    }
+
+    ctx.fillStyle = item.color;
+    ctx.globalAlpha = 0.85;
+    if (ctx.roundRect) ctx.roundRect(x, baseY, bW, barH, 3);
+    else ctx.rect(x, baseY, bW, barH);
+    ctx.fill();
+    ctx.globalAlpha = 1;
+
+    // Value label
+    ctx.fillStyle = item.color;
+    ctx.font = 'bold 10px sans-serif'; ctx.textAlign = 'center';
+    ctx.fillText('$'+(v/1000).toFixed(0)+'M', x+bW/2, baseY - 4);
+
+    // X label (multi-line)
+    var lines = item.label.split('\n');
+    ctx.fillStyle = 'rgba(128,128,128,0.8)';
+    ctx.font = '9px sans-serif';
+    lines.forEach(function(line, li) {
+      ctx.fillText(line, x+bW/2, H-pad.b+11+li*10);
+    });
+  });
+}
+
+// ── 3. Sensitivity 히트맵 (PPA × CAPEX)
+async function valRunHeatmap(projectId, baseInputs) {
+  var heatSec = document.getElementById('vo-heatmap-section');
+  var heatEl  = document.getElementById('vo-heatmap');
+  if (!heatSec || !heatEl) return;
+  heatSec.style.display = 'block';
+  heatEl.innerHTML = '<div style="font-size:11px;color:var(--t3);padding:8px">Building heatmap...</div>';
+
+  var token = window._authToken || localStorage.getItem('hwr_token');
+  var basePPA = baseInputs.ppa_price || 68.82;
+  var baseCAP = (baseInputs.capex_total_override || 836.7);
+
+  var ppas = [-4,-2,0,2,4].map(function(d){ return Math.round((basePPA+d)*100)/100; });
+  var caps = [-10,-5,0,5,10].map(function(d){ return Math.round((baseCAP+d)*10)/10; });
+
+  var promises = [];
+  ppas.forEach(function(ppa) {
+    caps.forEach(function(cap) {
+      var inp = Object.assign({}, baseInputs, { ppa_price: ppa, capex_total_override: cap });
+      promises.push(
+        fetch('https://hwr-api-production.up.railway.app/valuation/calculate', {
+          method:'POST',
+          headers:{'Authorization':'Bearer '+token,'Content-Type':'application/json'},
+          body: JSON.stringify({ project_id: projectId, inputs: inp })
+        }).then(function(r){ return r.json(); }).then(function(d){ return { ppa, cap, r: d.result }; })
+      );
+    });
+  });
+
+  try {
+    var results = await Promise.all(promises);
+    var grid = {};
+    results.forEach(function(item) {
+      grid[item.ppa+'_'+item.cap] = item.r;
+    });
+
+    // Build HTML table
+    var html = '<div style="font-size:9px;color:var(--t3);margin-bottom:6px">Dev Margin ($M) — PPA vs CAPEX</div>';
+    html += '<table style="width:100%;border-collapse:collapse;font-size:10px">';
+
+    // Header row (CAPEX)
+    html += '<tr><th style="padding:4px;color:var(--t3);text-align:center">PPA \ CAPEX</th>';
+    caps.forEach(function(cap) {
+      var delta = cap - baseCAP;
+      html += '<th style="padding:4px;color:var(--t3);text-align:center">'+(delta>=0?'+':'')+delta+'M</th>';
+    });
+    html += '</tr>';
+
+    // Data rows (PPA)
+    ppas.forEach(function(ppa) {
+      var ppaDelta = Math.round((ppa - basePPA)*100)/100;
+      var isBasePPA = Math.abs(ppaDelta) < 0.01;
+      html += '<tr>';
+      html += '<td style="padding:4px 6px;color:var(--t3);font-weight:'+(isBasePPA?'700':'400')+'">'+(ppaDelta>=0?'+':'')+ppaDelta+'$/MWh</td>';
+
+      caps.forEach(function(cap) {
+        var r = grid[ppa+'_'+cap];
+        var margin = r ? r.total_margin/1000 : null;
+        var sirr = r ? (r.sponsor_irr_contract || r.sponsor_irr) : null;
+        var isBase = Math.abs(ppa - basePPA) < 0.01 && Math.abs(cap - baseCAP) < 0.1;
+
+        var bg = 'var(--surface3)';
+        if (margin) {
+          if (margin >= 80) bg = 'rgba(29,158,117,0.25)';
+          else if (margin >= 70) bg = 'rgba(29,158,117,0.12)';
+          else if (margin >= 60) bg = 'rgba(186,117,23,0.15)';
+          else bg = 'rgba(226,75,74,0.12)';
+        }
+        if (isBase) bg = 'rgba(83,74,183,0.2)';
+
+        html += '<td style="padding:4px;text-align:center;background:'+bg+';border-radius:4px;'+(isBase?'border:1px solid var(--blue);':'')+'font-weight:'+(isBase?'700':'400')+'">';
+        if (margin) {
+          html += '<div style="font-weight:700;color:var(--t1)">$'+margin.toFixed(1)+'M</div>';
+          if (sirr) html += '<div style="font-size:9px;color:var(--t3)">'+((sirr)*100).toFixed(1)+'%</div>';
+        } else {
+          html += '—';
+        }
+        html += '</td>';
+      });
+      html += '</tr>';
+    });
+
+    html += '</table>';
+    heatEl.innerHTML = html;
+  } catch(e) {
+    heatEl.innerHTML = '<div style="font-size:11px;color:var(--t3)">Heatmap failed: '+e.message+'</div>';
+  }
+}
+
+// ── 4. Debounce auto-recalc
+var _valDebounceTimer = null;
+function valScheduleRecalc() {
+  if (_valDebounceTimer) clearTimeout(_valDebounceTimer);
+  _valDebounceTimer = setTimeout(function() {
+    var calcBtn = document.getElementById('val-calc-btn');
+    if (calcBtn && !calcBtn.disabled) calcBtn.click();
+  }, 1200);
+}
+
+function valAttachDebounce() {
+  document.querySelectorAll('.vi').forEach(function(el) {
+    el.addEventListener('input', function() {
+      valScheduleRecalc();
+      var btn=document.getElementById('val-calc-btn');
+      if(btn) btn.classList.add('dirty');
+    });
+  });
+}
+
+
+// Valuation page section toggle
+function vpToggle(hd) {
+  var body = hd.nextElementSibling;
+  var chev = hd.querySelector('.vp-section-chevron');
+  if (body.style.display === 'none') {
+    body.style.display = 'block';
+    if(chev) { chev.classList.add('open'); }
+  } else {
+    body.style.display = 'none';
+    if(chev) { chev.classList.remove('open'); }
+  }
+}
+
+
+function valToggleSec(hd) {
+  var body = hd.nextElementSibling;
+  var chev = hd.querySelector('.val-sec-toggle');
+  var open = body.style.display !== 'none';
+  body.style.display = open ? 'none' : 'block';
+  if(chev) { chev.classList.toggle('open', !open); }
+}
+function valSwitchTab(name, btn) {
+  document.querySelectorAll('.val-tab').forEach(function(t){ t.classList.remove('active'); });
+  document.querySelectorAll('.val-tab-panel').forEach(function(p){ p.classList.remove('active'); });
+  if(btn) btn.classList.add('active');
+  var panel = document.getElementById('val-panel-'+name);
+  if(panel) panel.classList.add('active');
+}
+
 </script>
+
+
+<!-- ══ VALUATION PAGE ══════════════════════════════════════════ -->
+<div id="page-valuation" class="page-overlay" style="display:none">
+<style>
+/* ═══ VALUATION PREMIUM STYLES ═══ */
+#page-valuation {
+  display:flex; flex-direction:column; height:100vh; overflow:hidden;
+}
+/* Header */
+.val-hd {
+  display:flex; align-items:center; justify-content:space-between;
+  padding:0 28px; height:52px; flex-shrink:0;
+  border-bottom:1px solid var(--border); background:var(--surface);
+  gap:16px;
+}
+.val-hd-left { display:flex; align-items:center; gap:12px; }
+.val-hd-icon {
+  width:30px; height:30px; border-radius:8px;
+  background:linear-gradient(135deg, var(--blue-d) 0%, var(--purple) 100%);
+  display:flex; align-items:center; justify-content:center;
+  font-size:13px; flex-shrink:0;
+}
+.val-hd-title { font-size:15px; font-weight:800; color:var(--t1); letter-spacing:-.3px; }
+.val-hd-sub { font-size:10px; color:var(--t3); margin-top:1px; }
+.val-hd-right { display:flex; align-items:center; gap:8px; }
+.val-proj-sel {
+  padding:6px 10px; background:var(--surface3); border:1px solid var(--border2);
+  border-radius:var(--r-md); color:var(--t1); font-size:11px;
+  font-family:var(--font); cursor:pointer; min-width:200px;
+}
+/* Upload */
+.val-upload-bar {
+  display:flex; align-items:center; gap:8px; padding:8px 28px;
+  border-bottom:1px solid var(--border); background:var(--surface2);
+  flex-shrink:0; flex-wrap:wrap;
+}
+.val-upload-label {
+  display:flex; align-items:center; gap:6px; padding:5px 12px;
+  background:var(--surface3); border:1px dashed var(--border2);
+  border-radius:var(--r-md); cursor:pointer; font-size:11px; color:var(--t3);
+  transition:all var(--ease);
+}
+.val-upload-label:hover { border-color:var(--blue); color:var(--t2); }
+.val-parse-btn {
+  padding:5px 14px; background:var(--blue-d); color:#fff; border:none;
+  border-radius:var(--r-md); font-size:11px; font-weight:700; cursor:pointer;
+  font-family:var(--font); opacity:.35; pointer-events:none; transition:opacity var(--ease);
+  letter-spacing:.03em;
+}
+.val-parse-btn.ready { opacity:1; pointer-events:auto; }
+.val-status-badge {
+  margin-left:auto; display:flex; align-items:center; gap:5px;
+  font-size:10px; color:var(--t3);
+}
+.val-status-dot {
+  width:6px; height:6px; border-radius:50%; background:var(--t3);
+  transition:background var(--ease);
+}
+.val-status-dot.live { background:var(--green); box-shadow:0 0 6px var(--green); }
+
+/* Body split */
+.val-body {
+  display:flex; flex:1; overflow:hidden;
+}
+
+/* ── LEFT INPUT PANEL ── */
+.val-left {
+  width:220px; flex-shrink:0; overflow-y:auto; overflow-x:hidden;
+  border-right:1px solid var(--border);
+  display:flex; flex-direction:column;
+  background:var(--surface);
+}
+.val-left::-webkit-scrollbar { width:2px; }
+.val-left::-webkit-scrollbar-thumb { background:rgba(255,255,255,.08); border-radius:2px; }
+
+.val-section { border-bottom:1px solid rgba(255,255,255,.04); }
+.val-section-hd {
+  display:flex; justify-content:space-between; align-items:center;
+  padding:10px 16px 0; cursor:pointer; user-select:none;
+}
+.val-section-hd:hover { background:rgba(255,255,255,.015); }
+.val-sec-title {
+  font-size:9px; font-weight:700; letter-spacing:.1em;
+  text-transform:uppercase; color:var(--t3);
+}
+.val-sec-toggle { font-size:8px; color:var(--t3); transition:transform .2s; }
+.val-sec-toggle.open { transform:rotate(180deg); }
+.val-sec-body { padding:8px 16px 14px; }
+.val-grid2 { display:grid; grid-template-columns:1fr 1fr; gap:6px; }
+.val-grid1 { display:grid; grid-template-columns:1fr; gap:6px; }
+
+.vf { display:flex; flex-direction:column; gap:3px; min-width:0; }
+.vf label {
+  font-size:9px; color:var(--t3); font-weight:600;
+  letter-spacing:.02em; white-space:nowrap; overflow:hidden;
+  text-overflow:ellipsis;
+}
+.vf input, .vf select {
+  width:100%; padding:6px 8px;
+  background:rgba(255,255,255,.04); border:1px solid rgba(255,255,255,.07);
+  border-radius:5px; color:var(--t1); font-size:11px; font-family:var(--font);
+  transition:border-color .12s, background .12s; box-sizing:border-box;
+}
+.vf input:focus, .vf select:focus {
+  outline:none; border-color:var(--blue);
+  background:rgba(74,140,247,.06); box-shadow:0 0 0 2px rgba(74,140,247,.1);
+}
+.vf input::placeholder { color:var(--t3); }
+
+.val-subtotal {
+  margin-top:8px; padding:6px 10px;
+  background:rgba(255,255,255,.03); border-radius:5px;
+  border:1px solid rgba(255,255,255,.05);
+  display:flex; justify-content:space-between; align-items:center;
+}
+.val-subtotal-lbl { font-size:9px; color:var(--t3); }
+.val-subtotal-val { font-size:12px; font-weight:700; color:var(--blue-h); font-variant-numeric:tabular-nums; }
+
+.val-credit-row { display:flex; gap:5px; margin-bottom:8px; }
+.val-credit-btn {
+  flex:1; padding:5px 0; font-size:10px; font-weight:700; cursor:pointer;
+  font-family:var(--font); border-radius:5px; transition:all .12s;
+  letter-spacing:.04em;
+}
+.val-credit-btn.on  { background:var(--blue-d); color:#fff; border:1px solid var(--blue-d); }
+.val-credit-btn.off { background:transparent; color:var(--t3); border:1px solid rgba(255,255,255,.08); }
+
+/* Calculate button */
+.val-calc-wrap {
+  padding:12px 16px 16px; margin-top:auto; flex-shrink:0;
+  border-top:1px solid rgba(255,255,255,.04);
+}
+.val-calc-btn {
+  width:100%; padding:10px; border:none; border-radius:8px; cursor:pointer;
+  font-family:var(--font); font-size:12px; font-weight:700; letter-spacing:.05em;
+  background:linear-gradient(135deg, var(--blue-d) 0%, var(--purple) 100%);
+  color:#fff; transition:opacity .15s, transform .1s;
+  position:relative; overflow:hidden;
+}
+.val-calc-btn::after {
+  content:''; position:absolute; inset:0; border-radius:8px;
+  background:rgba(255,255,255,.12); opacity:0; transition:opacity .15s;
+}
+.val-calc-btn:hover::after { opacity:1; }
+.val-calc-btn:active { transform:scale(.98); }
+.val-calc-btn.dirty {
+  animation:val-pulse 2s ease infinite;
+}
+@keyframes val-pulse {
+  0%,100% { box-shadow:0 0 0 0 rgba(37,99,235,.4); }
+  50% { box-shadow:0 0 0 6px rgba(37,99,235,.0); }
+}
+.val-calc-msg { font-size:10px; color:var(--t3); text-align:center; margin-top:6px; min-height:14px; }
+
+/* ── RIGHT OUTPUT PANEL ── */
+.val-right {
+  flex:1; display:flex; flex-direction:column; overflow:hidden;
+  background:var(--bg);
+}
+
+/* Tabs */
+.val-tabs-row {
+  display:flex; align-items:center; gap:0;
+  border-bottom:1px solid var(--border); flex-shrink:0;
+  background:var(--surface); padding:0 24px;
+}
+.val-tab {
+  padding:12px 16px; font-size:11px; font-weight:600; cursor:pointer;
+  color:var(--t3); border-bottom:2px solid transparent;
+  transition:color .15s, border-color .15s; white-space:nowrap;
+  font-family:var(--font); background:none; border-top:none;
+  border-left:none; border-right:none; margin-bottom:-1px;
+}
+.val-tab:hover { color:var(--t2); }
+.val-tab.active { color:var(--t1); border-bottom-color:var(--blue); }
+
+/* Tab panels */
+.val-tab-panel { display:none; flex:1; overflow-y:auto; padding:20px 24px; }
+.val-tab-panel.active { display:block; }
+.val-tab-panel::-webkit-scrollbar { width:3px; }
+.val-tab-panel::-webkit-scrollbar-thumb { background:rgba(255,255,255,.08); }
+
+/* ── OVERVIEW TAB ── */
+/* Hero metrics row */
+.val-hero-row {
+  display:grid; grid-template-columns:repeat(3,1fr);
+  gap:1px; background:var(--border); border:1px solid var(--border);
+  border-radius:var(--r-lg); overflow:hidden; margin-bottom:16px;
+}
+.val-hero-cell {
+  background:var(--surface); padding:18px 20px; position:relative;
+  transition:background .15s;
+}
+.val-hero-cell:hover { background:var(--surface2); }
+.val-hero-lbl {
+  font-size:9px; font-weight:700; letter-spacing:.12em; text-transform:uppercase;
+  color:var(--t3); margin-bottom:10px; display:flex; align-items:center; gap:6px;
+}
+.val-hero-dot { width:5px; height:5px; border-radius:50%; flex-shrink:0; }
+.val-hero-val {
+  font-size:32px; font-weight:800; letter-spacing:-1px; line-height:1;
+  color:var(--t1); font-variant-numeric:tabular-nums;
+  transition:color .3s;
+}
+.val-hero-val.animated { animation:val-numfade .4s ease; }
+@keyframes val-numfade { from { opacity:.3; transform:translateY(4px); } to { opacity:1; transform:none; } }
+.val-hero-sub { font-size:10px; color:var(--t3); margin-top:7px; }
+/* IRR threshold bar */
+.val-irr-track {
+  height:3px; background:rgba(255,255,255,.06); border-radius:2px;
+  margin-top:10px; overflow:hidden; position:relative;
+}
+.val-irr-fill { height:100%; border-radius:2px; transition:width .6s ease, background .3s; }
+
+/* Capital structure */
+.val-capstruct {
+  background:var(--surface); border:1px solid var(--border); border-radius:var(--r-lg);
+  padding:18px 20px; margin-bottom:16px;
+}
+.val-cs-title {
+  font-size:9px; font-weight:700; letter-spacing:.1em; text-transform:uppercase;
+  color:var(--t3); margin-bottom:14px;
+}
+.val-cs-bar {
+  height:28px; border-radius:6px; overflow:hidden;
+  display:flex; margin-bottom:10px; background:rgba(255,255,255,.04);
+  transition:all .6s ease;
+}
+.val-cs-seg {
+  height:100%; transition:width .6s ease; position:relative;
+  display:flex; align-items:center; justify-content:center;
+  font-size:10px; font-weight:700; color:rgba(255,255,255,.85);
+  overflow:hidden; white-space:nowrap;
+}
+.val-cs-seg-debt  { background:linear-gradient(90deg,#1D4ED8,#3B82F6); }
+.val-cs-seg-te    { background:linear-gradient(90deg,#6D28D9,#8B5CF6); }
+.val-cs-seg-eq    { background:linear-gradient(90deg,#B45309,#F59E0B); }
+.val-cs-legend { display:flex; gap:16px; flex-wrap:wrap; }
+.val-cs-item { display:flex; flex-direction:column; gap:2px; }
+.val-cs-item-top { display:flex; align-items:center; gap:5px; }
+.val-cs-dot { width:8px; height:8px; border-radius:2px; flex-shrink:0; }
+.val-cs-name { font-size:9px; color:var(--t3); font-weight:600; letter-spacing:.04em; }
+.val-cs-amount { font-size:14px; font-weight:700; font-variant-numeric:tabular-nums; color:var(--t1); }
+.val-cs-pct { font-size:9px; color:var(--t3); margin-left:4px; }
+
+/* Deal terms + specs */
+.val-detail-grid {
+  display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:16px;
+}
+.val-detail-card {
+  background:var(--surface); border:1px solid var(--border); border-radius:var(--r-lg); padding:16px;
+}
+.val-detail-title {
+  font-size:9px; font-weight:700; letter-spacing:.1em; text-transform:uppercase;
+  color:var(--t3); margin-bottom:12px;
+}
+.val-detail-row {
+  display:flex; justify-content:space-between; align-items:baseline;
+  padding:6px 0; border-bottom:1px solid rgba(255,255,255,.04);
+}
+.val-detail-row:last-child { border-bottom:none; padding-bottom:0; }
+.val-detail-key { font-size:11px; color:var(--t3); }
+.val-detail-val { font-size:12px; font-weight:600; color:var(--t1); font-variant-numeric:tabular-nums; }
+
+/* Empty state */
+.val-empty {
+  display:flex; flex-direction:column; align-items:center; justify-content:center;
+  padding:48px 24px; text-align:center; gap:12px;
+}
+.val-empty-icon { font-size:36px; opacity:.4; }
+.val-empty-title { font-size:14px; font-weight:700; color:var(--t2); }
+.val-empty-sub { font-size:12px; color:var(--t3); max-width:300px; line-height:1.6; }
+
+/* ── SCENARIO CARDS ── */
+.val-sc-card {
+  background:var(--surface); border:1px solid var(--border);
+  border-radius:var(--r-lg); overflow:hidden;
+}
+.val-sc-header {
+  padding:10px 14px; border-bottom:1px solid;
+  display:flex; justify-content:space-between; align-items:center;
+}
+.val-sc-label { font-size:10px; font-weight:800; letter-spacing:.1em; }
+.val-sc-tag { font-size:9px; color:var(--t3); }
+.val-sc-body { padding:10px 12px; display:flex; flex-direction:column; gap:6px; }
+.val-sc-row { display:flex; flex-direction:column; gap:2px; }
+.val-sc-row label { font-size:9px; color:var(--t3); font-weight:600; }
+.val-sc-row input {
+  width:100%; padding:5px 8px;
+  background:rgba(255,255,255,.04); border:1px solid rgba(255,255,255,.07);
+  border-radius:4px; color:var(--t1); font-size:11px; font-family:var(--font);
+  box-sizing:border-box;
+}
+.val-sc-row input:focus { outline:none; border-color:var(--blue); }
+.val-sc-result {
+  padding:10px 12px; border-top:1px solid var(--border);
+  background:rgba(255,255,255,.02);
+}
+.val-sc-kpi-row { display:flex; justify-content:space-between; padding:3px 0; }
+.val-sc-kpi-lbl { font-size:9px; color:var(--t3); }
+.val-sc-kpi-val { font-size:11px; font-weight:700; font-variant-numeric:tabular-nums; }
+
+/* ── SENSITIVITY TAB ── */
+.val-sens-table-wrap { overflow-x:auto; }
+.val-sens-table {
+  width:100%; border-collapse:collapse; font-size:11px;
+  font-variant-numeric:tabular-nums;
+}
+.val-sens-table th {
+  padding:8px 14px; text-align:right; font-size:9px; font-weight:700;
+  letter-spacing:.06em; color:var(--t3); background:var(--surface);
+  border-bottom:1px solid var(--border); position:sticky; top:0;
+  white-space:nowrap;
+}
+.val-sens-table th:first-child { text-align:left; }
+.val-sens-table td {
+  padding:9px 14px; text-align:right; border-bottom:1px solid rgba(255,255,255,.04);
+  color:var(--t2); transition:background .1s;
+}
+.val-sens-table td:first-child { text-align:left; font-weight:600; color:var(--t1); }
+.val-sens-table tr.base td {
+  background:rgba(37,99,235,.08); color:var(--t1);
+}
+.val-sens-table tr:hover td { background:rgba(255,255,255,.02); }
+.val-delta-pos { color:var(--green); font-size:10px; }
+.val-delta-neg { color:var(--red); font-size:10px; }
+
+/* Version history */
+.val-history-item {
+  display:flex; justify-content:space-between; align-items:center;
+  padding:10px 0; border-bottom:1px solid rgba(255,255,255,.04);
+  cursor:pointer; transition:background .1s;
+}
+.val-history-item:hover { background:rgba(255,255,255,.02); margin:0 -4px; padding:10px 4px; }
+.val-history-item:last-child { border-bottom:none; }
+.val-hi-name { font-size:12px; color:var(--t1); font-weight:600; }
+.val-hi-meta { font-size:10px; color:var(--t3); margin-top:2px; }
+.val-hi-irr  { font-size:14px; font-weight:700; color:var(--green); font-variant-numeric:tabular-nums; }
+
+#val-calc-status { font-size:10px; color:var(--t3); text-align:center; padding:0 8px; }
+</style>
+
+<div class="val-hd">
+  <div class="val-hd-left">
+    <div class="val-hd-icon">📐</div>
+    <div>
+      <div class="val-hd-title">Valuation</div>
+      <div class="val-hd-sub">Project Financial Model · IRR &amp; Margin Analysis</div>
+    </div>
+  </div>
+  <div class="val-hd-right">
+    <select id="val-proj-select" class="val-proj-sel"></select>
+    <button class="page-back-btn" onclick="closeAllPages()">← Dashboard</button>
+  </div>
+</div>
+
+<div class="val-upload-bar">
+  <label class="val-upload-label">
+    <span>📎</span>
+    <span id="val-upload-fname">PF Model 업로드 (.xlsb / .xlsx)</span>
+    <input type="file" id="val-upload-file" accept=".xlsb,.xlsx" style="display:none">
+  </label>
+  <button id="val-upload-btn2" class="val-parse-btn">Upload &amp; Parse</button>
+  <span id="val-upload-status" style="font-size:10px;color:var(--t3)"></span>
+  <input id="val-scenario-name" placeholder="시나리오명" style="padding:5px 10px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:5px;color:var(--t2);font-size:11px;font-family:var(--font);width:100px">
+  <input id="val-change-reason" placeholder="변경 근거 (예: TE 시장 경색 반영)" style="padding:5px 10px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:5px;color:var(--t2);font-size:11px;font-family:var(--font);width:200px">
+  <input id="val-approver" placeholder="승인자" style="padding:5px 10px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:5px;color:var(--t2);font-size:11px;font-family:var(--font);width:80px">
+  <div class="val-status-badge">
+    <div class="val-status-dot" id="val-status-dot"></div>
+    <span id="val-data-badge">No data</span>
+  </div>
+</div>
+
+<div class="val-body">
+
+  <!-- ── LEFT: INPUTS ── -->
+  <div class="val-left">
+
+    <!-- ① PROJECT -->
+    <div class="val-section">
+      <div class="val-section-hd" onclick="valToggleSec(this)">
+        <span class="val-sec-title">Project</span>
+        <span class="val-sec-toggle open">▼</span>
+      </div>
+      <div class="val-sec-body">
+        <div class="val-grid2">
+          <div class="vf"><label>Dev Fee ($/kWac)</label><input class="vi" id="vi-dev-kwac" type="number" step="5" placeholder="200"></div>
+          <div class="vf"><label>Size (MWac)</label><input class="vi" id="vi-pv-mwac" type="number" step="1" placeholder="199"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ② REVENUE -->
+    <div class="val-section">
+      <div class="val-section-hd" onclick="valToggleSec(this)">
+        <span class="val-sec-title">Revenue</span>
+        <span class="val-sec-toggle open">▼</span>
+      </div>
+      <div class="val-sec-body">
+        <div class="val-grid2">
+          <div class="vf"><label>PPA ($/MWh)</label><input class="vi" id="vi-ppa-p" type="number" step="0.01" placeholder="68.82"></div>
+          <div class="vf"><label>PPA Term (yr)</label><input class="vi" id="vi-ppa-t" type="number" step="1" placeholder="25"></div>
+          <div class="vf"><label>PPA Esc. (%)</label><input class="vi" id="vi-ppa-esc" type="number" step="0.1" placeholder="0"></div>
+          <div class="vf"><label>BESS Toll ($/kW-mo)</label><input class="vi" id="vi-toll-p" type="number" step="0.01" placeholder="14.50"></div>
+          <div class="vf" style="grid-column:span 2"><label>Toll Term (yr)</label><input class="vi" id="vi-toll-t" type="number" step="1" placeholder="20"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ③ STRUCTURE -->
+    <div class="val-section">
+      <div class="val-section-hd" onclick="valToggleSec(this)">
+        <span class="val-sec-title">Deal Structure</span>
+        <span class="val-sec-toggle open">▼</span>
+      </div>
+      <div class="val-sec-body">
+        <div class="val-grid1" style="margin-bottom:8px">
+          <div class="vf"><label>Debt Ratio (%)</label><input class="vi" id="vi-debt-r" type="number" step="1" placeholder="47.6"></div>
+        </div>
+        <div class="val-credit-row">
+          <button id="vi-itc-btn" class="val-credit-btn on" onclick="valSetCredit('ITC')">ITC</button>
+          <button id="vi-ptc-btn" class="val-credit-btn off" onclick="valSetCredit('PTC')">PTC</button>
+        </div>
+        <div class="val-grid2">
+          <div class="vf"><label id="vi-credit-lbl">ITC Rate (%)</label><input class="vi" id="vi-credit-val" type="number" step="1" placeholder="30"></div>
+          <div class="vf"><label>Flip Yield (%)</label><input class="vi" id="vi-flip-y" type="number" step="0.25" placeholder="8.75"></div>
+          <div class="vf" style="grid-column:span 2"><label>Flip Term (yr)</label><input class="vi" id="vi-flip-t" type="number" step="1" placeholder="7"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 엔진용 hidden inputs (기본값 고정) -->
+    <div style="display:none">
+      <input id="vi-module"    value="31.5">
+      <input id="vi-bos"       value="42.9">
+      <input id="vi-ess-eq"    value="234.5">
+      <input id="vi-epc-cont"  value="8">
+      <input id="vi-owner"     value="3">
+      <input id="vi-capex-etc" value="0">
+      <input id="vi-pv-om"     value="4.5">
+      <input id="vi-bess-om"   value="8.6">
+      <input id="vi-ins"       value="5.0">
+      <input id="vi-assetmgmt" value="150">
+      <input id="vi-opex-etc"  value="0">
+      <input id="vi-int-r"     value="5.5">
+      <input id="vi-loan-t"    value="18">
+      <input id="vi-dscr"      value="1.30">
+      <input id="vi-itc-elig"  value="97">
+      <input id="vi-te-fee"    value="2">
+      <input id="vi-aug-price" value="150">
+      <input id="vi-aug-mwh"   value="18.8">
+      <input id="vi-aug-y1"    value="4">
+      <input id="vi-aug-y2"    value="8">
+      <input id="vi-aug-y3"    value="12">
+      <span  id="vi-capex-total"></span>
+    </div>
+
+    <div class="val-calc-wrap">
+      <button id="val-calc-btn" class="val-calc-btn">Calculate IRR / Margin</button>
+      <div id="val-calc-msg" class="val-calc-msg"></div>
+    </div>
+  </div><!-- /val-left -->
+
+  <!-- ── RIGHT: OUTPUTS ── -->
+  <div class="val-right">
+
+    <div class="val-tabs-row">
+      <button class="val-tab active" onclick="valSwitchTab('overview',this)">Overview</button>
+      <button class="val-tab" onclick="valSwitchTab('sensitivity',this)">Sensitivity</button>
+      <button class="val-tab" onclick="valSwitchTab('cashflow',this)">Cash Flow</button>
+      <button class="val-tab" onclick="valSwitchTab('history',this)">History</button>
+      <button class="val-tab" onclick="valSwitchTab('benchmark',this);valLoadBenchmark()">Benchmark</button>
+      <span id="val-calc-status" style="margin-left:auto"></span>
+      <button onclick="valExportPDF()" id="val-export-btn" style="margin-left:8px;margin-right:4px;padding:5px 12px;background:transparent;border:1px solid var(--border2);border-radius:var(--r-md);font-size:10px;font-weight:600;color:var(--t3);cursor:pointer;font-family:var(--font);transition:all var(--ease);white-space:nowrap" onmouseover="this.style.color='var(--t1)';this.style.borderColor='var(--t2)'" onmouseout="this.style.color='var(--t3)';this.style.borderColor='var(--border2)'">📄 Export IC Summary</button>
+    </div>
+
+    <!-- OVERVIEW -->
+    <div class="val-tab-panel active" id="val-panel-overview">
+      <!-- empty state -->
+      <div id="val-empty-state" class="val-empty">
+        <div class="val-empty-icon">📐</div>
+        <div class="val-empty-title">모델을 업로드하거나 Calculate를 실행하세요</div>
+        <div class="val-empty-sub">PF 모델(.xlsb)을 업로드하면 자동 파싱됩니다. 또는 좌측 인풋을 채우고 Calculate를 눌러 빠른 추정값을 확인할 수 있습니다.</div>
+      </div>
+
+      <!-- results (hidden until calc) -->
+      <div id="val-results-wrap" style="display:none">
+
+        <!-- Hero metrics -->
+        <div class="val-hero-row">
+          <div class="val-hero-cell">
+            <div class="val-hero-lbl">
+              <span class="val-hero-dot" style="background:var(--amber)"></span>
+              Dev Margin
+            </div>
+            <div id="vo-dev-margin" class="val-hero-val" style="color:var(--amber)">—</div>
+            <div id="vo-dev-cwp" class="val-hero-sub">—</div>
+          </div>
+          <div class="val-hero-cell">
+            <div class="val-hero-lbl">
+              <span class="val-hero-dot" style="background:var(--green)"></span>
+              Sponsor IRR
+            </div>
+            <div id="vo-sirr" class="val-hero-val">—</div>
+            <div class="val-hero-sub">After TE Flip · Full Life</div>
+            <div class="val-irr-track">
+              <div id="vo-sirr-bar" class="val-irr-fill" style="width:0;background:var(--green)"></div>
+            </div>
+          </div>
+          <div class="val-hero-cell">
+            <div class="val-hero-lbl">
+              <span class="val-hero-dot" style="background:var(--blue-h)"></span>
+              EBITDA Yield
+            </div>
+            <div id="vo-ebitda-yield" class="val-hero-val" style="color:var(--blue-h)">—</div>
+            <div class="val-hero-sub">Y1 EBITDA / CAPEX</div>
+            <div class="val-irr-track">
+              <div id="vo-yield-bar" class="val-irr-fill" style="width:0;background:var(--blue-h)"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Secondary IRRs -->
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px">
+          <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--r-lg);padding:14px 16px;display:flex;justify-content:space-between;align-items:center">
+            <div>
+              <div style="font-size:9px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--t3);margin-bottom:4px">Levered IRR</div>
+              <div style="font-size:10px;color:var(--t3)">Project · Full Life</div>
+            </div>
+            <div id="vo-lirr" style="font-size:22px;font-weight:800;color:var(--t1);font-variant-numeric:tabular-nums">—</div>
+          </div>
+          <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--r-lg);padding:14px 16px;display:flex;justify-content:space-between;align-items:center">
+            <div>
+              <div style="font-size:9px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--t3);margin-bottom:4px">Unlevered IRR</div>
+              <div style="font-size:10px;color:var(--t3)">No Debt / TE</div>
+            </div>
+            <div id="vo-uirr" style="font-size:22px;font-weight:800;color:var(--t1);font-variant-numeric:tabular-nums">—</div>
+          </div>
+        </div>
+
+        <!-- Capital Structure -->
+        <div class="val-capstruct">
+          <div class="val-cs-title">Capital Structure</div>
+          <div class="val-cs-bar" id="val-cs-bar">
+            <div class="val-cs-seg val-cs-seg-debt" id="cs-debt-seg" style="width:47.6%">Debt</div>
+            <div class="val-cs-seg val-cs-seg-te"   id="cs-te-seg"   style="width:32.5%">TE</div>
+            <div class="val-cs-seg val-cs-seg-eq"   id="cs-eq-seg"   style="width:19.9%">Eq</div>
+          </div>
+          <div class="val-cs-legend">
+            <div class="val-cs-item">
+              <div class="val-cs-item-top">
+                <div class="val-cs-dot" style="background:var(--blue)"></div>
+                <span class="val-cs-name">DEBT</span>
+              </div>
+              <div><span id="vo-debt" class="val-cs-amount">—</span><span id="vo-debt-pct" class="val-cs-pct"></span></div>
+            </div>
+            <div class="val-cs-item">
+              <div class="val-cs-item-top">
+                <div class="val-cs-dot" style="background:var(--purple)"></div>
+                <span class="val-cs-name">TAX EQUITY</span>
+              </div>
+              <div><span id="vo-te" class="val-cs-amount">—</span><span id="vo-te-pct" class="val-cs-pct"></span></div>
+            </div>
+            <div class="val-cs-item">
+              <div class="val-cs-item-top">
+                <div class="val-cs-dot" style="background:var(--amber)"></div>
+                <span class="val-cs-name">SPONSOR EQ</span>
+              </div>
+              <div><span id="vo-eq" class="val-cs-amount" style="color:var(--amber)">—</span><span id="vo-eq-pct" class="val-cs-pct"></span></div>
+            </div>
+            <div class="val-cs-item" style="margin-left:auto">
+              <div class="val-cs-item-top"><span class="val-cs-name">TOTAL</span></div>
+              <div><span id="vo-capex" class="val-cs-amount" style="color:var(--t1)">—</span></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Deal Terms + Project Specs -->
+        <div class="val-detail-grid">
+          <div class="val-detail-card">
+            <div class="val-detail-title">Deal Terms</div>
+            <div class="val-detail-row">
+              <span class="val-detail-key">PPA</span>
+              <span id="vo-ppa" class="val-detail-val">—</span>
+            </div>
+            <div class="val-detail-row">
+              <span class="val-detail-key">BESS Toll</span>
+              <span id="vo-toll" class="val-detail-val">—</span>
+            </div>
+            <div class="val-detail-row">
+              <span class="val-detail-key">Debt / Interest</span>
+              <span id="vo-debt-terms" class="val-detail-val">—</span>
+            </div>
+            <div class="val-detail-row">
+              <span class="val-detail-key">TE Flip Yield</span>
+              <span id="vo-flip" class="val-detail-val">—</span>
+            </div>
+          </div>
+          <div class="val-detail-card">
+            <div class="val-detail-title">Project Specs</div>
+            <div class="val-detail-row">
+              <span class="val-detail-key">PV / BESS</span>
+              <span id="vo-specs" class="val-detail-val">—</span>
+            </div>
+            <div class="val-detail-row">
+              <span class="val-detail-key">COD / NTP</span>
+              <span id="vo-dates" class="val-detail-val">—</span>
+            </div>
+            <div class="val-detail-row">
+              <span class="val-detail-key">ITC / PTC</span>
+              <span id="vo-credit-display" class="val-detail-val">—</span>
+            </div>
+            <div class="val-detail-row">
+              <span class="val-detail-key">EBITDA Y1</span>
+              <span id="vo-ebitda-y1" class="val-detail-val">—</span>
+            </div>
+          </div>
+        </div>
+
+        <div id="vo-meta" style="font-size:10px;color:var(--t3);text-align:right;padding-top:4px"></div>
+      </div>
+    </div>
+
+    <!-- SENSITIVITY -->
+    <div class="val-tab-panel" id="val-panel-sensitivity">
+
+      <!-- SCENARIO COMPARISON -->
+      <div id="val-scenario-section">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+          <div>
+            <div style="font-size:11px;font-weight:700;color:var(--t1)">Scenario 비교</div>
+            <div style="font-size:10px;color:var(--t3);margin-top:2px">세 가지 시나리오를 동시에 계산하여 비교합니다</div>
+          </div>
+          <button id="val-run-scenarios-btn" onclick="valRunScenarios()" style="padding:7px 18px;background:var(--blue-d);color:#fff;border:none;border-radius:var(--r-md);font-size:11px;font-weight:700;cursor:pointer;font-family:var(--font);opacity:.4;pointer-events:none">▶ Run Scenarios</button>
+        </div>
+
+        <!-- 3-column scenario inputs -->
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:14px">
+          <div class="val-sc-card" id="val-sc-base" data-sc="base">
+            <div class="val-sc-header" style="background:rgba(74,140,247,.12);border-color:rgba(74,140,247,.3)">
+              <span class="val-sc-label">BASE</span>
+              <span class="val-sc-tag" style="color:var(--blue-h)">기본 시나리오</span>
+            </div>
+            <div class="val-sc-body">
+              <div class="val-sc-row"><label>PPA ($/MWh)</label><input class="val-sc-inp" data-field="ppa_price" type="number" step="0.5" placeholder="—"></div>
+              <div class="val-sc-row"><label>BESS Toll ($/kW-mo)</label><input class="val-sc-inp" data-field="bess_toll" type="number" step="0.25" placeholder="—"></div>
+              <div class="val-sc-row"><label>CAPEX ($M)</label><input class="val-sc-inp" data-field="capex_total_override" type="number" step="5" placeholder="—"></div>
+              <div class="val-sc-row"><label>Debt Ratio (%)</label><input class="val-sc-inp" data-field="debt_ratio" type="number" step="1" placeholder="—"></div>
+              <div class="val-sc-row"><label>Flip Yield (%)</label><input class="val-sc-inp" data-field="flip_yield" type="number" step="0.25" placeholder="—"></div>
+            </div>
+            <div class="val-sc-result" id="val-sc-result-base" style="display:none"></div>
+          </div>
+          <div class="val-sc-card" id="val-sc-upside" data-sc="upside">
+            <div class="val-sc-header" style="background:rgba(16,185,129,.1);border-color:rgba(16,185,129,.3)">
+              <span class="val-sc-label" style="color:var(--green)">UPSIDE</span>
+              <span class="val-sc-tag" style="color:var(--green)">낙관 시나리오</span>
+            </div>
+            <div class="val-sc-body">
+              <div class="val-sc-row"><label>PPA ($/MWh)</label><input class="val-sc-inp" data-field="ppa_price" type="number" step="0.5" placeholder="—"></div>
+              <div class="val-sc-row"><label>BESS Toll ($/kW-mo)</label><input class="val-sc-inp" data-field="bess_toll" type="number" step="0.25" placeholder="—"></div>
+              <div class="val-sc-row"><label>CAPEX ($M)</label><input class="val-sc-inp" data-field="capex_total_override" type="number" step="5" placeholder="—"></div>
+              <div class="val-sc-row"><label>Debt Ratio (%)</label><input class="val-sc-inp" data-field="debt_ratio" type="number" step="1" placeholder="—"></div>
+              <div class="val-sc-row"><label>Flip Yield (%)</label><input class="val-sc-inp" data-field="flip_yield" type="number" step="0.25" placeholder="—"></div>
+            </div>
+            <div class="val-sc-result" id="val-sc-result-upside" style="display:none"></div>
+          </div>
+          <div class="val-sc-card" id="val-sc-stress" data-sc="stress">
+            <div class="val-sc-header" style="background:rgba(240,82,82,.08);border-color:rgba(240,82,82,.25)">
+              <span class="val-sc-label" style="color:var(--red)">STRESS</span>
+              <span class="val-sc-tag" style="color:var(--red)">보수 시나리오</span>
+            </div>
+            <div class="val-sc-body">
+              <div class="val-sc-row"><label>PPA ($/MWh)</label><input class="val-sc-inp" data-field="ppa_price" type="number" step="0.5" placeholder="—"></div>
+              <div class="val-sc-row"><label>BESS Toll ($/kW-mo)</label><input class="val-sc-inp" data-field="bess_toll" type="number" step="0.25" placeholder="—"></div>
+              <div class="val-sc-row"><label>CAPEX ($M)</label><input class="val-sc-inp" data-field="capex_total_override" type="number" step="5" placeholder="—"></div>
+              <div class="val-sc-row"><label>Debt Ratio (%)</label><input class="val-sc-inp" data-field="debt_ratio" type="number" step="1" placeholder="—"></div>
+              <div class="val-sc-row"><label>Flip Yield (%)</label><input class="val-sc-inp" data-field="flip_yield" type="number" step="0.25" placeholder="—"></div>
+            </div>
+            <div class="val-sc-result" id="val-sc-result-stress" style="display:none"></div>
+          </div>
+        </div>
+
+        <!-- Comparison table (hidden until run) -->
+        <div id="val-sc-compare" style="display:none;background:var(--surface);border:1px solid var(--border);border-radius:var(--r-lg);overflow:hidden;margin-bottom:20px">
+          <table style="width:100%;border-collapse:collapse;font-size:11px;font-variant-numeric:tabular-nums">
+            <thead>
+              <tr style="border-bottom:1px solid var(--border)">
+                <th style="padding:10px 14px;text-align:left;font-size:9px;color:var(--t3);font-weight:700;letter-spacing:.08em;text-transform:uppercase;background:var(--surface2)">Metric</th>
+                <th style="padding:10px 14px;text-align:right;color:var(--blue-h);font-size:10px;background:var(--surface2)">BASE</th>
+                <th style="padding:10px 14px;text-align:right;color:var(--green);font-size:10px;background:var(--surface2)">UPSIDE</th>
+                <th style="padding:10px 14px;text-align:right;color:var(--red);font-size:10px;background:var(--surface2)">STRESS</th>
+              </tr>
+            </thead>
+            <tbody id="val-sc-compare-body"></tbody>
+          </table>
+        </div>
+
+        <div style="width:100%;height:1px;background:var(--border);margin:20px 0"></div>
+      </div>
+
+      <!-- PPA SENSITIVITY -->
+      <div id="val-empty-sens" class="val-empty" style="padding:32px 24px">
+        <div class="val-empty-icon">📊</div>
+        <div class="val-empty-title">Calculate 후 PPA 감도 분석이 표시됩니다</div>
+      </div>
+      <div id="vo-sens-table" style="display:none"></div>
+      <div id="vo-heatmap" style="margin-top:24px"></div>
+    </div>
+
+    <!-- CASH FLOW -->
+    <div class="val-tab-panel" id="val-panel-cashflow">
+      <div id="val-empty-cf" class="val-empty">
+        <div class="val-empty-icon">📈</div>
+        <div class="val-empty-title">Calculate 후 CF 차트가 표시됩니다</div>
+      </div>
+      <div id="vo-chart-section" style="display:none">
+        <div style="font-size:9px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--t3);margin-bottom:14px">Annual Sponsor Cash Flow (Y1–Y20)</div>
+        <canvas id="val-cf-canvas" style="width:100%;height:180px;display:block"></canvas>
+      </div>
+    </div>
+
+    <!-- HISTORY -->
+    <div class="val-tab-panel" id="val-panel-history">
+      <div id="val-empty-hist" class="val-empty">
+        <div class="val-empty-icon">🕐</div>
+        <div class="val-empty-title">저장된 버전이 없습니다</div>
+      </div>
+      <div id="vo-history-list" style="display:none"></div>
+    </div>
+
+    <!-- BENCHMARK -->
+    <div class="val-tab-panel" id="val-panel-benchmark">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+        <div>
+          <div style="font-size:13px;font-weight:700;color:var(--t1)">프로젝트 Benchmark</div>
+          <div style="font-size:10px;color:var(--t3);margin-top:2px">Valuation 데이터가 있는 프로젝트 비교 · 클릭하면 해당 프로젝트 로드</div>
+        </div>
+        <button onclick="valLoadBenchmark()" style="padding:5px 12px;background:var(--surface3);border:1px solid var(--border2);border-radius:var(--r-md);font-size:10px;color:var(--t2);cursor:pointer;font-family:var(--font)">↻ 새로고침</button>
+      </div>
+      <div id="val-bm-stats" style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:16px"></div>
+      <div id="val-bm-chart" style="background:var(--surface);border:1px solid var(--border);border-radius:var(--r-lg);padding:16px;margin-bottom:16px"></div>
+      <div id="val-bm-loading" class="val-empty" style="padding:32px">
+        <div class="val-empty-icon">📊</div>
+        <div class="val-empty-title">Benchmark 탭을 클릭하면 데이터를 로드합니다</div>
+      </div>
+      <div id="val-bm-table" style="display:none;background:var(--surface);border:1px solid var(--border);border-radius:var(--r-lg);overflow:hidden"></div>
+    </div>
+
+  </div><!-- /val-right -->
+</div><!-- /val-body -->
+
+<!-- hidden legacy IDs for JS compatibility -->
+<span id="vo-epc-margin" style="display:none"></span>
+<span id="vo-total-margin" style="display:none"></span>
+<span id="vo-margin-cwp" style="display:none"></span>
+<span id="vo-heatmap-section" style="display:none"></span>
+<span id="vo-chart-section-legacy" style="display:none"></span>
+<span id="vo-sensitivity" style="display:none"></span>
+<span id="vo-history-section" style="display:none"></span>
+
+</div><!-- /page-valuation -->
+
+
+
+<!-- ══ IC SUMMARY PRINT DOC ══ -->
+<div id="val-print-doc" style="display:none"></div>
+
+<style id="val-print-style">
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+
+@media print {
+  body > * { display:none !important; }
+  #val-print-doc { display:block !important; }
+  @page {
+    size: A4 portrait;
+    margin: 14mm 16mm 14mm 16mm;
+  }
+}
+
+#val-print-doc {
+  font-family:'Inter',Arial,sans-serif;
+  font-size:9pt;
+  color:#0F172A;
+  background:white;
+  line-height:1.4;
+}
+.vp-page { width:100%; }
+
+/* Header */
+.vp-header {
+  display:flex; justify-content:space-between; align-items:flex-start;
+  padding-bottom:10px; border-bottom:3px solid #0A2647; margin-bottom:14px;
+}
+.vp-header-left { display:flex; align-items:center; gap:12px; }
+.vp-logo-block { background:#0A2647; color:white; padding:6px 10px; border-radius:4px; font-size:11pt; font-weight:800; letter-spacing:-.3px; }
+.vp-doc-type { font-size:7.5pt; font-weight:700; letter-spacing:.12em; text-transform:uppercase; color:#64748B; margin-top:2px; }
+.vp-header-right { text-align:right; }
+.vp-header-right .vp-proj-name { font-size:13pt; font-weight:800; color:#0A2647; }
+.vp-header-right .vp-proj-meta { font-size:8pt; color:#64748B; margin-top:2px; }
+.vp-confidential { font-size:7pt; color:#94A3B8; margin-top:4px; letter-spacing:.06em; text-transform:uppercase; }
+
+/* Section titles */
+.vp-sec-title {
+  font-size:7pt; font-weight:700; letter-spacing:.12em; text-transform:uppercase;
+  color:#64748B; border-bottom:1px solid #E2E8F0;
+  padding-bottom:4px; margin-bottom:8px; margin-top:12px;
+}
+.vp-sec-title:first-child { margin-top:0; }
+
+/* Project info row */
+.vp-info-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:8px; margin-bottom:4px; }
+.vp-info-cell { background:#F8FAFC; border:1px solid #E2E8F0; border-radius:4px; padding:7px 10px; }
+.vp-info-lbl { font-size:7pt; color:#64748B; font-weight:600; letter-spacing:.06em; text-transform:uppercase; margin-bottom:3px; }
+.vp-info-val { font-size:10pt; font-weight:700; color:#0F172A; }
+
+/* Scenario table */
+.vp-sc-table { width:100%; border-collapse:collapse; margin-bottom:4px; }
+.vp-sc-table th { padding:7px 10px; font-size:7.5pt; font-weight:700; letter-spacing:.06em; text-transform:uppercase; border-bottom:2px solid #E2E8F0; }
+.vp-sc-table th.base  { color:#1D4ED8; background:#EFF6FF; }
+.vp-sc-table th.up    { color:#15803D; background:#F0FDF4; }
+.vp-sc-table th.stress { color:#DC2626; background:#FEF2F2; }
+.vp-sc-table th.lbl   { text-align:left; color:#64748B; background:white; }
+.vp-sc-table td { padding:6px 10px; font-size:9pt; border-bottom:1px solid #F1F5F9; text-align:right; font-variant-numeric:tabular-nums; }
+.vp-sc-table td.lbl { text-align:left; color:#475569; font-weight:500; }
+.vp-sc-table td.hi { font-weight:700; }
+.vp-sc-table tr.subtotal td { background:#F8FAFC; font-weight:600; }
+.vp-sc-table tr.key td { border-top:1px solid #CBD5E1; }
+
+/* Capital structure bar */
+.vp-cs-wrap { margin-bottom:8px; }
+.vp-cs-bar { display:flex; height:20px; border-radius:4px; overflow:hidden; margin-bottom:6px; }
+.vp-cs-seg-debt { background:linear-gradient(90deg,#1D4ED8,#3B82F6); display:flex; align-items:center; justify-content:center; }
+.vp-cs-seg-te   { background:linear-gradient(90deg,#6D28D9,#8B5CF6); display:flex; align-items:center; justify-content:center; }
+.vp-cs-seg-eq   { background:linear-gradient(90deg,#B45309,#F59E0B); display:flex; align-items:center; justify-content:center; }
+.vp-cs-seg span { font-size:7.5pt; font-weight:700; color:rgba(255,255,255,.9); white-space:nowrap; overflow:hidden; }
+.vp-cs-legend { display:flex; gap:16px; }
+.vp-cs-legend-item { display:flex; align-items:center; gap:5px; }
+.vp-cs-dot { width:8px; height:8px; border-radius:2px; flex-shrink:0; }
+.vp-cs-legend-lbl { font-size:7.5pt; color:#475569; }
+.vp-cs-legend-val { font-size:9pt; font-weight:700; color:#0F172A; margin-left:2px; font-variant-numeric:tabular-nums; }
+
+/* Version history */
+.vp-hist-table { width:100%; border-collapse:collapse; }
+.vp-hist-table td { padding:5px 8px; font-size:8pt; border-bottom:1px solid #F1F5F9; vertical-align:top; }
+.vp-hist-table td:first-child { color:#64748B; white-space:nowrap; width:110px; }
+.vp-hist-table td.reason { color:#475569; font-style:italic; }
+.vp-hist-table td.approver { color:#15803D; font-weight:600; text-align:right; white-space:nowrap; }
+
+/* Key assumptions */
+.vp-assum-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:6px; }
+.vp-assum-item { display:flex; justify-content:space-between; padding:4px 0; border-bottom:1px solid #F1F5F9; }
+.vp-assum-lbl { font-size:7.5pt; color:#64748B; }
+.vp-assum-val { font-size:8pt; font-weight:600; color:#0F172A; }
+
+/* Footer */
+.vp-footer {
+  margin-top:14px; padding-top:8px; border-top:1px solid #E2E8F0;
+  display:flex; justify-content:space-between; align-items:center;
+}
+.vp-footer-left { font-size:7pt; color:#94A3B8; }
+.vp-footer-right { font-size:7pt; color:#94A3B8; text-align:right; }
+</style>
 
 </body>
 </html>
