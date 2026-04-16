@@ -3036,7 +3036,7 @@ function vlLoadData(safeId, parsed){
   setVal('vi-ppa-t', a.ppa_term||o.ppa_term);
   setVal('vi-toll-p', a.bess_toll||o.bess_toll);
   setVal('vi-toll-t', a.bess_toll_term||o.bess_toll_term);
-  setVal('vi-flip-y', a.flip_yield?a.flip_yield*100:8.75);
+  setVal('vi-flip-y', a.flip_yield ? (a.flip_yield>1 ? a.flip_yield : a.flip_yield*100) : 8.75);
   setVal('vi-flip-t', a.flip_term||7);
   setVal('vi-te-fee', a.te_upfront_fee?a.te_upfront_fee*100:2);
   setVal('vi-itc-elig', a.itc_eligibility?a.itc_eligibility*100:97);
@@ -7762,7 +7762,7 @@ function valDisplayData(data, safeId) {
   // Financing — derive debt ratio from outputs
   if (o.capex_total && o.debt) setV('vi-debt-r', Math.round(o.debt/o.capex_total*1000)/10);
   // Tax Equity
-  setV('vi-flip-y', a.flip_yield ? a.flip_yield*100 : 8.75);
+  setV('vi-flip-y', a.flip_yield ? (a.flip_yield>1 ? a.flip_yield : a.flip_yield*100) : 8.75);
   setV('vi-flip-t', a.flip_term || 7);
   setV('vi-te-fee', a.te_upfront_fee ? a.te_upfront_fee*100 : 2);
   setV('vi-itc-elig', a.itc_eligibility ? a.itc_eligibility*100 : 97);
@@ -8291,12 +8291,14 @@ function valInitScenarios(baseInputs) {
     var card = document.getElementById('val-sc-'+prefix);
     if (!card) return;
     var inps = card.querySelectorAll('.val-sc-inp');
+    var rawFlip = baseInputs.flip_yield || 8.75;
+    if (rawFlip > 50) rawFlip = rawFlip / 100;
     var defaults = {
       ppa_price: (baseInputs.ppa_price || 68.82) * (mults.ppa||1),
       bess_toll: (baseInputs.bess_toll || 14.50) * (mults.toll||1),
       capex_total_override: capexM ? capexM * (mults.capex||1) : '',
       debt_ratio: (baseInputs.debt_ratio || 47.6),
-      flip_yield: (baseInputs.flip_yield || 8.75)
+      flip_yield: rawFlip
     };
     inps.forEach(function(inp) {
       var field = inp.dataset.field;
@@ -9515,12 +9517,12 @@ function valSwitchTab(name, btn) {
     </div>
   </div>
   <div class="val-hd-right">
-    <select id="val-proj-select" class="val-proj-sel"></select>
     <button class="page-back-btn" onclick="closeAllPages()">← Dashboard</button>
   </div>
 </div>
 
 <div class="val-upload-bar">
+  <select id="val-proj-select" class="val-proj-sel" style="padding:5px 10px;background:var(--surface3);border:1px solid var(--border);border-radius:var(--r-md);color:var(--t1);font-size:11px;font-family:var(--font);cursor:pointer;max-width:180px"></select>
   <label class="val-upload-label">
     <span>📎</span>
     <span id="val-upload-fname">PF Model 업로드 (.xlsb / .xlsx)</span>
