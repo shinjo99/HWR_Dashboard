@@ -7860,27 +7860,27 @@ function valLoadVersion(v, safeId) {
 
 // ── Cash Flow 탭 활성화 (Calculate 완료 후)
 function valActivateCFTab() {
-  var tab = document.getElementById('val-tab-cf');
-  if (!tab) return;
-  tab.classList.remove('val-tab-locked');
-  tab.style.opacity = '';
-  tab.style.cursor  = '';
-  tab.style.pointerEvents = '';
-  tab.title = '';
-  // 탭에 ready 배지 추가
-  if (!tab.querySelector('.cf-ready-dot')) {
-    var dot = document.createElement('span');
-    dot.className = 'cf-ready-dot';
-    dot.style.cssText = 'display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--green);margin-right:5px;vertical-align:middle;animation:cfPulse 2s ease-in-out 3';
-    tab.insertBefore(dot, tab.firstChild);
+  function activateTab(tabId, label) {
+    var tab = document.getElementById(tabId);
+    if (!tab) return;
+    tab.classList.remove('val-tab-locked');
+    tab.style.opacity = ''; tab.style.cursor = '';
+    tab.style.pointerEvents = ''; tab.title = '';
+    if (!tab.querySelector('.cf-ready-dot')) {
+      var dot = document.createElement('span');
+      dot.className = 'cf-ready-dot';
+      dot.style.cssText = 'display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--green);margin-right:5px;vertical-align:middle;animation:cfPulse 2s ease-in-out 3';
+      tab.insertBefore(dot, tab.firstChild);
+    }
+    tab.style.color = 'var(--green)';
+    setTimeout(function() {
+      tab.style.color = '';
+      var dot = tab.querySelector('.cf-ready-dot');
+      if (dot) dot.style.animation = 'none';
+    }, 6000);
   }
-  tab.style.color = 'var(--green)';
-  // 3초 후 색상 일반화 (초록 유지하되 덜 강조)
-  setTimeout(function() {
-    tab.style.color = '';
-    var dot = tab.querySelector('.cf-ready-dot');
-    if (dot) dot.style.animation = 'none';
-  }, 6000);
+  activateTab('val-tab-cf', 'Cash Flow');
+  activateTab('val-tab-ic', 'IC Opinion');
 }
 
 // ── 버전 저장 모달
@@ -8830,21 +8830,6 @@ function valDrawChart(detail) {
   html += '</div>';
 
   // ── CF 자동 해석
-  // AI 분석 버튼 + 결과 영역 추가
-  html += '<div style="margin-top:24px;border-top:1px solid var(--border);padding-top:18px">'
-    + '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">'
-    +   '<div style="font-size:10px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--t2)">Investment Assessment</div>'
-    +   '<div style="display:flex;gap:6px;align-items:center">'
-    +     '<div id="cf-lang-toggle" style="display:none;background:var(--surface3);border:1px solid var(--border);border-radius:20px;padding:2px;display:flex;gap:2px">'
-    +       '<button onclick="valCFLang(this.dataset.l)" data-l="en" id="cf-lang-en" style="padding:3px 10px;border:none;border-radius:16px;font-size:10px;font-weight:700;cursor:pointer;font-family:var(--font);background:var(--blue-d);color:#fff">EN</button>'
-    +       '<button onclick="valCFLang(this.dataset.l)" data-l="kr" id="cf-lang-kr" style="padding:3px 10px;border:none;border-radius:16px;font-size:10px;font-weight:600;cursor:pointer;font-family:var(--font);background:transparent;color:var(--t3)">KO</button>'
-    +     '</div>'
-    +     '<button id="cf-ai-btn" onclick="valRunCFAnalysis()" style="padding:5px 14px;background:var(--blue-d);color:#fff;border:none;border-radius:var(--r-md);font-size:10px;font-weight:700;cursor:pointer;font-family:var(--font)">Run AI Analysis</button>'
-    +   '</div>'
-    + '</div>'
-    + '<div id="cf-ai-result" style="font-size:11px;color:var(--t3)">Click <b>Run AI Analysis</b> to generate an investment-grade CF assessment.</div>'
-    + '</div>';
-
   chartSec.innerHTML = html;
 
   // 현재 CF 데이터를 전역에 보관 (버튼 클릭 시 사용)
@@ -9307,6 +9292,10 @@ function valSwitchTab(name, btn) {
   if(btn) btn.classList.add('active');
   var panel = document.getElementById('val-panel-'+name);
   if(panel) panel.classList.add('active');
+  // IC Opinion 탭 진입 시 이미 분석 결과 있으면 표시 유지
+  if(name === 'ic' && window._cfAnalysis && !document.getElementById('cf-ai-result').innerHTML.includes('Calculate')) {
+    // 결과 이미 있음 — 유지
+  }
 }
 
 </script>
@@ -9852,6 +9841,7 @@ function valSwitchTab(name, btn) {
       <button class="val-tab val-tab-locked" id="val-tab-cf" onclick="valSwitchTab('cashflow',this)" title="Calculate 후 활성화됩니다" style="opacity:.35;cursor:not-allowed;pointer-events:none">Cash Flow</button>
       <button class="val-tab" onclick="valSwitchTab('history',this)">History</button>
       <button class="val-tab" onclick="valSwitchTab('benchmark',this);valLoadBenchmark()">Benchmark</button>
+      <button class="val-tab val-tab-locked" id="val-tab-ic" onclick="valSwitchTab('ic',this)" title="Calculate 후 활성화됩니다" style="opacity:.35;cursor:not-allowed;pointer-events:none">IC Opinion</button>
       <span id="val-calc-status" style="margin-left:auto"></span>
       <button onclick="valExportPDF()" id="val-export-btn" style="margin-left:8px;margin-right:4px;padding:5px 12px;background:transparent;border:1px solid var(--border2);border-radius:var(--r-md);font-size:10px;font-weight:600;color:var(--t3);cursor:pointer;font-family:var(--font);transition:all var(--ease);white-space:nowrap" onmouseover="this.style.color='var(--t1)';this.style.borderColor='var(--t2)'" onmouseout="this.style.color='var(--t3)';this.style.borderColor='var(--border2)'">✨ Export IC Summary</button>
     </div>
@@ -10128,7 +10118,27 @@ function valSwitchTab(name, btn) {
       <div id="val-bm-table" style="display:none;background:var(--surface);border:1px solid var(--border);border-radius:var(--r-lg);overflow:hidden"></div>
     </div>
 
-  </div><!-- /val-right -->
+  
+
+    <!-- IC OPINION -->
+    <div class="val-tab-panel" id="val-panel-ic">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px">
+        <div>
+          <div style="font-size:13px;font-weight:700;color:var(--t1)">IC Opinion</div>
+          <div style="font-size:10px;color:var(--t3);margin-top:2px">Threshold 기반 AI 투자 의사판단 · Calculate 완료 후 활성화</div>
+        </div>
+        <div style="display:flex;gap:8px;align-items:center">
+          <div id="cf-lang-toggle" style="display:none;background:var(--surface3);border:1px solid var(--border);border-radius:20px;padding:2px;display:flex;gap:2px">
+            <button onclick="valCFLang(this.dataset.l)" data-l="en" id="cf-lang-en" style="padding:3px 10px;border:none;border-radius:16px;font-size:10px;font-weight:700;cursor:pointer;font-family:var(--font);background:var(--blue-d);color:#fff">EN</button>
+            <button onclick="valCFLang(this.dataset.l)" data-l="kr" id="cf-lang-kr" style="padding:3px 10px;border:none;border-radius:16px;font-size:10px;font-weight:600;cursor:pointer;font-family:var(--font);background:transparent;color:var(--t3)">KO</button>
+          </div>
+          <button id="cf-ai-btn" onclick="valRunCFAnalysis()" style="padding:6px 16px;background:var(--blue-d);color:#fff;border:none;border-radius:var(--r-md);font-size:11px;font-weight:700;cursor:pointer;font-family:var(--font)">Run AI Analysis</button>
+        </div>
+      </div>
+      <div id="cf-ai-result" style="font-size:11px;color:var(--t3)">Calculate를 먼저 실행하세요.</div>
+    </div>
+
+</div><!-- /val-right -->
 </div><!-- /val-body -->
 
 <!-- hidden legacy IDs for JS compatibility -->
