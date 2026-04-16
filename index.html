@@ -9218,7 +9218,7 @@ function valSwitchTab(name, btn) {
 
 /* Body split */
 .val-body {
-  display:flex; flex:1; overflow:hidden;
+  display:flex; flex:1; overflow:hidden; min-height:0;
 }
 
 /* ── LEFT INPUT PANEL ── */
@@ -9313,7 +9313,7 @@ function valSwitchTab(name, btn) {
 /* ── RIGHT OUTPUT PANEL ── */
 .val-right {
   flex:1; display:flex; flex-direction:column; overflow:hidden;
-  background:var(--bg);
+  background:var(--bg); min-height:0;
 }
 .val-tab-panel { padding-bottom:80px; }
 
