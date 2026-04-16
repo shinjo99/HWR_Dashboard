@@ -7750,8 +7750,8 @@ function initValuationPage() {
   if (sel.options.length === 0) {
     PROJECTS.forEach(function(p) {
       var opt = document.createElement('option');
-      opt.value = p.id;
-      opt.textContent = p.name + ' (' + p.state + ', ' + p.iso + ')';
+      opt.value = p.name;  // PROJECTS에 id 없음 — name을 key로 사용
+      opt.textContent = p.name + (p.iso ? ' (' + p.iso + ')' : '');
       sel.appendChild(opt);
     });
     sel.onchange = function() { valLoadProject(this.value); };
@@ -7761,7 +7761,10 @@ function initValuationPage() {
 }
 
 function valLoadProject(projectId) {
-  var safeId = projectId.replace(/[/.]/g, '_');
+  // projectId는 이제 project name (e.g. "Neptune")
+  // Firebase 경로는 기존 id 기반이므로 name으로 매핑 필요
+  var proj = PROJECTS.find(function(p){ return p.name === projectId; });
+  var safeId = (proj && proj.id) ? proj.id.replace(/[/.]/g,'_') : projectId.replace(/[\s/.]/g,'_');
   // Reset outputs
   ['vo-dev-margin','vo-epc-margin','vo-total-margin','vo-lirr','vo-uirr','vo-sirr',
    'vo-capex','vo-debt','vo-te','vo-eq','vo-ppa','vo-toll','vo-specs','vo-dates'].forEach(function(id) {
@@ -8089,6 +8092,8 @@ function valLoadHistory(safeId) {
 }
 
 // ── IC Summary PDF Export
+async function valExportICOpinion() { return valExportPDF(); }
+
 async function valExportPDF() {
   var btn = document.getElementById('val-export-btn');
   var doc = document.getElementById('val-print-doc');
@@ -9110,30 +9115,39 @@ async function valRunCFAnalysis(lang) {
   function tv(id){ var el=document.getElementById(id); return el?el.textContent.trim():''; }
   var projName = (document.getElementById('val-proj-select')||{}).value || '프로젝트';
 
-  // PROJECTS 배열에서 프로젝트 메타데이터 추출
-  var projMeta = {};
+  // PROJECTS(숫자 cod/ntp) + PPV_2026_PROJECTS(문자열 "YYYY-MM") 조합
+  var projMeta  = {};
+  var projMetaP = {};
   if (typeof PROJECTS !== 'undefined') {
-    var found = PROJECTS.find(function(p){ return p.id===projName || p.name===projName; });
-    if (found) projMeta = found;
+    var f1 = PROJECTS.find(function(p){ return p.name===projName; });
+    if (f1) projMeta = f1;
   }
-  // COD vs ITC 일몰(2030.7.4) 분석
-  var codDate   = projMeta.cod  || '';
-  var ntpDate   = projMeta.ntp  || '';
-  var codYear   = codDate  ? parseInt(codDate.split('-')[0])  : null;
-  var codMonth  = codDate  ? parseInt(codDate.split('-')[1])  : null;
-  var itcExpiry = '2030-07'; // ITC 일몰 기준
-  var codBeforeItc = codYear ? (codYear < 2030 || (codYear===2030 && codMonth<=7)) : null;
-  var itcRisk   = codBeforeItc===true ? 'LOW' : codBeforeItc===false ? 'HIGH' : 'UNKNOWN';
+  if (typeof PPV_2026_PROJECTS !== 'undefined') {
+    var f2 = PPV_2026_PROJECTS.find(function(p){ return p.name===projName; });
+    if (f2) projMetaP = f2;
+  }
+
+  // cod/ntp: PPV_2026_PROJECTS 우선(문자열), PROJECTS 폴백(숫자→String 변환)
+  var codRaw  = projMetaP.cod != null ? projMetaP.cod  : (projMeta.cod  != null ? projMeta.cod  : '');
+  var ntpRaw  = projMetaP.ntp != null ? projMetaP.ntp  : (projMeta.ntp  != null ? projMeta.ntp  : '');
+  var codDate = codRaw !== '' ? String(codRaw) : '';
+  var ntpDate = ntpRaw !== '' ? String(ntpRaw) : '';
+  var codYear = codDate ? parseInt(codDate) : null;  // parseInt("2027-12")=2027, parseInt("2027")=2027
+  var itcRisk = codYear ? (codYear < 2031 ? 'LOW' : 'HIGH') : 'UNKNOWN';
+
+  var stage      = projMetaP.stage || projMeta.stage || '';
+  var riskFactor = projMetaP.risk_factor != null ? projMetaP.risk_factor : null;
+  var grossM     = projMetaP.gross_margin_m != null ? projMetaP.gross_margin_m : null;
 
   var projCtx = [
-    projMeta.stage    ? 'Development Stage: '   + projMeta.stage    : '',
-    projMeta.iso      ? 'ISO/Market: '           + projMeta.iso      : '',
-    projMeta.type     ? 'Project Type: '         + projMeta.type     : '',
-    ntpDate           ? 'Expected NTP: '         + ntpDate           : '',
-    codDate           ? 'Expected COD: '         + codDate           : '',
-    projMeta.risk_factor != null ? 'NTP Probability (PPV risk factor): ' + (projMeta.risk_factor*100).toFixed(0)+'%' : '',
-    codDate           ? 'ITC Expiry Risk (COD before 2030-07): ' + itcRisk : '',
-    projMeta.gross_margin_m != null ? 'Gross Margin Target: $' + projMeta.gross_margin_m + 'M' : ''
+    stage          ? 'Development Stage: '        + stage                           : '',
+    projMeta.iso   ? 'ISO/Market: '               + projMeta.iso                    : '',
+    projMeta.type  ? 'Project Type: '             + projMeta.type                   : '',
+    ntpDate        ? 'Expected NTP: '             + ntpDate                         : '',
+    codDate        ? 'Expected COD: '             + codDate                         : '',
+    riskFactor != null ? 'NTP Probability: '      + (riskFactor*100).toFixed(0)+'%' : '',
+    codDate        ? 'ITC Expiry Risk vs 2030-07: ' + itcRisk                        : '',
+    grossM != null ? 'Gross Margin Target: $'    + grossM + 'M'                     : ''
   ].filter(Boolean).join(' | ');
 
   var ctx = 'Sponsor IRR: '+tv('vo-sirr')+' | Dev Margin: '+tv('vo-dev-margin')
@@ -9147,34 +9161,20 @@ async function valRunCFAnalysis(lang) {
     var devMval = parseFloat(tv('vo-dev-margin').replace(/[^0-9.]/g,''))||0;
     var devM_cwp = mwac > 0 ? (devMval*1000/(mwac*1000)*100).toFixed(1) : '—';
 
-    // PPV 탭에서 프로젝트 메타데이터 가져오기
-    var projMeta = '';
-    if (typeof PROJECTS !== 'undefined') {
-      var pid = projName.replace(/[/.]/g,'_');
-      var found = PROJECTS.find(function(p){
-        return p.id===projName || p.name===projName ||
-               (p.id||'').replace(/[/.]/g,'_')===pid;
-      });
-      if (found) {
-        var overrides = typeof loadPPVData === 'function' ? loadPPVData() : {};
-        var stage = (overrides['stage_'+found.name]) || found.stage || 'Unknown';
-        projMeta = 'Type: '+(found.type||'PV+ESS')
-          +' | State: '+(found.state||'?')
-          +' | ISO: '+(found.iso||'?')
-          +' | PV: '+(found.pv||'?')+'MWac'
-          +' | BESS: '+(found.ess||0)+'MW'
-          +' | NTP: '+(found.ntp||'?')
-          +' | COD: '+(found.cod||'?')
-          +' | Stage: '+stage
-          +(found.blm ? ' | BLM land (federal permitting)' : '');
-      }
-    }
-
     var data = await apiCall('POST', '/valuation/analyze-cf', {
       cf_text: cfText,
       project_name: projName,
       context: ctx,
-      project_context: projMeta,
+      project_meta: {
+        stage: projMeta.stage || '',
+        iso: projMeta.iso || '',
+        type: projMeta.type || '',
+        ntp: ntpDate,
+        cod: codDate,
+        risk_factor: projMeta.risk_factor != null ? projMeta.risk_factor : '',
+        itc_expiry_risk: itcRisk,
+        proj_ctx: projCtx
+      },
       thresholds: {
         dev_margin_cwp: thr.dev_margin_cwp,
         sponsor_irr_pct: thr.sponsor_irr_pct
