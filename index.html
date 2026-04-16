@@ -8843,7 +8843,13 @@ function valCFLang(lang) {
   var krBtn = document.getElementById('cf-lang-kr');
   if (enBtn) { enBtn.style.background = lang==='en'?'var(--blue-d)':'transparent'; enBtn.style.color = lang==='en'?'#fff':'var(--t3)'; }
   if (krBtn) { krBtn.style.background = lang==='kr'?'var(--blue-d)':'transparent'; krBtn.style.color = lang==='kr'?'#fff':'var(--t3)'; }
-  if (window._cfAnalysis) valRenderCFAnalysis(window._cfAnalysis, lang);
+  // 해당 언어 캐시가 있으면 즉시 표시, 없으면 재호출
+  var cached = lang==='en' ? window._cfAnalysisEn : window._cfAnalysisKr;
+  if (cached) {
+    valRenderCFAnalysis(cached, lang);
+  } else {
+    valRunCFAnalysis(lang);
+  }
 }
 
 function valRenderCFAnalysis(p, lang) {
@@ -8853,10 +8859,11 @@ function valRenderCFAnalysis(p, lang) {
   var isEn = lang === 'en';
   var vc = p.verdict_color === 'green' ? 'var(--green)' : p.verdict_color === 'red' ? 'var(--red)' : 'var(--amber)';
   var verdict   = p.verdict || 'NEUTRAL';
-  var thesis    = isEn ? (p.thesis_en||'') : (p.thesis_kr||'');
-  var risks     = isEn ? (p.risks_en||[]) : (p.risks_kr||[]);
-  var rec       = isEn ? (p.rec_en||'') : (p.rec_kr||'');
-  var sens      = isEn ? (p.sensitivity_en||'') : (p.sensitivity_kr||'');
+  // 단일 언어 응답 (thesis/risks/rec) + 이전 이중언어 형식 호환
+  var thesis    = p.thesis    || (isEn ? (p.thesis_en||'')    : (p.thesis_kr||''));
+  var risks     = p.risks     || (isEn ? (p.risks_en||[])     : (p.risks_kr||[]));
+  var rec       = p.rec       || (isEn ? (p.rec_en||'')       : (p.rec_kr||''));
+  var sens      = p.sensitivity || (isEn ? (p.sensitivity_en||'') : (p.sensitivity_kr||''));
   var thr       = p.threshold_status || {};
 
   var L = {
@@ -8958,15 +8965,16 @@ function valRenderCFAnalysis(p, lang) {
   res.innerHTML = html;
 }
 
-async function valRunCFAnalysis() {
+async function valRunCFAnalysis(lang) {
   var detail = window._cfDetail;
   var vals   = window._cfVals;
   if (!detail || !vals) return;
+  if (!lang) lang = window._cfLang || 'en';
 
   var btn = document.getElementById('cf-ai-btn');
   var res = document.getElementById('cf-ai-result');
-  if (btn) { btn.textContent = '⏳ 분석 중...'; btn.disabled = true; btn.style.opacity = '.6'; }
-  if (res) res.innerHTML = '<span style="color:var(--t3)">Claude가 CF 패턴을 읽는 중...</span>';
+  if (btn) { btn.textContent = '⏳ Analyzing...'; btn.disabled = true; btn.style.opacity = '.6'; }
+  if (res) res.innerHTML = '<span style="color:var(--t3)">Claude가 분석 중...</span>';
 
   var cfText = detail.map(function(d, i) {
     return 'Y' + d.yr
@@ -9013,14 +9021,16 @@ async function valRunCFAnalysis() {
     if (!data || !data.ok) throw new Error('API 오류');
 
     var parsed = JSON.parse(data.result);
-    window._cfAnalysis = parsed;
-    window._cfLang = 'en';
+    // 단일 언어 캐싱
+    if (lang === 'en') window._cfAnalysisEn = parsed;
+    else               window._cfAnalysisKr = parsed;
+    window._cfLang = lang;
 
     // 언어 토글 표시
     var langToggle = document.getElementById('cf-lang-toggle');
     if (langToggle) langToggle.style.display = 'flex';
 
-    valRenderCFAnalysis(parsed, 'en');
+    valRenderCFAnalysis(parsed, lang);
     if (btn) { btn.textContent = 'Refresh'; btn.style.opacity = '.6'; }
   } catch(e) {
     if (res) res.innerHTML = '<span style="color:var(--red)">⚠️ 분석 실패: ' + e.message + '</span>';
