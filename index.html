@@ -8794,74 +8794,70 @@ function valDrawChart(detail) {
   html += '</div>';
 
   // ── CF 자동 해석
-  chartSec.innerHTML = html;
-
-  // AI 분석 비동기 실행 (차트 먼저 표시 후 분석 결과 주입)
-  valInterpretCF(detail, vals).then(function(interpretHtml) {
-    if (interpretHtml) {
-      chartSec.innerHTML += interpretHtml;
-    }
-  });
-}
-
-async function valInterpretCF(detail, vals) {
-  if (!detail || !vals || detail.length === 0) return '';
-
-  // 로딩 상태 먼저 반환
-  var loadingHtml = '<div style="margin-top:20px;border-top:1px solid var(--border);padding-top:16px">'
-    + '<div style="font-size:9px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--t3);margin-bottom:12px">CF 패턴 해석</div>'
-    + '<div id="cf-ai-result" style="padding:12px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--r-md);font-size:10px;color:var(--t3)">⏳ AI 분석 중...</div>'
+  // AI 분석 버튼 + 결과 영역 추가
+  html += '<div style="margin-top:20px;border-top:1px solid var(--border);padding-top:16px">'
+    + '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">'
+    +   '<div style="font-size:9px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--t3)">CF 패턴 해석</div>'
+    +   '<button id="cf-ai-btn" onclick="valRunCFAnalysis()" style="padding:5px 14px;background:var(--blue-d);color:#fff;border:none;border-radius:var(--r-md);font-size:10px;font-weight:700;cursor:pointer;font-family:var(--font)">✨ AI 분석</button>'
+    + '</div>'
+    + '<div id="cf-ai-result" style="font-size:10px;color:var(--t3)">AI 분석 버튼을 눌러 이 프로젝트의 CF 패턴을 분석합니다.</div>'
     + '</div>';
 
-  // CF 데이터를 AI에게 전달할 구조체 생성
-  var cfTable = detail.map(function(d, i) {
+  chartSec.innerHTML = html;
+
+  // 현재 CF 데이터를 전역에 보관 (버튼 클릭 시 사용)
+  window._cfDetail = detail;
+  window._cfVals   = vals;
+}
+
+async function valRunCFAnalysis() {
+  var detail = window._cfDetail;
+  var vals   = window._cfVals;
+  if (!detail || !vals) return;
+
+  var btn = document.getElementById('cf-ai-btn');
+  var res = document.getElementById('cf-ai-result');
+  if (btn) { btn.textContent = '⏳ 분석 중...'; btn.disabled = true; btn.style.opacity = '.6'; }
+  if (res) res.innerHTML = '<span style="color:var(--t3)">Claude가 CF 패턴을 읽는 중...</span>';
+
+  var cfText = detail.map(function(d, i) {
     return 'Y' + d.yr + ': Sponsor CF $' + (vals[i]/1000).toFixed(1) + 'M'
       + ' | EBITDA $' + (d.ebitda/1000).toFixed(1) + 'M'
       + ' | DS $' + (d.ds/1000).toFixed(1) + 'M'
       + (d.aug > 0 ? ' | BESS 증설 -$' + (d.aug/1000).toFixed(1) + 'M' : '');
-  }).join(' | ');
+  }).join(' / ');
 
   var projName = (document.getElementById('val-proj-select') || {}).value || '프로젝트';
 
-  var prompt = '미국 태양광+BESS PF(프로젝트 파이낸스) 전문가로서 아래 연도별 Sponsor Cash Flow를 분석해줘.\n\n' + '프로젝트: ' + projName + '\n\n' + cfTable + '\n\n' + '다음 관점으로 3~4개의 핵심 인사이트를 한국어로 작성해줘:\n' + '1. 연도별 CF 패턴의 주요 특징 (MACRS 세금혜택, DS 기간, BESS 증설 등)\n' + '2. CF 급등/급락 시점과 원인\n' + '3. 회수 구조 평가 (Back-loaded 정도, 리스크)\n' + '4. 투자자 관점 핵심 체크포인트\n\n' + '응답 형식 (JSON만 반환, 다른 텍스트 없이):\n' + '{"insights":[{"icon":"아이콘이모지","title":"제목(20자 이내)","body":"설명(100자 이내)"}]}';
-
-
   try {
-    var res = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        model: 'claude-sonnet-4-20250514',
-        max_tokens: 1000,
-        messages: [{ role: 'user', content: prompt }]
-      })
+    var data = await apiCall('POST', '/valuation/analyze-cf', {
+      cf_text: cfText,
+      project_name: projName
     });
-    var data = await res.json();
-    var text = (data.content || []).map(function(b){ return b.text || ''; }).join('');
-    var clean = text.replace(/```json|```/g, '').trim();
-    var parsed = JSON.parse(clean);
+    if (!data || !data.ok) throw new Error('API 오류');
+
+    var parsed = JSON.parse(data.result);
     var insights = parsed.insights || [];
 
     var html = '';
     insights.forEach(function(ins) {
       html += '<div style="display:flex;gap:10px;padding:10px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--r-md);margin-bottom:8px">'
-        + '<div style="font-size:16px;flex-shrink:0;margin-top:1px">' + ins.icon + '</div>'
+        + '<div style="font-size:16px;flex-shrink:0;margin-top:1px">' + (ins.icon || '💡') + '</div>'
         + '<div>'
         + '<div style="font-size:11px;font-weight:700;color:var(--t1);margin-bottom:3px">' + ins.title + '</div>'
         + '<div style="font-size:10px;color:var(--t3);line-height:1.6">' + ins.body + '</div>'
         + '</div></div>';
     });
 
-    var el = document.getElementById('cf-ai-result');
-    if (el) el.outerHTML = html;
-
+    if (res) res.innerHTML = html || '<span style="color:var(--t3)">분석 결과 없음</span>';
+    if (btn) { btn.textContent = '✅ 완료'; btn.style.opacity = '.5'; }
   } catch(e) {
-    var el2 = document.getElementById('cf-ai-result');
-    if (el2) el2.textContent = '⚠️ AI 분석 실패: ' + e.message;
+    if (res) res.innerHTML = '<span style="color:var(--red)">⚠️ 분석 실패: ' + e.message + '</span>';
+    if (btn) { btn.textContent = '↻ 재시도'; btn.disabled = false; btn.style.opacity = '1'; }
   }
-
-  return loadingHtml;
 }
+
+
 
 
 // ══ STAGE 4: UI 고도화 ══════════════════════════════════════════
