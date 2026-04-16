@@ -8928,9 +8928,8 @@ function valCFLang(lang) {
   if (cached) {
     valRenderCFAnalysis(cached, lang);
   } else {
-    // 캐시 없으면 안내 메시지만 — Run AI Analysis 버튼을 눌러야 함
-    var res = document.getElementById('cf-ai-result');
-    if (res) res.innerHTML = '<span style="color:var(--t3)">'+(lang==='kr'?'한국어 분석을 보려면 Run AI Analysis를 다시 클릭하세요.':'Click Run AI Analysis to generate this language version.')+'</span>';
+    // 캐시 없으면 자동으로 해당 언어로 실행
+    valRunCFAnalysis(lang);
   }
 }
 
@@ -9033,7 +9032,7 @@ function valRenderCFAnalysis(p, lang) {
         +     '<span style="font-size:11.5px;font-weight:700;color:var(--t1)">'+title+'</span>'
         +     (sev ? '<span style="font-size:9px;font-weight:700;color:'+sc+';letter-spacing:.06em">'+sev.toUpperCase()+'</span>' : '')
         +   '</div>'
-        +   (detail ? '<div style="font-size:11px;color:var(--t3);line-height:1.7">'+detail+'</div>' : '')
+        +   (detail ? '<div style="font-size:11px;color:var(--t2);line-height:1.75;margin-top:3px">'+detail+'</div>' : '')
         + '</div></div>';
     });
     html += section(L.risks, riskHtml);
@@ -9115,39 +9114,27 @@ async function valRunCFAnalysis(lang) {
   function tv(id){ var el=document.getElementById(id); return el?el.textContent.trim():''; }
   var projName = (document.getElementById('val-proj-select')||{}).value || '프로젝트';
 
-  // PROJECTS(숫자 cod/ntp) + PPV_2026_PROJECTS(문자열 "YYYY-MM") 조합
-  var projMeta  = {};
-  var projMetaP = {};
+  // PROJECTS 배열만 사용
+  var projMeta = {};
   if (typeof PROJECTS !== 'undefined') {
     var f1 = PROJECTS.find(function(p){ return p.name===projName; });
     if (f1) projMeta = f1;
   }
-  if (typeof PPV_2026_PROJECTS !== 'undefined') {
-    var f2 = PPV_2026_PROJECTS.find(function(p){ return p.name===projName; });
-    if (f2) projMetaP = f2;
-  }
 
-  // cod/ntp: PPV_2026_PROJECTS 우선(문자열), PROJECTS 폴백(숫자→String 변환)
-  var codRaw  = projMetaP.cod != null ? projMetaP.cod  : (projMeta.cod  != null ? projMeta.cod  : '');
-  var ntpRaw  = projMetaP.ntp != null ? projMetaP.ntp  : (projMeta.ntp  != null ? projMeta.ntp  : '');
-  var codDate = codRaw !== '' ? String(codRaw) : '';
-  var ntpDate = ntpRaw !== '' ? String(ntpRaw) : '';
-  var codYear = codDate ? parseInt(codDate) : null;  // parseInt("2027-12")=2027, parseInt("2027")=2027
-  var itcRisk = codYear ? (codYear < 2031 ? 'LOW' : 'HIGH') : 'UNKNOWN';
-
-  var stage      = projMetaP.stage || projMeta.stage || '';
-  var riskFactor = projMetaP.risk_factor != null ? projMetaP.risk_factor : null;
-  var grossM     = projMetaP.gross_margin_m != null ? projMetaP.gross_margin_m : null;
+  var codDate = projMeta.cod != null ? String(projMeta.cod) : '';
+  var ntpDate = projMeta.ntp != null ? String(projMeta.ntp) : '';
+  var codYear = codDate ? parseInt(codDate) : null;
+  var itcRisk = codYear ? (codYear <= 2030 ? 'LOW' : 'HIGH') : 'UNKNOWN';
+  var stage   = projMeta.stage || '';
 
   var projCtx = [
-    stage          ? 'Development Stage: '        + stage                           : '',
-    projMeta.iso   ? 'ISO/Market: '               + projMeta.iso                    : '',
-    projMeta.type  ? 'Project Type: '             + projMeta.type                   : '',
-    ntpDate        ? 'Expected NTP: '             + ntpDate                         : '',
-    codDate        ? 'Expected COD: '             + codDate                         : '',
-    riskFactor != null ? 'NTP Probability: '      + (riskFactor*100).toFixed(0)+'%' : '',
-    codDate        ? 'ITC Expiry Risk vs 2030-07: ' + itcRisk                        : '',
-    grossM != null ? 'Gross Margin Target: $'    + grossM + 'M'                     : ''
+    stage           ? 'Development Stage: '         + stage          : '',
+    projMeta.iso    ? 'ISO/Market: '                + projMeta.iso   : '',
+    projMeta.type   ? 'Project Type: '              + projMeta.type  : '',
+    ntpDate         ? 'Expected NTP: '              + ntpDate        : '',
+    codDate         ? 'Expected COD: '              + codDate        : '',
+    projMeta.state  ? 'State: '                     + projMeta.state : '',
+    codDate         ? 'ITC Expiry Risk vs 2030-07-04: ' + itcRisk    : ''
   ].filter(Boolean).join(' | ');
 
   var ctx = 'Sponsor IRR: '+tv('vo-sirr')+' | Dev Margin: '+tv('vo-dev-margin')
