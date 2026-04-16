@@ -7728,6 +7728,14 @@ function valDisplayData(data, safeId) {
   el = document.getElementById('vo-meta');
   if(el) el.textContent = (data.filename||'') + ' · ' + (data.scenario||'') + ' · ' + (data.uploaded_by||'');
 
+  // ── Show results, hide empty state
+  var rw = document.getElementById('val-results-wrap');
+  var es = document.getElementById('val-empty-state');
+  if (rw) rw.style.display = 'block';
+  if (es) es.style.display = 'none';
+  var dot = document.getElementById('val-status-dot');
+  if (dot) dot.className = 'val-status-dot live';
+
   // Fill inputs
   function setV(id, v) { var e=document.getElementById(id); if(e&&v!=null&&v!==undefined) e.value=v; }
   // Revenue
@@ -8457,20 +8465,77 @@ document.addEventListener('DOMContentLoaded', function() {
         var eqKpi=document.getElementById('vo-eq-kpi'); if(eqKpi) eqKpi.textContent=r.sponsor_equity?fmtM(r.sponsor_equity):fmtM(r.equity);
         var eq=document.getElementById('vo-eq');     if(eq) eq.textContent=r.sponsor_equity?fmtM(r.sponsor_equity):fmtM(r.equity);
 
-        // Show output section
-        var outSec = document.getElementById('vo-sensitivity');
-        if (outSec) {
-          outSec.style.display = 'block';
+        // ── Show Overview results
+        var rw = document.getElementById('val-results-wrap');
+        var es = document.getElementById('val-empty-state');
+        if (rw) rw.style.display = 'block';
+        if (es) es.style.display = 'none';
+
+        // Status dot → live
+        var dot = document.getElementById('val-status-dot');
+        if (dot) dot.className = 'val-status-dot live';
+        var badge = document.getElementById('val-data-badge');
+        if (badge) { badge.textContent = 'Live · Calculated'; }
+
+        // EBITDA Yield
+        var ey = document.getElementById('vo-ebitda-yield');
+        if (ey) ey.textContent = r.ebitda_yield ? r.ebitda_yield.toFixed(1)+'%' : '—';
+
+        // Capital structure bar + legend
+        if (r.capex_total > 0) {
+          var dPct = r.debt/r.capex_total*100;
+          var tPct = (r.te_invest||0)/r.capex_total*100;
+          var ePct = (r.sponsor_equity||0)/r.capex_total*100;
+          var ds=document.getElementById('cs-debt-seg'); if(ds) ds.style.width=dPct.toFixed(1)+'%';
+          var ts=document.getElementById('cs-te-seg');   if(ts) ts.style.width=tPct.toFixed(1)+'%';
+          var eqs=document.getElementById('cs-eq-seg');  if(eqs) eqs.style.width=ePct.toFixed(1)+'%';
+          var dp=document.getElementById('vo-debt-pct'); if(dp) dp.textContent='('+dPct.toFixed(0)+'%)';
+          var tp=document.getElementById('vo-te-pct');   if(tp) tp.textContent='('+tPct.toFixed(0)+'%)';
+          var ep=document.getElementById('vo-eq-pct');   if(ep) ep.textContent='('+ePct.toFixed(0)+'%)';
+        }
+
+        // Deal terms
+        var dtEl=document.getElementById('vo-debt-terms');
+        if(dtEl) dtEl.textContent=(r.debt_ratio||inputs.debt_ratio||47.6).toFixed(1)+'% / '+(inputs.int_rate||5.5)+'%';
+        var flEl=document.getElementById('vo-flip');
+        if(flEl) flEl.textContent=(inputs.flip_yield||8.75)+'% @ Y'+(inputs.flip_term||7);
+        var crEl=document.getElementById('vo-credit-display');
+        if(crEl) crEl.textContent=(inputs.credit_val||inputs.itc_rate||30)+'% ITC';
+        var ebEl=document.getElementById('vo-ebitda-y1');
+        if(r.annual_detail&&r.annual_detail.length>0) {
+          if(ebEl) ebEl.textContent = fmtM(r.annual_detail[0].ebitda);
+        }
+        // PPA/Toll/Specs/Dates
+        var ppaEl=document.getElementById('vo-ppa');
+        if(ppaEl) ppaEl.textContent='$'+(inputs.ppa_price||68.82)+'/MWh · '+(inputs.ppa_term||25)+'yr';
+        var tollEl=document.getElementById('vo-toll');
+        if(tollEl) tollEl.textContent='$'+(inputs.bess_toll||inputs.bess_toll_y1_effective||14.5)+'/kW-mo · '+(inputs.bess_toll_term||20)+'yr';
+
+        // ── Sensitivity tab
+        var sensEl = document.getElementById('vo-sens-table');
+        var emptySens = document.getElementById('val-empty-sens');
+        if (sensEl) {
+          sensEl.style.display = 'block';
+          if(emptySens) emptySens.style.display = 'none';
           valRunSensitivity(projectId, inputs, r);
         }
 
-        // Draw visualizations
-        valDrawChart(r.annual_detail);
-        valUpdateGauges(r);
-        valDrawWaterfall(r);
+        // ── Cash Flow chart
+        var cfSec = document.getElementById('vo-chart-section');
+        var emptyCF = document.getElementById('val-empty-cf');
+        if (cfSec) {
+          cfSec.style.display = 'block';
+          if(emptyCF) emptyCF.style.display = 'none';
+          valDrawChart(r.annual_detail);
+        }
 
-        // Run heatmap (async, non-blocking)
-        setTimeout(function(){ valRunHeatmap(projectId, inputs); }, 500);
+        // ── Scenario init (Sensitivity tab 인풋 채우기)
+        window._valBaseInputs = inputs;
+        valInitScenarios(inputs);
+
+        // ── Calc button dirty state clear
+        var btn2 = document.getElementById('val-calc-btn');
+        if(btn2) btn2.classList.remove('dirty');
 
         // Attach debounce for auto-recalc
         valAttachDebounce();
