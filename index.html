@@ -8875,7 +8875,7 @@ function valRenderCFAnalysis(p, lang) {
   var thesis    = p.thesis    || (isEn ? (p.thesis_en||'')    : (p.thesis_kr||''));
   var risks     = p.risks     || (isEn ? (p.risks_en||[])     : (p.risks_kr||[]));
   var rec       = p.rec       || (isEn ? (p.rec_en||'')       : (p.rec_kr||''));
-  var sens      = p.sensitivity || (isEn ? (p.sensitivity_en||'') : (p.sensitivity_kr||''));
+  var sens      = isEn ? (p.sensitivity_en||p.sensitivity||'') : (p.sensitivity_kr||p.sensitivity||'');
   var thr       = p.threshold_status || {};
 
   var L = {
@@ -9044,6 +9044,33 @@ async function valRunCFAnalysis(lang) {
 
   function tv(id){ var el=document.getElementById(id); return el?el.textContent.trim():''; }
   var projName = (document.getElementById('val-proj-select')||{}).value || '프로젝트';
+
+  // PROJECTS 배열에서 프로젝트 메타데이터 추출
+  var projMeta = {};
+  if (typeof PROJECTS !== 'undefined') {
+    var found = PROJECTS.find(function(p){ return p.id===projName || p.name===projName; });
+    if (found) projMeta = found;
+  }
+  // COD vs ITC 일몰(2030.7.4) 분석
+  var codDate   = projMeta.cod  || '';
+  var ntpDate   = projMeta.ntp  || '';
+  var codYear   = codDate  ? parseInt(codDate.split('-')[0])  : null;
+  var codMonth  = codDate  ? parseInt(codDate.split('-')[1])  : null;
+  var itcExpiry = '2030-07'; // ITC 일몰 기준
+  var codBeforeItc = codYear ? (codYear < 2030 || (codYear===2030 && codMonth<=7)) : null;
+  var itcRisk   = codBeforeItc===true ? 'LOW' : codBeforeItc===false ? 'HIGH' : 'UNKNOWN';
+
+  var projCtx = [
+    projMeta.stage    ? 'Development Stage: '   + projMeta.stage    : '',
+    projMeta.iso      ? 'ISO/Market: '           + projMeta.iso      : '',
+    projMeta.type     ? 'Project Type: '         + projMeta.type     : '',
+    ntpDate           ? 'Expected NTP: '         + ntpDate           : '',
+    codDate           ? 'Expected COD: '         + codDate           : '',
+    projMeta.risk_factor != null ? 'NTP Probability (PPV risk factor): ' + (projMeta.risk_factor*100).toFixed(0)+'%' : '',
+    codDate           ? 'ITC Expiry Risk (COD before 2030-07): ' + itcRisk : '',
+    projMeta.gross_margin_m != null ? 'Gross Margin Target: $' + projMeta.gross_margin_m + 'M' : ''
+  ].filter(Boolean).join(' | ');
+
   var ctx = 'Sponsor IRR: '+tv('vo-sirr')+' | Dev Margin: '+tv('vo-dev-margin')
            +' | CAPEX: '+tv('vo-capex')+' | Debt: '+tv('vo-debt')
            +' | TE: '+tv('vo-te')+' | Sponsor Eq: '+tv('vo-eq')
@@ -9051,21 +9078,41 @@ async function valRunCFAnalysis(lang) {
 
   try {
     var thr = valGetThresholds();
-    // Dev Margin c/Wp 계산
-    var devM_raw = 0;
-    var devMStr = tv('vo-dev-margin'); // e.g. "$39.8M"
     var mwac = parseFloat((document.getElementById('vi-pv-mwac')||{}).value)||199;
-    var devMval = parseFloat(devMStr.replace(/[^0-9.]/g,''))||0;
+    var devMval = parseFloat(tv('vo-dev-margin').replace(/[^0-9.]/g,''))||0;
     var devM_cwp = mwac > 0 ? (devMval*1000/(mwac*1000)*100).toFixed(1) : '—';
+
+    // PPV 탭에서 프로젝트 메타데이터 가져오기
+    var projMeta = '';
+    if (typeof PROJECTS !== 'undefined') {
+      var pid = projName.replace(/[/.]/g,'_');
+      var found = PROJECTS.find(function(p){
+        return p.id===projName || p.name===projName ||
+               (p.id||'').replace(/[/.]/g,'_')===pid;
+      });
+      if (found) {
+        var overrides = typeof loadPPVData === 'function' ? loadPPVData() : {};
+        var stage = (overrides['stage_'+found.name]) || found.stage || 'Unknown';
+        projMeta = 'Type: '+(found.type||'PV+ESS')
+          +' | State: '+(found.state||'?')
+          +' | ISO: '+(found.iso||'?')
+          +' | PV: '+(found.pv||'?')+'MWac'
+          +' | BESS: '+(found.ess||0)+'MW'
+          +' | NTP: '+(found.ntp||'?')
+          +' | COD: '+(found.cod||'?')
+          +' | Stage: '+stage
+          +(found.blm ? ' | BLM land (federal permitting)' : '');
+      }
+    }
 
     var data = await apiCall('POST', '/valuation/analyze-cf', {
       cf_text: cfText,
       project_name: projName,
       context: ctx,
+      project_context: projMeta,
       thresholds: {
         dev_margin_cwp: thr.dev_margin_cwp,
-        sponsor_irr_pct: thr.sponsor_irr_pct,
-        itc_min_pct: thr.itc_min_pct
+        sponsor_irr_pct: thr.sponsor_irr_pct
       },
       current_metrics: {
         dev_margin_cwp: devM_cwp,
@@ -9075,7 +9122,17 @@ async function valRunCFAnalysis(lang) {
         toll_term: (document.getElementById('vi-toll-t')||{}).value||'20',
         pv_mwac: mwac
       },
-      lang: lang
+      lang: lang,
+      project_meta: {
+        stage: projMeta.stage || '',
+        iso: projMeta.iso || '',
+        type: projMeta.type || '',
+        ntp: ntpDate,
+        cod: codDate,
+        risk_factor: projMeta.risk_factor != null ? projMeta.risk_factor : '',
+        itc_expiry_risk: itcRisk,
+        proj_ctx: projCtx
+      }
     });
     if (!data || !data.ok) throw new Error('API 오류');
 
