@@ -7657,8 +7657,7 @@ function openValuationPage() {
 function valSaveThresholds() {
   localStorage.setItem('val_thr', JSON.stringify({
     dev: parseFloat(document.getElementById('thr-dev-margin').value)||10,
-    irr: parseFloat(document.getElementById('thr-sponsor-irr').value)||9,
-    itc: parseFloat(document.getElementById('thr-itc').value)||30
+    irr: parseFloat(document.getElementById('thr-sponsor-irr').value)||9
   }));
 }
 function valLoadThresholds() {
@@ -7666,9 +7665,8 @@ function valLoadThresholds() {
     var t = JSON.parse(localStorage.getItem('val_thr')||'{}');
     if (t.dev) document.getElementById('thr-dev-margin').value = t.dev;
     if (t.irr) document.getElementById('thr-sponsor-irr').value = t.irr;
-    if (t.itc) document.getElementById('thr-itc').value = t.itc;
   } catch(e){}
-  ['thr-dev-margin','thr-sponsor-irr','thr-itc'].forEach(function(id){
+  ['thr-dev-margin','thr-sponsor-irr'].forEach(function(id){
     var el=document.getElementById(id);
     if(el) el.onchange = valSaveThresholds;
   });
@@ -7676,8 +7674,7 @@ function valLoadThresholds() {
 function valGetThresholds() {
   return {
     dev_margin_cwp: parseFloat((document.getElementById('thr-dev-margin')||{}).value)||10,
-    sponsor_irr_pct: parseFloat((document.getElementById('thr-sponsor-irr')||{}).value)||9,
-    itc_min_pct: parseFloat((document.getElementById('thr-itc')||{}).value)||30
+    sponsor_irr_pct: parseFloat((document.getElementById('thr-sponsor-irr')||{}).value)||9
   };
 }
 
@@ -7860,27 +7857,32 @@ function valLoadVersion(v, safeId) {
 
 // ── Cash Flow 탭 활성화 (Calculate 완료 후)
 function valActivateCFTab() {
-  function activateTab(tabId, label) {
-    var tab = document.getElementById(tabId);
-    if (!tab) return;
-    tab.classList.remove('val-tab-locked');
-    tab.style.opacity = ''; tab.style.cursor = '';
-    tab.style.pointerEvents = ''; tab.title = '';
-    if (!tab.querySelector('.cf-ready-dot')) {
+  // Cash Flow 탭 — 조용히 활성화만
+  var cfTab = document.getElementById('val-tab-cf');
+  if (cfTab) {
+    cfTab.classList.remove('val-tab-locked');
+    cfTab.style.opacity = ''; cfTab.style.cursor = '';
+    cfTab.style.pointerEvents = ''; cfTab.title = '';
+  }
+  // IC Opinion 탭 — 녹색 점 + 색상 강조
+  var icTab = document.getElementById('val-tab-ic');
+  if (icTab) {
+    icTab.classList.remove('val-tab-locked');
+    icTab.style.opacity = ''; icTab.style.cursor = '';
+    icTab.style.pointerEvents = ''; icTab.title = '';
+    if (!icTab.querySelector('.cf-ready-dot')) {
       var dot = document.createElement('span');
       dot.className = 'cf-ready-dot';
       dot.style.cssText = 'display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--green);margin-right:5px;vertical-align:middle;animation:cfPulse 2s ease-in-out 3';
-      tab.insertBefore(dot, tab.firstChild);
+      icTab.insertBefore(dot, icTab.firstChild);
     }
-    tab.style.color = 'var(--green)';
+    icTab.style.color = 'var(--green)';
     setTimeout(function() {
-      tab.style.color = '';
-      var dot = tab.querySelector('.cf-ready-dot');
+      icTab.style.color = '';
+      var dot = icTab.querySelector('.cf-ready-dot');
       if (dot) dot.style.animation = 'none';
     }, 6000);
   }
-  activateTab('val-tab-cf', 'Cash Flow');
-  activateTab('val-tab-ic', 'IC Opinion');
 }
 
 // ── 버전 저장 모달
@@ -8830,9 +8832,17 @@ function valDrawChart(detail) {
   html += '</div>';
 
   // ── CF 자동 해석
+  // CF 패턴 해석 버튼 + 결과 영역
+  html += '<div style="margin-top:20px;border-top:1px solid var(--border);padding-top:16px">'
+    + '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">'
+    +   '<div style="font-size:9px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--t3)">CF 패턴 해석</div>'
+    +   '<button id="cf-interp-btn" onclick="valRunCFInterp()" style="padding:5px 14px;background:var(--surface3);border:1px solid var(--border2);color:var(--t2);border-radius:var(--r-md);font-size:10px;font-weight:700;cursor:pointer;font-family:var(--font)">AI 해석</button>'
+    + '</div>'
+    + '<div id="cf-interp-result" style="font-size:11px;color:var(--t3)">AI 해석 버튼을 눌러 CF 패턴을 분석합니다.</div>'
+    + '</div>';
+
   chartSec.innerHTML = html;
 
-  // 현재 CF 데이터를 전역에 보관 (버튼 클릭 시 사용)
   window._cfDetail = detail;
   window._cfVals   = vals;
 }
@@ -8843,12 +8853,14 @@ function valCFLang(lang) {
   var krBtn = document.getElementById('cf-lang-kr');
   if (enBtn) { enBtn.style.background = lang==='en'?'var(--blue-d)':'transparent'; enBtn.style.color = lang==='en'?'#fff':'var(--t3)'; }
   if (krBtn) { krBtn.style.background = lang==='kr'?'var(--blue-d)':'transparent'; krBtn.style.color = lang==='kr'?'#fff':'var(--t3)'; }
-  // 해당 언어 캐시가 있으면 즉시 표시, 없으면 재호출
+  // 캐시 있으면 즉시 표시 — API 호출 없음
   var cached = lang==='en' ? window._cfAnalysisEn : window._cfAnalysisKr;
   if (cached) {
     valRenderCFAnalysis(cached, lang);
   } else {
-    valRunCFAnalysis(lang);
+    // 캐시 없으면 안내 메시지만 — Run AI Analysis 버튼을 눌러야 함
+    var res = document.getElementById('cf-ai-result');
+    if (res) res.innerHTML = '<span style="color:var(--t3)">'+(lang==='kr'?'한국어 분석을 보려면 Run AI Analysis를 다시 클릭하세요.':'Click Run AI Analysis to generate this language version.')+'</span>';
   }
 }
 
@@ -8965,6 +8977,52 @@ function valRenderCFAnalysis(p, lang) {
   res.innerHTML = html;
 }
 
+async function valRunCFInterp() {
+  var detail = window._cfDetail;
+  var vals   = window._cfVals;
+  if (!detail || !vals) return;
+
+  var btn = document.getElementById('cf-interp-btn');
+  var res = document.getElementById('cf-interp-result');
+  if (btn) { btn.textContent = '⏳ 분석 중...'; btn.disabled = true; }
+  if (res) res.innerHTML = '<span style="color:var(--t3)">분석 중...</span>';
+
+  var cfText = detail.map(function(d, i) {
+    return 'Y' + d.yr + ' $' + (vals[i]/1000).toFixed(1) + 'M'
+      + (d.aug > 0 ? '(증설)' : '');
+  }).join(', ');
+
+  try {
+    var data = await apiCall('POST', '/valuation/analyze-cf', {
+      cf_text: cfText,
+      project_name: (document.getElementById('val-proj-select')||{}).value||'',
+      context: '',
+      thresholds: {},
+      current_metrics: {},
+      lang: 'kr',
+      mode: 'interp'
+    });
+    var parsed = JSON.parse(data.result);
+    var insights = parsed.insights || parsed.risks || [];
+    var thesis   = parsed.thesis || parsed.summary || '';
+
+    var html = thesis ? '<div style="font-size:11px;color:var(--t2);line-height:1.8;margin-bottom:10px">'+thesis+'</div>' : '';
+    insights.forEach(function(ins) {
+      var t = typeof ins==='object'?(ins.title||ins.detail||ins):ins;
+      var b = typeof ins==='object'?(ins.detail||ins.body||''):'';
+      html += '<div style="padding:8px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--r-md);margin-bottom:6px">'
+        + '<div style="font-size:11px;font-weight:700;color:var(--t1);margin-bottom:2px">'+t+'</div>'
+        + (b ? '<div style="font-size:10px;color:var(--t3);line-height:1.6">'+b+'</div>' : '')
+        + '</div>';
+    });
+    if (res) res.innerHTML = html || '<span style="color:var(--t3)">결과 없음</span>';
+    if (btn) { btn.textContent = '↻ 재분석'; btn.disabled = false; }
+  } catch(e) {
+    if (res) res.innerHTML = '<span style="color:var(--red)">⚠️ ' + e.message + '</span>';
+    if (btn) { btn.textContent = 'AI 해석'; btn.disabled = false; }
+  }
+}
+
 async function valRunCFAnalysis(lang) {
   var detail = window._cfDetail;
   var vals   = window._cfVals;
@@ -9016,7 +9074,8 @@ async function valRunCFAnalysis(lang) {
         ppa_term: (document.getElementById('vi-ppa-t')||{}).value||'25',
         toll_term: (document.getElementById('vi-toll-t')||{}).value||'20',
         pv_mwac: mwac
-      }
+      },
+      lang: lang
     });
     if (!data || !data.ok) throw new Error('API 오류');
 
@@ -9713,11 +9772,7 @@ function valSwitchTab(name, btn) {
     <input id="thr-sponsor-irr" type="number" step="0.5" value="9.0" style="width:52px;padding:3px 8px;background:var(--surface3);border:1px solid var(--border);border-radius:5px;color:var(--t1);font-size:11px;font-family:var(--font)">
     <span style="color:var(--t3);font-size:10px">% min</span>
   </div>
-  <div style="display:flex;align-items:center;gap:6px">
-    <label style="font-size:10px;color:var(--t3)">ITC Hurdle</label>
-    <input id="thr-itc" type="number" step="5" value="30" style="width:52px;padding:3px 8px;background:var(--surface3);border:1px solid var(--border);border-radius:5px;color:var(--t1);font-size:11px;font-family:var(--font)">
-    <span style="color:var(--t3);font-size:10px">% min</span>
-  </div>
+
   <span style="margin-left:auto;font-size:9px;color:var(--t3)">설정값은 자동 저장됩니다</span>
 </div>
 
