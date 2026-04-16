@@ -3671,6 +3671,105 @@ function getFilteredAI() {
   return _origGetFiltered();
 }
 
+
+// ─── Valuation Upload Section ─────────────────────
+const _origRenderFinancial2 = renderFinancial;
+renderFinancial = function(body, p, pd) {
+  // 1. Valuation 섹션 먼저 삽입
+  const safeId = p.id.replace(/[/.]/g,'_');
+  const valDiv = document.createElement('div');
+  valDiv.className = 'fin-section';
+  valDiv.style.marginBottom = '10px';
+  valDiv.innerHTML =
+    '<div class="fin-section-title" style="display:flex;justify-content:space-between;align-items:center">' +
+      '<span>PF Model (Valuation)</span>' +
+      '<span id="val-badge" style="font-size:9px;padding:2px 7px;border-radius:10px;background:var(--surface3);color:var(--t3)">No data</span>' +
+    '</div>' +
+    '<div id="val-latest" style="display:none;margin-bottom:10px">' +
+      '<div id="val-kpis" style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:8px"></div>' +
+      '<div id="val-meta" style="font-size:10px;color:var(--t3)"></div>' +
+    '</div>' +
+    '<div style="display:flex;gap:8px;align-items:center">' +
+      '<label style="flex:1;display:flex;align-items:center;gap:8px;padding:7px 10px;background:var(--surface2);border:1px dashed var(--border2);border-radius:8px;cursor:pointer;font-size:12px;color:var(--t2)">' +
+        '<span>📎</span>' +
+        '<span id="val-filename">Upload PF Model (.xlsb / .xlsx)</span>' +
+        '<input type="file" id="val-file" accept=".xlsb,.xlsx" style="display:none">' +
+      '</label>' +
+      '<button id="val-upload-btn" style="padding:7px 14px;background:var(--blue-d);color:#fff;border:none;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;opacity:0.4;pointer-events:none">Upload</button>' +
+    '</div>' +
+    '<div id="val-status" style="margin-top:6px;font-size:11px;color:var(--t3)"></div>';
+  body.appendChild(valDiv);
+
+  // 2. 기존 renderFinancial 실행
+  _origRenderFinancial2(body, p, pd);
+
+  // 3. Firebase에서 기존 Valuation 로드
+  apiCall('GET', '/valuation/' + safeId + '/latest').then(function(data) {
+    if (!data || !data.outputs) return;
+    var o = data.outputs;
+    var badge = document.getElementById('val-badge');
+    if (badge) { badge.textContent = '\u2713 ' + (data.uploaded_at||'').substring(0,10); badge.style.background='var(--green-sub)'; badge.style.color='var(--green)'; }
+    var lEl = document.getElementById('val-latest');
+    if (lEl) lEl.style.display = 'block';
+    var kEl = document.getElementById('val-kpis');
+    if (kEl) kEl.innerHTML =
+      '<div style="background:var(--surface2);border-radius:6px;padding:8px"><div style="font-size:9px;color:var(--t3);margin-bottom:3px">Levered IRR</div><div style="font-size:16px;font-weight:700;color:var(--blue-h)">'+(o.levered_irr?(o.levered_irr*100).toFixed(2)+'%':'—')+'</div></div>'+
+      '<div style="background:var(--surface2);border-radius:6px;padding:8px"><div style="font-size:9px;color:var(--t3);margin-bottom:3px">Unlevered IRR</div><div style="font-size:16px;font-weight:700;color:var(--t1)">'+(o.unlevered_irr?(o.unlevered_irr*100).toFixed(2)+'%':'—')+'</div></div>'+
+      '<div style="background:var(--surface2);border-radius:6px;padding:8px"><div style="font-size:9px;color:var(--t3);margin-bottom:3px">Total Capex</div><div style="font-size:14px;font-weight:700;color:var(--t1)">'+(o.capex_total?'$'+(o.capex_total/1000).toFixed(0)+'M':'—')+'</div></div>'+
+      '<div style="background:var(--surface2);border-radius:6px;padding:8px"><div style="font-size:9px;color:var(--t3);margin-bottom:3px">Sponsor IRR</div><div style="font-size:14px;font-weight:700;color:var(--green)">'+(o.sponsor_irr_contract?(o.sponsor_irr_contract*100).toFixed(2)+'%':'—')+'</div></div>'+
+      '<div style="background:var(--surface2);border-radius:6px;padding:8px"><div style="font-size:9px;color:var(--t3);margin-bottom:3px">PPA Price</div><div style="font-size:14px;font-weight:700;color:var(--t1)">'+(o.ppa_price?'$'+o.ppa_price+'/MWh':'—')+'</div></div>'+
+      '<div style="background:var(--surface2);border-radius:6px;padding:8px"><div style="font-size:9px;color:var(--t3);margin-bottom:3px">BESS Toll</div><div style="font-size:14px;font-weight:700;color:var(--t1)">'+(o.bess_toll&&o.bess_toll>0?'$'+o.bess_toll+'/kW-mo':'—')+'</div></div>';
+    var mEl = document.getElementById('val-meta');
+    if (mEl) mEl.textContent = (data.filename||'') + ' · ' + (data.scenario||'') + ' · ' + (data.uploaded_by||'');
+  }).catch(function(){});
+
+  // 4. 파일 선택 핸들러
+  var fileInput = document.getElementById('val-file');
+  if (fileInput) {
+    fileInput.onchange = function() {
+      var f = this.files[0]; if(!f) return;
+      document.getElementById('val-filename').textContent = f.name;
+      var btn = document.getElementById('val-upload-btn');
+      btn.style.opacity='1'; btn.style.pointerEvents='auto';
+    };
+  }
+
+  // 5. 업로드 핸들러
+  var uploadBtn = document.getElementById('val-upload-btn');
+  if (uploadBtn) {
+    uploadBtn.onclick = function() {
+      var file = document.getElementById('val-file').files[0];
+      if (!file) return;
+      var statusEl = document.getElementById('val-status');
+      this.textContent = '⏳ Parsing...'; this.disabled = true;
+      statusEl.textContent = 'Uploading and parsing... (10~30 sec)';
+      statusEl.style.color = 'var(--t3)';
+      var token = window._authToken || localStorage.getItem('hwr_token');
+      var form = new FormData();
+      form.append('project_id', safeId);
+      form.append('scenario', '');
+      form.append('file', file);
+      fetch('https://hwr-api-production.up.railway.app/valuation/upload', {
+        method: 'POST',
+        headers: { 'Authorization': 'Bearer ' + token },
+        body: form
+      }).then(function(res){ return res.json().then(function(d){ return {ok:res.ok, d:d}; }); })
+      .then(function(r) {
+        if (!r.ok) throw new Error(r.d.detail || 'Upload failed');
+        statusEl.textContent = '\u2705 Saved. Reopen this tab to see results.';
+        statusEl.style.color = 'var(--green)';
+        showSaveToast();
+      }).catch(function(e) {
+        statusEl.textContent = '\u26a0\ufe0f ' + e.message;
+        statusEl.style.color = 'var(--red,#e55)';
+      }).finally(function() {
+        var b = document.getElementById('val-upload-btn');
+        if(b) { b.textContent='Upload'; b.disabled=false; }
+      });
+    };
+  }
+};
+
 // ─── Inject AI buttons into tabs ─────────────────
 // Patch renderFinancial to inject AI assist button
 const _origRenderFinancial = renderFinancial;
