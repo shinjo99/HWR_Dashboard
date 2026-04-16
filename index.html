@@ -8625,70 +8625,138 @@ async function valRunSensitivity(projectId, baseInputs, baseResult) {
 // ── Valuation: EBITDA Bar Chart (Canvas)
 function valDrawChart(detail) {
   if (!detail || detail.length === 0) return;
-
-  // Create or reuse chart container
   var chartSec = document.getElementById('vo-chart-section');
-  if (!chartSec) {
-    chartSec = document.createElement('div');
-    chartSec.id = 'vo-chart-section';
-    chartSec.className = 'fin-section';
-    chartSec.style.marginBottom = '0';
-    var histSec = document.getElementById('vo-history-section');
-    if (histSec) histSec.parentNode.insertBefore(chartSec, histSec);
+  if (!chartSec) return;
+
+  // Sponsor CF (s_cf) 우선, 없으면 ebitda 사용
+  var vals = detail.map(function(d){ return d.s_cf !== undefined ? d.s_cf : d.ebitda; });
+  var maxV = Math.max.apply(null, vals.map(Math.abs)) || 1;
+
+  var html = '<div style="font-size:9px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--t3);margin-bottom:10px">Annual Sponsor CF (Y1–Y10, $M)</div>';
+  html += '<div style="display:flex;flex-direction:column;gap:4px">';
+
+  vals.forEach(function(v, i) {
+    var d = detail[i];
+    var pct = Math.abs(v) / maxV * 100;
+    var isNeg = v < 0;
+    var isAug = d.aug > 0;
+    var col = isNeg ? 'var(--red)' : isAug ? 'var(--amber)' : 'var(--green)';
+    var vM = (v/1000).toFixed(1);
+
+    html += '<div style="display:flex;align-items:center;gap:8px">';
+    html += '<div style="width:24px;font-size:9px;color:var(--t3);text-align:right;flex-shrink:0">Y'+d.yr+'</div>';
+    html += '<div style="flex:1;height:16px;background:rgba(255,255,255,.04);border-radius:3px;overflow:hidden;position:relative">';
+    if (!isNeg) {
+      html += '<div style="width:'+pct+'%;height:100%;background:'+col+';border-radius:3px;opacity:.85"></div>';
+    } else {
+      html += '<div style="width:'+pct+'%;height:100%;background:'+col+';border-radius:3px;opacity:.85;margin-left:auto"></div>';
+    }
+    html += '</div>';
+    html += '<div style="width:44px;font-size:10px;font-weight:700;color:'+col+';text-align:right;font-variant-numeric:tabular-nums">$'+vM+'M</div>';
+    if (isAug) html += '<div style="font-size:8px;color:var(--amber);width:20px">Aug</div>';
+    else html += '<div style="width:20px"></div>';
+    html += '</div>';
+  });
+
+  html += '</div>';
+
+  // ── CF 자동 해석
+  html += valInterpretCF(detail, vals);
+
+  chartSec.innerHTML = html;
+}
+
+function valInterpretCF(detail, vals) {
+  if (!detail || !vals || detail.length === 0) return '';
+
+  // 주요 지표 추출
+  var maxVal = Math.max.apply(null, vals);
+  var minVal = Math.min.apply(null, vals);
+  var maxYr  = detail[vals.indexOf(maxVal)];
+  var minYr  = detail[vals.indexOf(minVal)];
+
+  // DS 종료 연도 감지 (전년 대비 CF가 크게 증가하는 시점)
+  var dsEndYr = null;
+  for (var i = 1; i < vals.length; i++) {
+    if (vals[i] > vals[i-1] * 3 && vals[i] > 0 && vals[i-1] >= 0) {
+      dsEndYr = detail[i].yr;
+      break;
+    }
   }
 
-  chartSec.innerHTML = '<div class="fin-section-title">Annual Cash Flow (Y1–Y10, $000)</div>'
-    + '<canvas id="val-cf-canvas" style="width:100%;height:160px"></canvas>';
+  // 엔진 데이터 기반 지표
+  var totalInflow = vals.filter(function(v){return v>0;}).reduce(function(a,b){return a+b;},0);
+  var augYrs = detail.filter(function(d){return d.aug>0;}).map(function(d){return 'Y'+d.yr;});
 
-  setTimeout(function() {
-    var canvas = document.getElementById('val-cf-canvas');
-    if (!canvas) return;
-    var ctx = canvas.getContext('2d');
-    var W = canvas.offsetWidth; var H = 160;
-    canvas.width = W; canvas.height = H;
+  var insights = [];
 
-    var vals = detail.map(function(d){ return d.ebitda; });
-    var maxV = Math.max.apply(null, vals) * 1.1;
-    var minV = Math.min.apply(null, [0].concat(vals)) * 1.1;
-    var range = maxV - minV;
-
-    var pad = { t:16, r:12, b:28, l:52 };
-    var barW = (W - pad.l - pad.r) / vals.length * 0.7;
-    var gap   = (W - pad.l - pad.r) / vals.length;
-
-    // Grid
-    ctx.strokeStyle = getComputedStyle(document.documentElement).getPropertyValue('--border') || 'rgba(255,255,255,0.08)';
-    ctx.lineWidth = 0.5;
-    [0, 0.25, 0.5, 0.75, 1].forEach(function(frac) {
-      var y = pad.t + (1-frac) * (H - pad.t - pad.b);
-      ctx.beginPath(); ctx.moveTo(pad.l, y); ctx.lineTo(W-pad.r, y); ctx.stroke();
-      var label = ((minV + frac*range)/1000).toFixed(0)+'K';
-      ctx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue('--color-text-tertiary') || '#666';
-      ctx.font = '9px sans-serif'; ctx.textAlign = 'right';
-      ctx.fillText(label, pad.l-4, y+3);
+  // ① DS 종료 임팩트
+  if (dsEndYr) {
+    var beforeDS = vals.slice(0, dsEndYr-detail[0].yr).filter(function(v){return v>0;});
+    var avgBefore = beforeDS.length ? beforeDS.reduce(function(a,b){return a+b;},0)/beforeDS.length : 0;
+    var dsRatio = avgBefore > 0 ? (maxVal/avgBefore).toFixed(1) : '—';
+    insights.push({
+      icon: '📈',
+      title: 'Y'+dsEndYr+' — 부채 상환 완료',
+      body: 'DS 종료 시점부터 Sponsor CF가 약 '+dsRatio+'배 폭증합니다. '+
+            '이 구간(Y'+dsEndYr+'~Y'+(dsEndYr+1)+')이 핵심 회수 구간입니다.'
     });
+  }
 
-    // Bars
-    vals.forEach(function(v, i) {
-      var x = pad.l + i * gap + (gap - barW) / 2;
-      var zeroY = pad.t + (1 - (0-minV)/range) * (H-pad.t-pad.b);
-      var barH = (v/range) * (H-pad.t-pad.b);
-      var y = v >= 0 ? zeroY - barH : zeroY;
-      barH = Math.abs(barH);
-
-      // Augmentation year gets different color
-      var isAug = detail[i].aug > 0;
-      ctx.fillStyle = v < 0 ? '#E24B4A' : isAug ? '#BA7517' : '#1D9E75';
-      ctx.beginPath();
-      ctx.roundRect ? ctx.roundRect(x, y, barW, barH, 2) : ctx.rect(x, y, barW, barH);
-      ctx.fill();
-
-      // X label
-      ctx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue('--color-text-secondary') || '#999';
-      ctx.font = '9px sans-serif'; ctx.textAlign = 'center';
-      ctx.fillText('Y'+detail[i].yr, x+barW/2, H-pad.b+11);
+  // ② BESS Toll 만료
+  var tollDropYr = null;
+  for (var j = 1; j < vals.length; j++) {
+    if (vals[j] < vals[j-1] * 0.4 && vals[j-1] > 0) {
+      tollDropYr = detail[j].yr;
+      break;
+    }
+  }
+  if (tollDropYr) {
+    insights.push({
+      icon: '⚡',
+      title: 'Y'+tollDropYr+' — BESS Toll 만료',
+      body: '계약 수익의 핵심인 BESS Toll이 만료되며 CF가 급감합니다. '+
+            'Y'+tollDropYr+' 이후 PPA 단독 수익으로 전환됩니다.'
     });
-  }, 50);
+  }
+
+  // ③ 증자(Augmentation) 영향
+  if (augYrs.length > 0) {
+    insights.push({
+      icon: '🔋',
+      title: 'BESS 증설 — ' + augYrs.join(', '),
+      body: '배터리 증설 비용이 해당 연도 CF를 일시 감소시킵니다. '+
+            'Y'+minYr.yr+'가 최저점($'+(minVal/1000).toFixed(1)+'M)이며 증설 비용 포함입니다.'
+    });
+  }
+
+  // ④ 회수 구조 종합
+  var positive = vals.filter(function(v){return v>0;}).length;
+  var negative = vals.filter(function(v){return v<0;}).length;
+  insights.push({
+    icon: '💡',
+    title: '회수 구조',
+    body: 'Y1~Y10 중 '+positive+'개년 흑자 / '+negative+'개년 적자. '+
+          'DS 기간 동안 연평균 Sponsor CF가 낮게 유지되다가 '+
+          'DS 완료 후 집중 회수되는 Back-loaded 구조입니다.'
+  });
+
+  // HTML 생성
+  var html = '<div style="margin-top:20px;border-top:1px solid var(--border);padding-top:16px">';
+  html += '<div style="font-size:9px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--t3);margin-bottom:12px">CF 패턴 해석</div>';
+  html += '<div style="display:flex;flex-direction:column;gap:8px">';
+
+  insights.forEach(function(ins) {
+    html += '<div style="display:flex;gap:10px;padding:10px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--r-md)">';
+    html += '<div style="font-size:16px;flex-shrink:0;margin-top:1px">'+ins.icon+'</div>';
+    html += '<div>';
+    html += '<div style="font-size:11px;font-weight:700;color:var(--t1);margin-bottom:3px">'+ins.title+'</div>';
+    html += '<div style="font-size:10px;color:var(--t3);line-height:1.6">'+ins.body+'</div>';
+    html += '</div></div>';
+  });
+
+  html += '</div></div>';
+  return html;
 }
 
 
