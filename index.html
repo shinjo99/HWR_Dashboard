@@ -9506,9 +9506,25 @@ function valCFLang(lang) {
   window._cfLang = lang;
   var enBtn = document.getElementById('cf-lang-en');
   var krBtn = document.getElementById('cf-lang-kr');
-  if (enBtn) { enBtn.style.background = lang==='en'?'var(--blue-d)':'transparent'; enBtn.style.color = lang==='en'?'#fff':'var(--t3)'; }
-  if (krBtn) { krBtn.style.background = lang==='kr'?'var(--blue-d)':'transparent'; krBtn.style.color = lang==='kr'?'#fff':'var(--t3)'; }
-  // 해당 언어 캐시가 있으면 즉시 표시, 없으면 재실행 버튼 안내 (자동 실행 금지)
+  // 새 segmented control 스타일 — 활성 버튼만 blue 배경 + 그림자
+  function setBtn(btn, active) {
+    if (!btn) return;
+    if (active) {
+      btn.style.background = 'var(--blue-d)';
+      btn.style.color = '#fff';
+      btn.style.fontWeight = '700';
+      btn.style.boxShadow = '0 1px 3px rgba(0,0,0,.25)';
+    } else {
+      btn.style.background = 'transparent';
+      btn.style.color = 'var(--t3)';
+      btn.style.fontWeight = '600';
+      btn.style.boxShadow = 'none';
+    }
+  }
+  setBtn(enBtn, lang === 'en');
+  setBtn(krBtn, lang === 'kr');
+
+  // 해당 언어 캐시가 있으면 즉시 표시, 없으면 재실행 버튼 안내
   var cached = lang==='en' ? window._cfAnalysisEn : window._cfAnalysisKr;
   if (cached) {
     valRenderCFAnalysis(cached, lang);
@@ -9516,8 +9532,8 @@ function valCFLang(lang) {
     var res = document.getElementById('cf-ai-result');
     if (res) {
       var msg = lang==='en'
-        ? 'English analysis not yet generated. Click <strong>Run AI Analysis</strong> to generate.'
-        : '한국어 분석이 아직 생성되지 않았습니다. 상단 <strong>Run AI Analysis</strong> 버튼을 눌러 실행하세요.';
+        ? 'English analysis not yet generated. Click <strong style="color:var(--blue-h)">Run AI Analysis</strong> to generate.'
+        : '한국어 분석이 아직 생성되지 않았습니다. 우측 <strong style="color:var(--blue-h)">Run AI Analysis</strong> 버튼을 눌러 실행하세요.';
       res.innerHTML = '<div style="padding:32px;text-align:center;color:var(--t3);font-size:11px;background:var(--surface2);border:1px dashed var(--border2);border-radius:var(--r-lg)">'+msg+'</div>';
     }
   }
@@ -9751,7 +9767,7 @@ async function valRunCFAnalysis(lang) {
   var detail = window._cfDetail;
   var vals   = window._cfVals;
   if (!detail || !vals) return;
-  if (!lang) lang = window._cfLang || 'en';
+  if (!lang) lang = window._cfLang || 'kr';
 
   var btn = document.getElementById('cf-ai-btn');
   var res = document.getElementById('cf-ai-result');
@@ -9847,10 +9863,6 @@ async function valRunCFAnalysis(lang) {
     if (lang === 'en') window._cfAnalysisEn = parsed;
     else               window._cfAnalysisKr = parsed;
     window._cfLang = lang;
-
-    // 언어 토글 표시
-    var langToggle = document.getElementById('cf-lang-toggle');
-    if (langToggle) langToggle.style.display = 'flex';
 
     valRenderCFAnalysis(parsed, lang);
     if (btn) { btn.textContent = 'Refresh'; btn.style.opacity = '.6'; }
@@ -11205,10 +11217,10 @@ function valSwitchTab(name, btn) {
           <!-- Divider -->
           <div style="width:1px;height:20px;background:var(--border);margin:0 4px"></div>
 
-          <!-- 언어 토글 -->
-          <div id="cf-lang-toggle" style="display:none;background:var(--surface3);border:1px solid var(--border);border-radius:20px;padding:2px;gap:2px">
-            <button onclick="valCFLang(this.dataset.l)" data-l="en" id="cf-lang-en" style="padding:3px 10px;border:none;border-radius:16px;font-size:10px;font-weight:700;cursor:pointer;font-family:var(--font);background:var(--blue-d);color:#fff">EN</button>
-            <button onclick="valCFLang(this.dataset.l)" data-l="kr" id="cf-lang-kr" style="padding:3px 10px;border:none;border-radius:16px;font-size:10px;font-weight:600;cursor:pointer;font-family:var(--font);background:transparent;color:var(--t3)">KO</button>
+          <!-- 언어 토글 (segmented control) — 처음부터 노출, 기본 KO -->
+          <div id="cf-lang-toggle" style="display:flex;align-items:center;height:32px;background:var(--surface);border:1px solid var(--border2);border-radius:8px;padding:3px;box-sizing:border-box;gap:2px;position:relative">
+            <button onclick="valCFLang('kr')" data-l="kr" id="cf-lang-kr" style="position:relative;z-index:1;padding:0 14px;height:24px;border:none;background:var(--blue-d);border-radius:6px;font-size:10px;font-weight:700;cursor:pointer;font-family:var(--font);color:#fff;letter-spacing:.04em;transition:all .15s;box-shadow:0 1px 3px rgba(0,0,0,.25)">한국어</button>
+            <button onclick="valCFLang('en')" data-l="en" id="cf-lang-en" style="position:relative;z-index:1;padding:0 14px;height:24px;border:none;background:transparent;border-radius:6px;font-size:10px;font-weight:600;cursor:pointer;font-family:var(--font);color:var(--t3);letter-spacing:.04em;transition:all .15s">English</button>
           </div>
 
           <!-- Run AI Analysis 버튼 -->
