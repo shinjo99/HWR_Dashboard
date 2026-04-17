@@ -8116,6 +8116,7 @@ async function valExportPDF() {
         thesis: cached.thesis,
         rec: cached.rec,
         risks: cached.risks || [],
+        compliance_count: cached.compliance_count || 0,
         threshold_status: cached.threshold_status || {},
         dev_ic: cached.dev_ic || {},
         sensitivity_kr: cached.sensitivity_kr,
@@ -9529,64 +9530,87 @@ function valRenderCFAnalysis(p, lang) {
   var isEn = lang === 'en';
   var vc = p.verdict_color === 'green' ? 'var(--green)' : p.verdict_color === 'red' ? 'var(--red)' : 'var(--amber)';
   var verdict   = p.verdict || 'NEUTRAL';
-  // 단일 언어 응답 (thesis/risks/rec) + 이전 이중언어 형식 호환
   var thesis    = p.thesis    || (isEn ? (p.thesis_en||'')    : (p.thesis_kr||''));
   var risks     = p.risks     || (isEn ? (p.risks_en||[])     : (p.risks_kr||[]));
   var rec       = p.rec       || (isEn ? (p.rec_en||'')       : (p.rec_kr||''));
   var sens      = p.sensitivity || (isEn ? (p.sensitivity_en||'') : (p.sensitivity_kr||''));
   var thr       = p.threshold_status || {};
+  var complianceCount = p.compliance_count || 0;  // 고정 체크리스트 개수
 
   var L = {
-    verdict:    isEn ? 'VERDICT'          : '종합의견',
-    metrics:    isEn ? 'KEY METRICS'      : '핵심 지표',
-    thresholds: isEn ? 'THRESHOLD CHECK'  : '기준 달성 여부',
-    sens:       isEn ? 'DEV MARGIN SENSITIVITY' : 'Dev Margin 민감도',
-    thesis:     isEn ? 'INVESTMENT THESIS': '투자 논거',
-    risks:      isEn ? 'RISK ASSESSMENT'  : '리스크 평가',
-    rec:        isEn ? 'RECOMMENDATION'   : '행동 권고',
+    verdict:       isEn ? 'ECONOMIC VERDICT' : '경제성 판정',
+    verdict_sub:   isEn ? 'Based on pure economic criteria (Dev Margin, Sponsor IRR, Unlev vs WACC)'
+                         : '순수 경제성 기준 (Dev Margin · Sponsor IRR · Unlev IRR vs WACC)',
+    metrics:       isEn ? 'KEY METRICS'      : '핵심 지표',
+    thresholds:    isEn ? 'THRESHOLD CHECK'  : '투자 기준 달성 여부',
+    sens:          isEn ? 'DEV MARGIN SENSITIVITY' : 'Dev Margin 민감도',
+    thesis:        isEn ? 'INVESTMENT THESIS (ECONOMIC)': '투자 논거 (경제성)',
+    compliance:    isEn ? 'REGULATORY COMPLIANCE CHECKLIST' : '규정 준수 체크 (IC 승인 전 확인)',
+    compliance_sub:isEn ? 'Fixed checklist — verify with execution team before IC approval'
+                         : '고정 체크리스트 · 의사결정에 반영되지 않음',
+    risks:         isEn ? 'PROJECT-SPECIFIC RISKS (MONITORING)'  : '프로젝트별 리스크 (모니터링)',
+    risks_sub:     isEn ? 'AI-identified risks — informational only, does NOT drive verdict'
+                         : 'AI 분석 리스크 · 의사결정에 반영되지 않음, 개발팀이 별도 관리',
+    rec:           isEn ? 'RECOMMENDATION'   : '행동 권고',
   };
 
   var sevColor = function(s) {
-    return s==='Critical'||s==='Critical' ? 'var(--red)'
+    return s==='Critical' ? 'var(--red)'
          : s==='Watch' ? 'var(--amber)'
          : 'var(--green)';
   };
 
-  function section(label, content) {
+  function section(label, content, subLabel) {
+    var sub = subLabel ? '<div style="font-size:9px;color:var(--t3);margin-top:-2px;margin-bottom:8px;font-style:italic">'+subLabel+'</div>' : '';
     return '<div style="margin-bottom:18px">'
-      + '<div style="font-size:9px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--t3);margin-bottom:10px;padding-bottom:6px;border-bottom:1px solid var(--border)">'
+      + '<div style="font-size:9px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--t3);margin-bottom:8px;padding-bottom:6px;border-bottom:1px solid var(--border)">'
       +   label
       + '</div>'
+      + sub
       + content
       + '</div>';
   }
 
+  // 컴플라이언스 체크리스트와 AI 리스크 분리
+  var complianceItems = risks.slice(0, complianceCount);
+  var aiRisks = risks.slice(complianceCount);
+
   var html = '';
 
-  // ① Verdict
-  html += '<div style="display:flex;align-items:center;justify-content:space-between;padding:16px 18px;border-radius:var(--r-md);border:1.5px solid '+vc+';margin-bottom:20px">'
+  // ══════════════════════════════════════════════
+  // SECTION A — 경제성 판정 (Economic Verdict)
+  // ══════════════════════════════════════════════
+  html += '<div style="margin-bottom:24px;padding:14px 16px;background:rgba(255,255,255,.02);border-radius:var(--r-lg);border-left:3px solid '+vc+'">'
+    + '<div style="font-size:10px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:'+vc+';margin-bottom:14px">📊 A. '+L.verdict+'</div>';
+
+  // ① Verdict 배지
+  html += '<div style="display:flex;align-items:center;justify-content:space-between;padding:16px 18px;border-radius:var(--r-md);border:1.5px solid '+vc+';margin-bottom:16px;background:var(--surface)">'
     + '<div>'
     +   '<div style="font-size:9px;font-weight:700;letter-spacing:.16em;color:var(--t3);margin-bottom:5px">'+L.verdict+'</div>'
-    +   '<div style="font-size:18px;font-weight:800;letter-spacing:.08em;color:'+vc+'">'+verdict+'</div>'
+    +   '<div style="font-size:22px;font-weight:800;letter-spacing:.1em;color:'+vc+'">'+verdict+'</div>'
+    +   '<div style="font-size:9px;color:var(--t3);margin-top:4px">'+L.verdict_sub+'</div>'
     + '</div>'
-    + '<div style="text-align:right">'
+    + '<div style="text-align:right;max-width:500px">'
     +   '<div style="font-size:9px;color:var(--t3);margin-bottom:5px">'+L.metrics+'</div>'
-    +   '<div style="font-size:11px;font-weight:600;color:var(--t2);font-variant-numeric:tabular-nums;max-width:520px;text-align:right;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="'+(p.metrics||'').replace(/"/g,'&quot;')+'">'+(p.metrics||'')+'</div>'
+    +   '<div style="font-size:11px;font-weight:600;color:var(--t2);font-variant-numeric:tabular-nums;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="'+(p.metrics||'').replace(/"/g,'&quot;')+'">'+(p.metrics||'')+'</div>'
     + '</div></div>';
 
-  // ② Threshold Check (2칸 그리드 - ITC 제거)
-  var thrHtml = '<div style="display:grid;grid-template-columns:repeat(2,1fr);gap:10px">';
+  // ② Threshold Check (3칸 — Dev Margin, Sponsor IRR, Unlev vs WACC)
+  var thrHtml = '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px">';
   var checks = [
-    { label: isEn?'Sponsor IRR (Levered Pre-Tax)':'Sponsor IRR (Levered Pre-Tax)', ok: thr.irr_ok,    gap: thr.irr_gap||'' },
-    { label: isEn?'Dev Margin':'Dev Margin',   ok: thr.margin_ok,  gap: thr.margin_gap||'' }
+    { label:'Dev Margin',                ok: thr.margin_ok,       gap: thr.margin_gap||'',       sub: isEn?'c/Wp':'마진' },
+    { label:'Sponsor IRR (Lev Pre-Tax)', ok: thr.irr_ok,          gap: thr.irr_gap||'',          sub: isEn?'leveraged return':'레버리지 수익률' },
+    { label:'Unlev IRR vs WACC',         ok: thr.wacc_spread_ok,  gap: thr.wacc_spread||'',      sub: isEn?'value creation':'가치 창출' },
   ];
   checks.forEach(function(ch) {
     var ok = ch.ok === true || ch.ok === 'true';
     var col = ok ? 'var(--green)' : 'var(--red)';
+    var badge = ok ? (isEn?'✓ PASS':'✓ 통과') : (isEn?'✗ FAIL':'✗ 미달');
     thrHtml += '<div style="padding:10px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--r-md)">'
-      + '<div style="font-size:9px;color:var(--t3);margin-bottom:4px">'+ch.label+'</div>'
-      + '<div style="font-size:12px;font-weight:800;color:'+col+'">'+(ok?'✓ PASS':'✗ FAIL')+'</div>'
-      + (ch.gap ? '<div style="font-size:10px;color:var(--t2);margin-top:2px">'+ch.gap+'</div>' : '')
+      + '<div style="font-size:9px;color:var(--t3);margin-bottom:1px;font-weight:600">'+ch.label+'</div>'
+      + '<div style="font-size:8px;color:var(--t3);margin-bottom:5px">'+ch.sub+'</div>'
+      + '<div style="font-size:12px;font-weight:800;color:'+col+'">'+badge+'</div>'
+      + (ch.gap ? '<div style="font-size:10px;color:var(--t2);margin-top:3px;font-variant-numeric:tabular-nums">'+ch.gap+'</div>' : '')
       + '</div>';
   });
   thrHtml += '</div>';
@@ -9604,11 +9628,37 @@ function valRenderCFAnalysis(p, lang) {
     '<div style="font-size:11.5px;color:var(--t1);line-height:1.85">'+thesis+'</div>'
   );
 
-  // ⑤ Risk Assessment
-  if (risks.length > 0) {
+  html += '</div>';  // SECTION A 닫기
+
+  // ══════════════════════════════════════════════
+  // SECTION B — 리스크 모니터링 (Risk Monitoring)
+  // ══════════════════════════════════════════════
+  html += '<div style="margin-bottom:24px;padding:14px 16px;background:rgba(255,255,255,.02);border-radius:var(--r-lg);border-left:3px solid var(--t3)">'
+    + '<div style="font-size:10px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:var(--t2);margin-bottom:4px">🔍 B. '+(isEn?'RISK MONITORING':'리스크 모니터링')+'</div>'
+    + '<div style="font-size:9px;color:var(--t3);font-style:italic;margin-bottom:14px">'+(isEn?'Does NOT affect economic verdict above' : '위 경제성 판정에 영향 없음')+'</div>';
+
+  // ⑤ Compliance Checklist (고정 2개 항목)
+  if (complianceItems.length > 0) {
+    var compHtml = '';
+    complianceItems.forEach(function(r) {
+      compHtml += '<div style="display:flex;gap:10px;padding:10px 12px;background:var(--surface2);border:1px solid rgba(255,255,255,.05);border-radius:var(--r-md);margin-bottom:6px">'
+        + '<div style="flex-shrink:0;width:16px;height:16px;border:1.5px solid var(--t3);border-radius:3px;margin-top:2px"></div>'
+        + '<div style="flex:1">'
+        +   '<div style="display:flex;align-items:center;gap:8px;margin-bottom:3px">'
+        +     '<span style="font-size:11px;font-weight:700;color:var(--t1)">'+(r.title||'')+'</span>'
+        +     '<span style="font-size:8px;font-weight:700;color:var(--amber);letter-spacing:.06em;padding:1px 6px;border:1px solid var(--amber);border-radius:10px">'+(r.severity||'WATCH').toUpperCase()+'</span>'
+        +   '</div>'
+        +   '<div style="font-size:10.5px;color:var(--t3);line-height:1.65">'+(r.detail||'')+'</div>'
+        + '</div></div>';
+    });
+    html += section(L.compliance, compHtml, L.compliance_sub);
+  }
+
+  // ⑥ AI Risks (프로젝트별 동적)
+  if (aiRisks.length > 0) {
     var riskHtml = '';
-    risks.forEach(function(r, i) {
-      var title  = typeof r === 'object' ? (r.title||r) : r;
+    aiRisks.forEach(function(r, i) {
+      var title  = typeof r === 'object' ? (r.title||'') : r;
       var detail = typeof r === 'object' ? (r.detail||'') : '';
       var sev    = typeof r === 'object' ? (r.severity||'') : '';
       var sc = sevColor(sev);
@@ -9623,13 +9673,18 @@ function valRenderCFAnalysis(p, lang) {
         +   (detail ? '<div style="font-size:11px;color:var(--t3);line-height:1.7">'+detail+'</div>' : '')
         + '</div></div>';
     });
-    html += section(L.risks, riskHtml);
+    html += section(L.risks, riskHtml, L.risks_sub);
   }
 
-  // ⑥ Recommendation
-  html += section(L.rec,
-    '<div style="font-size:11.5px;color:var(--t1);line-height:1.85">'+rec+'</div>'
-  );
+  html += '</div>';  // SECTION B 닫기
+
+  // ══════════════════════════════════════════════
+  // SECTION C — Recommendation
+  // ══════════════════════════════════════════════
+  html += '<div style="padding:16px 18px;background:linear-gradient(135deg,rgba(37,99,235,.08) 0%,rgba(139,92,246,.05) 100%);border:1px solid rgba(37,99,235,.2);border-radius:var(--r-lg)">'
+    + '<div style="font-size:10px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:var(--blue-h);margin-bottom:10px">💡 C. '+L.rec+'</div>'
+    + '<div style="font-size:12px;color:var(--t1);line-height:1.9">'+rec+'</div>'
+    + '</div>';
 
   res.innerHTML = html;
 }
@@ -9769,6 +9824,16 @@ async function valRunCFAnalysis(lang) {
       current_metrics: {
         dev_margin_cwp: devM_cwp,
         sponsor_irr_pct: tv('vo-sirr').replace('%','').trim(),
+        unlevered_irr_pct: (function(){
+          // Unlevered Pre-Tax IRR 추출 — outputs에서 직접
+          var d = window._lastValData||{}, o = d.outputs||{};
+          var v = o.sponsor_irr_unlevered_pretax || o.unlevered_irr;
+          return (v!=null) ? (v*100).toFixed(2) : null;
+        })(),
+        wacc_pct: (function(){
+          var d = window._lastValData||{}, o = d.outputs||{};
+          return (o.wacc!=null) ? (o.wacc*100).toFixed(2) : null;
+        })(),
         itc_rate_pct: (document.getElementById('vi-credit-val')||{}).value||'30',
         ppa_term: (document.getElementById('vi-ppa-t')||{}).value||'25',
         toll_term: (document.getElementById('vi-toll-t')||{}).value||'20',
@@ -10101,9 +10166,9 @@ function valSwitchTab(name, btn) {
 }
 /* Upload */
 .val-upload-bar {
-  display:flex; align-items:center; gap:8px; padding:8px 28px;
+  display:flex; align-items:center; gap:8px; padding:10px 16px;
   border-bottom:1px solid var(--border); background:var(--surface2);
-  flex-shrink:0; flex-wrap:wrap;
+  flex-shrink:0; flex-wrap:wrap; row-gap:8px;
 }
 .val-upload-label {
   display:flex; align-items:center; gap:6px; padding:5px 12px;
@@ -10120,9 +10185,10 @@ function valSwitchTab(name, btn) {
 }
 .val-parse-btn.ready { opacity:1; pointer-events:auto; }
 .val-status-badge {
-  margin-left:auto; display:flex; align-items:center; gap:5px;
-  font-size:10px; color:var(--t3);
+  display:flex; align-items:center; gap:5px;
+  font-size:10px; color:var(--t3); padding:0 8px;
 }
+.val-status-badge { margin-left:auto; }
 .val-status-dot {
   width:6px; height:6px; border-radius:50%; background:var(--t3);
   transition:background var(--ease);
@@ -10446,51 +10512,22 @@ function valSwitchTab(name, btn) {
 </div>
 
 <div class="val-upload-bar">
-  <select id="val-proj-select" class="val-proj-sel" style="padding:5px 10px;background:var(--surface3);border:1px solid var(--border);border-radius:var(--r-md);color:var(--t1);font-size:11px;font-family:var(--font);cursor:pointer;max-width:180px"></select>
-  <label class="val-upload-label">
+  <select id="val-proj-select" class="val-proj-sel" style="padding:5px 10px;background:var(--surface3);border:1px solid var(--border);border-radius:var(--r-md);color:var(--t1);font-size:11px;font-family:var(--font);cursor:pointer;max-width:180px;height:32px;box-sizing:border-box"></select>
+  <label class="val-upload-label" style="height:32px;box-sizing:border-box">
     <span>📎</span>
     <span id="val-upload-fname">PF Model 업로드 (.xlsb / .xlsx)</span>
     <input type="file" id="val-upload-file" accept=".xlsb,.xlsx" style="display:none">
   </label>
-  <button id="val-upload-btn2" class="val-parse-btn">Upload &amp; Parse</button>
+  <button id="val-upload-btn2" class="val-parse-btn" style="height:32px;box-sizing:border-box">Upload &amp; Parse</button>
   <span id="val-upload-status" style="font-size:10px;color:var(--t3)"></span>
-  <input id="val-scenario-name" placeholder="시나리오명" style="padding:5px 10px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:5px;color:var(--t2);font-size:11px;font-family:var(--font);width:100px">
-  <input id="val-change-reason" placeholder="변경 근거 (예: TE 시장 경색 반영)" style="padding:5px 10px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:5px;color:var(--t2);font-size:11px;font-family:var(--font);width:200px">
-  <input id="val-approver" placeholder="승인자" style="padding:5px 10px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:5px;color:var(--t2);font-size:11px;font-family:var(--font);width:80px">
-  <div class="val-status-badge">
+  <input id="val-scenario-name" placeholder="시나리오명" style="padding:5px 10px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:5px;color:var(--t2);font-size:11px;font-family:var(--font);width:100px;height:32px;box-sizing:border-box">
+  <input id="val-change-reason" placeholder="변경 근거 (예: TE 시장 경색 반영)" style="padding:5px 10px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:5px;color:var(--t2);font-size:11px;font-family:var(--font);width:200px;height:32px;box-sizing:border-box">
+  <input id="val-approver" placeholder="승인자" style="padding:5px 10px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:5px;color:var(--t2);font-size:11px;font-family:var(--font);width:80px;height:32px;box-sizing:border-box">
+
+  <div class="val-status-badge" style="margin-left:auto;height:32px">
     <div class="val-status-dot" id="val-status-dot"></div>
     <span id="val-data-badge">No data</span>
   </div>
-</div>
-
-<!-- Threshold Settings Bar -->
-<div id="val-threshold-bar" style="display:flex;align-items:center;gap:12px;padding:10px 28px;background:var(--surface);border-bottom:1px solid var(--border);font-size:11px">
-  <span style="font-size:9px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:var(--blue-h);white-space:nowrap">📌 Investment Threshold</span>
-
-  <!-- Dev Margin Threshold 카드 -->
-  <div style="display:grid;grid-template-columns:auto auto auto;align-items:center;gap:10px;padding:6px 12px;background:var(--surface3);border:1px solid var(--border2);border-radius:8px;width:260px">
-    <div style="line-height:1.2">
-      <div style="font-size:9px;font-weight:700;color:var(--t3);letter-spacing:.06em;text-transform:uppercase">Dev Margin</div>
-      <div style="font-size:8px;color:var(--t3)">Minimum</div>
-    </div>
-    <input id="thr-dev-margin" type="number" step="1" value="10" style="width:54px;padding:4px 6px;background:var(--surface);border:1px solid var(--border2);border-radius:5px;color:var(--blue-h);font-size:13px;font-weight:800;font-family:var(--font);text-align:center">
-    <span style="color:var(--t2);font-size:10px;font-weight:600;white-space:nowrap">c/Wp</span>
-  </div>
-
-  <!-- Sponsor IRR Threshold 카드 -->
-  <div style="display:grid;grid-template-columns:auto auto auto;align-items:center;gap:10px;padding:6px 12px;background:var(--surface3);border:1px solid var(--border2);border-radius:8px;width:260px">
-    <div style="line-height:1.2">
-      <div style="font-size:9px;font-weight:700;color:var(--t3);letter-spacing:.06em;text-transform:uppercase">Sponsor IRR</div>
-      <div style="font-size:8px;color:var(--t3)">Levered Pre-Tax · Min</div>
-    </div>
-    <input id="thr-sponsor-irr" type="number" step="0.5" value="9.0" style="width:54px;padding:4px 6px;background:var(--surface);border:1px solid var(--border2);border-radius:5px;color:var(--blue-h);font-size:13px;font-weight:800;font-family:var(--font);text-align:center">
-    <span style="color:var(--t2);font-size:10px;font-weight:600;white-space:nowrap">%</span>
-  </div>
-
-  <!-- ITC Hurdle 제거됨 - hidden input만 남겨 기존 JS 호환 -->
-  <input id="thr-itc" type="hidden" value="30">
-
-  <span style="margin-left:auto;font-size:9px;color:var(--t3)">설정값은 자동 저장됩니다</span>
 </div>
 
 <div class="val-body">
@@ -11143,17 +11180,39 @@ function valSwitchTab(name, btn) {
 
     <!-- IC OPINION -->
     <div class="val-tab-panel" id="val-panel-ic">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;flex-wrap:wrap;gap:10px">
         <div>
           <div style="font-size:13px;font-weight:700;color:var(--t1)">IC Opinion</div>
-          <div style="font-size:10px;color:var(--t3);margin-top:2px">Threshold 기반 AI 투자 의사판단 · Calculate 완료 후 활성화</div>
+          <div style="font-size:10px;color:var(--t3);margin-top:2px">순수 경제성 기반 의사판단 (PROCEED · RECUT · STOP) · 리스크는 별도 모니터링</div>
         </div>
-        <div style="display:flex;gap:8px;align-items:center">
-          <div id="cf-lang-toggle" style="display:none;background:var(--surface3);border:1px solid var(--border);border-radius:20px;padding:2px;display:flex;gap:2px">
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+
+          <!-- ── Investment Threshold (Dev Margin → Sponsor IRR 순) ── -->
+          <div style="display:flex;align-items:center;gap:8px;padding:0 12px;height:32px;background:var(--surface3);border:1px solid var(--border2);border-radius:6px;box-sizing:border-box" title="투자 기준: 최소 Dev Margin">
+            <span style="font-size:9px;font-weight:700;color:var(--t3);letter-spacing:.06em;text-transform:uppercase;white-space:nowrap">Dev Margin</span>
+            <input id="thr-dev-margin" type="number" step="1" value="10" style="width:42px;padding:2px 4px;background:var(--surface);border:1px solid var(--border2);border-radius:4px;color:var(--blue-h);font-size:12px;font-weight:800;font-family:var(--font);text-align:center">
+            <span style="color:var(--t3);font-size:9px;font-weight:600;white-space:nowrap">c/Wp</span>
+          </div>
+
+          <div style="display:flex;align-items:center;gap:8px;padding:0 12px;height:32px;background:var(--surface3);border:1px solid var(--border2);border-radius:6px;box-sizing:border-box" title="투자 기준: 최소 Sponsor IRR (Levered Pre-Tax)">
+            <span style="font-size:9px;font-weight:700;color:var(--t3);letter-spacing:.06em;text-transform:uppercase;white-space:nowrap">Sponsor IRR</span>
+            <input id="thr-sponsor-irr" type="number" step="0.5" value="9.0" style="width:42px;padding:2px 4px;background:var(--surface);border:1px solid var(--border2);border-radius:4px;color:var(--blue-h);font-size:12px;font-weight:800;font-family:var(--font);text-align:center">
+            <span style="color:var(--t3);font-size:9px;font-weight:600;white-space:nowrap">%</span>
+          </div>
+
+          <input id="thr-itc" type="hidden" value="30">
+
+          <!-- Divider -->
+          <div style="width:1px;height:20px;background:var(--border);margin:0 4px"></div>
+
+          <!-- 언어 토글 -->
+          <div id="cf-lang-toggle" style="display:none;background:var(--surface3);border:1px solid var(--border);border-radius:20px;padding:2px;gap:2px">
             <button onclick="valCFLang(this.dataset.l)" data-l="en" id="cf-lang-en" style="padding:3px 10px;border:none;border-radius:16px;font-size:10px;font-weight:700;cursor:pointer;font-family:var(--font);background:var(--blue-d);color:#fff">EN</button>
             <button onclick="valCFLang(this.dataset.l)" data-l="kr" id="cf-lang-kr" style="padding:3px 10px;border:none;border-radius:16px;font-size:10px;font-weight:600;cursor:pointer;font-family:var(--font);background:transparent;color:var(--t3)">KO</button>
           </div>
-          <button id="cf-ai-btn" onclick="valRunCFAnalysis()" style="padding:6px 16px;background:var(--blue-d);color:#fff;border:none;border-radius:var(--r-md);font-size:11px;font-weight:700;cursor:pointer;font-family:var(--font)">Run AI Analysis</button>
+
+          <!-- Run AI Analysis 버튼 -->
+          <button id="cf-ai-btn" onclick="valRunCFAnalysis()" style="padding:0 16px;height:32px;background:var(--blue-d);color:#fff;border:none;border-radius:var(--r-md);font-size:11px;font-weight:700;cursor:pointer;font-family:var(--font);box-sizing:border-box">Run AI Analysis</button>
         </div>
       </div>
       <div id="cf-ai-result" style="font-size:11px;color:var(--t3)">Calculate를 먼저 실행하세요.</div>
