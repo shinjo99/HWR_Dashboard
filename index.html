@@ -732,12 +732,7 @@ input:focus,textarea:focus,select:focus{outline:none;border-color:var(--border3)
   cursor:pointer;font-family:var(--font);
   transition:all var(--ease);white-space:nowrap;
   border:1px solid transparent;
-}.val-proj-item {
-  padding:8px 12px; font-size:11px; color:var(--t1); cursor:pointer;
-  border-bottom:1px solid rgba(255,255,255,.04);
-}
-.val-proj-item:hover { background:var(--surface3); }
-/* CF 탭 ready dot 애니메이션 */
+}/* CF 탭 ready dot 애니메이션 */
 @keyframes cfPulse {
   0%,100% { opacity:1; transform:scale(1); }
   50%      { opacity:.5; transform:scale(1.5); }
@@ -7662,26 +7657,18 @@ function openValuationPage() {
 function valSaveThresholds() {
   localStorage.setItem('val_thr', JSON.stringify({
     dev: parseFloat(document.getElementById('thr-dev-margin').value)||10,
-    irr: parseFloat(document.getElementById('thr-sponsor-irr').value)||9
+    irr: parseFloat(document.getElementById('thr-sponsor-irr').value)||9,
+    itc: parseFloat(document.getElementById('thr-itc').value)||30
   }));
-  // 캐시 무효화 — threshold 바뀌면 이전 분석 결과 폐기
-  window._cfAnalysisEn = null;
-  window._cfAnalysisKr = null;
-  var res = document.getElementById('cf-ai-result');
-  if (res) res.innerHTML = '<span style="color:var(--amber);font-size:11px">⚠️ Threshold가 변경되었습니다. Run AI Analysis를 다시 클릭하세요.</span>';
-  var btn = document.getElementById('cf-ai-btn');
-  if (btn) { btn.textContent = 'Run AI Analysis'; btn.disabled = false; btn.style.opacity = '1'; }
-  // 언어 토글 숨기기
-  var toggle = document.getElementById('cf-lang-toggle');
-  if (toggle) toggle.style.display = 'none';
 }
 function valLoadThresholds() {
   try {
     var t = JSON.parse(localStorage.getItem('val_thr')||'{}');
     if (t.dev) document.getElementById('thr-dev-margin').value = t.dev;
     if (t.irr) document.getElementById('thr-sponsor-irr').value = t.irr;
+    if (t.itc) document.getElementById('thr-itc').value = t.itc;
   } catch(e){}
-  ['thr-dev-margin','thr-sponsor-irr'].forEach(function(id){
+  ['thr-dev-margin','thr-sponsor-irr','thr-itc'].forEach(function(id){
     var el=document.getElementById(id);
     if(el) el.onchange = valSaveThresholds;
   });
@@ -7689,69 +7676,20 @@ function valLoadThresholds() {
 function valGetThresholds() {
   return {
     dev_margin_cwp: parseFloat((document.getElementById('thr-dev-margin')||{}).value)||10,
-    sponsor_irr_pct: parseFloat((document.getElementById('thr-sponsor-irr')||{}).value)||9
+    sponsor_irr_pct: parseFloat((document.getElementById('thr-sponsor-irr')||{}).value)||9,
+    itc_min_pct: parseFloat((document.getElementById('thr-itc')||{}).value)||30
   };
 }
 
-// ── 프로젝트 검색 드롭다운
-function valProjDropOpen() {
-  valProjDropFilter('');
-  var drop = document.getElementById('val-proj-drop');
-  if (drop) drop.style.display = 'block';
-  // 외부 클릭 시 닫기
-  setTimeout(function() {
-    document.addEventListener('click', valProjDropClose, {once:true});
-  }, 50);
-}
-function valProjDropClose(e) {
-  var wrap = document.getElementById('val-proj-wrap');
-  if (wrap && !wrap.contains(e.target)) {
-    var drop = document.getElementById('val-proj-drop');
-    if (drop) drop.style.display = 'none';
-  }
-}
-function valProjDropFilter(query) {
-  var drop = document.getElementById('val-proj-drop');
-  var sel  = document.getElementById('val-proj-select');
-  if (!drop || !sel) return;
-
-  var q = query.toLowerCase().trim();
-  var opts = Array.from(sel.options).filter(function(o){ return o.value; });
-
-  // ABC 정렬 + 검색 필터
-  var filtered = opts
-    .filter(function(o){ return !q || o.text.toLowerCase().includes(q); })
-    .sort(function(a,b){ return a.text.localeCompare(b.text); });
-
-  drop.innerHTML = filtered.length === 0
-    ? '<div style="padding:10px 12px;font-size:11px;color:var(--t3)">결과 없음</div>'
-    : filtered.map(function(o) {
-        var enc = encodeURIComponent(o.value);
-        var encT = encodeURIComponent(o.text);
-        return '<div onclick="valProjDropSelect(decodeURIComponent(this.dataset.v),decodeURIComponent(this.dataset.t))" data-v="'+enc+'" data-t="'+encT+'" class="val-proj-item">'+o.text+'</div>';
-      }).join('');
-}
-function valProjDropSelect(value, text) {
-  var sel    = document.getElementById('val-proj-select');
-  var search = document.getElementById('val-proj-search');
-  var drop   = document.getElementById('val-proj-drop');
-  if (sel)    sel.value = value;
-  if (search) search.value = text;
-  if (drop)   drop.style.display = 'none';
-  // 기존 change 이벤트 트리거
-  sel.dispatchEvent(new Event('change'));
-}
-
 function initValuationPage() {
-  // Populate project dropdown + 검색창 초기화
-  var searchInput = document.getElementById('val-proj-search');
+  // Populate project dropdown
   var sel = document.getElementById('val-proj-select');
   if (!sel) return;
   if (sel.options.length === 0) {
     PROJECTS.forEach(function(p) {
       var opt = document.createElement('option');
-      opt.value = p.name;  // PROJECTS에 id 없음 — name을 key로 사용
-      opt.textContent = p.name + (p.iso ? ' (' + p.iso + ')' : '');
+      opt.value = p.id;
+      opt.textContent = p.name + ' (' + p.state + ', ' + p.iso + ')';
       sel.appendChild(opt);
     });
     sel.onchange = function() { valLoadProject(this.value); };
@@ -7761,10 +7699,7 @@ function initValuationPage() {
 }
 
 function valLoadProject(projectId) {
-  // projectId는 이제 project name (e.g. "Neptune")
-  // Firebase 경로는 기존 id 기반이므로 name으로 매핑 필요
-  var proj = PROJECTS.find(function(p){ return p.name === projectId; });
-  var safeId = (proj && proj.id) ? proj.id.replace(/[/.]/g,'_') : projectId.replace(/[\s/.]/g,'_');
+  var safeId = projectId.replace(/[/.]/g, '_');
   // Reset outputs
   ['vo-dev-margin','vo-epc-margin','vo-total-margin','vo-lirr','vo-uirr','vo-sirr',
    'vo-capex','vo-debt','vo-te','vo-eq','vo-ppa','vo-toll','vo-specs','vo-dates'].forEach(function(id) {
@@ -7786,6 +7721,7 @@ function valLoadProject(projectId) {
 }
 
 function valDisplayData(data, safeId) {
+  window._lastValData = data;  // Benchmark vs 시장 비교용
   var a = data.assumptions || {};
   var o = data.outputs || {};
   var badge = document.getElementById('val-data-badge');
@@ -7925,32 +7861,27 @@ function valLoadVersion(v, safeId) {
 
 // ── Cash Flow 탭 활성화 (Calculate 완료 후)
 function valActivateCFTab() {
-  // Cash Flow 탭 — 조용히 활성화만
-  var cfTab = document.getElementById('val-tab-cf');
-  if (cfTab) {
-    cfTab.classList.remove('val-tab-locked');
-    cfTab.style.opacity = ''; cfTab.style.cursor = '';
-    cfTab.style.pointerEvents = ''; cfTab.title = '';
-  }
-  // IC Opinion 탭 — 녹색 점 + 색상 강조
-  var icTab = document.getElementById('val-tab-ic');
-  if (icTab) {
-    icTab.classList.remove('val-tab-locked');
-    icTab.style.opacity = ''; icTab.style.cursor = '';
-    icTab.style.pointerEvents = ''; icTab.title = '';
-    if (!icTab.querySelector('.cf-ready-dot')) {
+  function activateTab(tabId, label) {
+    var tab = document.getElementById(tabId);
+    if (!tab) return;
+    tab.classList.remove('val-tab-locked');
+    tab.style.opacity = ''; tab.style.cursor = '';
+    tab.style.pointerEvents = ''; tab.title = '';
+    if (!tab.querySelector('.cf-ready-dot')) {
       var dot = document.createElement('span');
       dot.className = 'cf-ready-dot';
       dot.style.cssText = 'display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--green);margin-right:5px;vertical-align:middle;animation:cfPulse 2s ease-in-out 3';
-      icTab.insertBefore(dot, icTab.firstChild);
+      tab.insertBefore(dot, tab.firstChild);
     }
-    icTab.style.color = 'var(--green)';
+    tab.style.color = 'var(--green)';
     setTimeout(function() {
-      icTab.style.color = '';
-      var dot = icTab.querySelector('.cf-ready-dot');
+      tab.style.color = '';
+      var dot = tab.querySelector('.cf-ready-dot');
       if (dot) dot.style.animation = 'none';
     }, 6000);
   }
+  activateTab('val-tab-cf', 'Cash Flow');
+  activateTab('val-tab-ic', 'IC Opinion');
 }
 
 // ── 버전 저장 모달
@@ -8092,8 +8023,6 @@ function valLoadHistory(safeId) {
 }
 
 // ── IC Summary PDF Export
-async function valExportICOpinion() { return valExportPDF(); }
-
 async function valExportPDF() {
   var btn = document.getElementById('val-export-btn');
   var doc = document.getElementById('val-print-doc');
@@ -8214,7 +8143,7 @@ async function valExportPDF() {
     ].join('');
 
     doc.style.display = 'block';
-    if (btn) { btn.textContent = '✨ Export IC Opinion'; btn.disabled = false; btn.style.opacity = '1'; }
+    if (btn) { btn.textContent = '✨ Export IC Summary'; btn.disabled = false; btn.style.opacity = '1'; }
     setTimeout(function() {
       window.print();
       setTimeout(function(){ doc.style.display='none'; }, 1000);
@@ -8222,7 +8151,7 @@ async function valExportPDF() {
 
   } catch(e) {
     alert('IC Summary 생성 실패: ' + e.message);
-    if (btn) { btn.textContent = '✨ Export IC Opinion'; btn.disabled = false; btn.style.opacity = '1'; }
+    if (btn) { btn.textContent = '✨ Export IC Summary'; btn.disabled = false; btn.style.opacity = '1'; }
   }
 }
 
@@ -8385,6 +8314,387 @@ async function valLoadBenchmarkProject(pid) {
       if(overviewBtn) valSwitchTab('overview', overviewBtn);
     }
   } catch(e) { console.error(e); }
+}
+
+// ══════════════════════════════════════════════════
+// BENCHMARK SUB-TABS: Internal / External
+// ══════════════════════════════════════════════════
+
+// 탭 진입 시 — 기본은 Internal 로드
+function valOnBenchmarkOpen() {
+  if (!_bmLoaded) valLoadBenchmark();
+  // 이전에 External 상태였으면 External로 복귀
+  var extActive = document.getElementById('bm-sub-external');
+  if (extActive && extActive.classList.contains('active')) {
+    valSwitchBmSub('external');
+  }
+}
+
+function valSwitchBmSub(sub) {
+  var btnInt = document.getElementById('bm-sub-internal');
+  var btnExt = document.getElementById('bm-sub-external');
+  var panInt = document.getElementById('bm-panel-internal');
+  var panExt = document.getElementById('bm-panel-external');
+  if (!btnInt || !btnExt) return;
+
+  function setActive(btn, on) {
+    if (on) {
+      btn.classList.add('active');
+      btn.style.color = 'var(--t1)';
+      btn.style.borderBottomColor = 'var(--blue)';
+      btn.style.fontWeight = '700';
+    } else {
+      btn.classList.remove('active');
+      btn.style.color = 'var(--t3)';
+      btn.style.borderBottomColor = 'transparent';
+      btn.style.fontWeight = '600';
+    }
+  }
+
+  if (sub === 'internal') {
+    setActive(btnInt, true); setActive(btnExt, false);
+    panInt.style.display = 'block';
+    panExt.style.display = 'none';
+    if (!_bmLoaded) valLoadBenchmark();
+  } else {
+    setActive(btnInt, false); setActive(btnExt, true);
+    panInt.style.display = 'none';
+    panExt.style.display = 'block';
+    // External 최초 진입 시 데이터 로드
+    if (!window._bmExtLoaded) {
+      valLoadMarketBenchmark(false);
+      valLoadLevelTen();
+      window._bmExtLoaded = true;
+    }
+  }
+}
+
+// ── 시장 벤치마크 로드 (FRED + Stooq) ────────────────
+async function valLoadMarketBenchmark(force) {
+  var ratesEl = document.getElementById('bm-ext-rates');
+  var othersEl = document.getElementById('bm-ext-others');
+  var fetchedEl = document.getElementById('bm-ext-fetched');
+  if (ratesEl) ratesEl.innerHTML = '<div style="grid-column:span 4;color:var(--t3);font-size:11px;padding:20px;text-align:center">📡 시장 데이터 로딩 중...</div>';
+  if (othersEl) othersEl.innerHTML = '';
+
+  try {
+    var qs = force ? '?force=1' : '';
+    var data = await apiCall('GET', '/benchmark/market' + qs);
+    if (!data || !data.series) throw new Error('응답 없음');
+
+    if (fetchedEl) {
+      var fd = data.fetched_at ? new Date(data.fetched_at + 'Z') : null;
+      fetchedEl.textContent = fd ? ('마지막 갱신: ' + fd.toLocaleString('ko-KR')) : '';
+    }
+
+    // 카드 빌더
+    function buildCard(key, meta) {
+      var d = meta.data;
+      var label = meta.label || key;
+      var unit = meta.unit || '';
+      if (!meta.ok || !d) {
+        return '<div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--r-lg);padding:12px 14px;opacity:.5">' +
+          '<div style="font-size:9px;color:var(--t3);font-weight:700;letter-spacing:.08em;text-transform:uppercase;margin-bottom:6px">'+label+'</div>' +
+          '<div style="font-size:12px;color:var(--t3)">데이터 없음</div>' +
+          '</div>';
+      }
+      var val = d.latest;
+      var disp = unit === '%' ? val.toFixed(2) + '%'
+               : unit === 'Index' && key === 'cpi' && meta.yoy_pct != null ? (meta.yoy_pct >= 0 ? '+' : '') + meta.yoy_pct.toFixed(2) + '% YoY'
+               : unit === '$' ? '$' + val.toFixed(2)
+               : unit === '$/MMBtu' ? '$' + val.toFixed(2)
+               : unit === 'KRW' ? val.toFixed(1) + '원'
+               : val.toFixed(2) + ' ' + unit;
+      var d1w = d.d_1w || 0;
+      var d1m = d.d_1m || 0;
+      var chgColor = d1w > 0 ? 'var(--green)' : d1w < 0 ? 'var(--red)' : 'var(--t3)';
+      var chgSign = d1w > 0 ? '▲' : d1w < 0 ? '▼' : '·';
+      var chgTxt = Math.abs(d1w) >= 0.01 ? chgSign + ' ' + Math.abs(d1w).toFixed(2) : '±0.00';
+      // 스파크라인 SVG
+      var spark = d.spark || [];
+      var sparkSvg = '';
+      if (spark.length > 1) {
+        var mn = Math.min.apply(null, spark), mx = Math.max.apply(null, spark);
+        var range = mx - mn || 1;
+        var pts = spark.map(function(v, i) {
+          var x = (i / (spark.length - 1)) * 100;
+          var y = 20 - ((v - mn) / range) * 18;
+          return x.toFixed(1) + ',' + y.toFixed(1);
+        }).join(' ');
+        var lineColor = d1m > 0 ? 'var(--green)' : d1m < 0 ? 'var(--red)' : 'var(--t3)';
+        sparkSvg = '<svg width="100%" height="22" viewBox="0 0 100 22" preserveAspectRatio="none" style="margin-top:4px;display:block"><polyline points="'+pts+'" fill="none" stroke="'+lineColor+'" stroke-width="1.2" vector-effect="non-scaling-stroke" opacity="0.7"/></svg>';
+      }
+      return '<div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--r-lg);padding:10px 12px">' +
+        '<div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:4px">' +
+          '<div style="font-size:9px;color:var(--t3);font-weight:700;letter-spacing:.05em;text-transform:uppercase">'+label+'</div>' +
+          '<div style="font-size:9px;color:'+chgColor+';font-weight:700">'+chgTxt+'</div>' +
+        '</div>' +
+        '<div style="font-size:16px;font-weight:800;color:var(--t1);font-variant-numeric:tabular-nums">'+disp+'</div>' +
+        sparkSvg +
+        '<div style="font-size:8px;color:var(--t3);margin-top:2px">'+(d.latest_date||'')+'</div>' +
+      '</div>';
+    }
+
+    // 금리 그룹
+    var rateKeys = ['us_10y','us_2y','fed_funds','bbb_spread'];
+    if (ratesEl) {
+      ratesEl.innerHTML = rateKeys.map(function(k){
+        return buildCard(k, data.series[k] || {});
+      }).join('');
+    }
+
+    // 기타 그룹
+    var otherKeys = ['cpi','henry_hub','tan','icln','krw_usd'];
+    if (othersEl) {
+      othersEl.innerHTML = otherKeys.map(function(k){
+        return buildCard(k, data.series[k] || {});
+      }).join('');
+    }
+
+    // 저장 (vs 비교에 사용)
+    window._marketData = data;
+    valRenderVsMarket();
+
+  } catch(e) {
+    var safeMsg = String(e.message||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    if (ratesEl) ratesEl.innerHTML = '<div style="grid-column:span 4;color:var(--red);font-size:11px;padding:20px;text-align:center">⚠️ 로드 실패: '+safeMsg+'</div>';
+  }
+}
+
+// ── LevelTen 데이터 로드 ────────────────────────────
+async function valLoadLevelTen() {
+  var contentEl = document.getElementById('bm-lt-content');
+  var metaEl = document.getElementById('bm-lt-meta');
+  if (!contentEl) return;
+
+  // XSS 방어용 escape
+  function esc(s) {
+    return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+
+  try {
+    var data = await apiCall('GET', '/benchmark/levelten');
+    if (!data || !Object.keys(data).length) {
+      contentEl.innerHTML = '<div class="val-empty" style="padding:16px"><div class="val-empty-icon" style="font-size:24px">📈</div><div class="val-empty-title" style="font-size:11px">LevelTen 리포트를 업로드하면 여기에 표시됩니다</div></div>';
+      if (metaEl) metaEl.textContent = '데이터 없음';
+      return;
+    }
+
+    var quarters = Object.keys(data).sort().reverse();
+    var latest = data[quarters[0]];
+    if (metaEl) {
+      metaEl.textContent = quarters.length + '개 분기 · 최신: ' + (latest.quarter||'—') + ' (업로드 ' + (latest.uploaded_at||'').substring(0,10) + ')';
+    }
+
+    // 최신 분기 엔트리 테이블
+    var html = '';
+
+    // 분기 드롭다운 + 테크 필터
+    html += '<div style="display:flex;gap:8px;align-items:center;margin-bottom:12px;flex-wrap:wrap">';
+    html += '<label style="font-size:10px;color:var(--t3);font-weight:600">분기:</label>';
+    html += '<select id="bm-lt-q-sel" onchange="valRenderLevelTenQuarter(this.value)" style="padding:4px 10px;background:var(--surface3);border:1px solid var(--border2);border-radius:var(--r-md);color:var(--t1);font-size:11px;font-family:var(--font)">';
+    quarters.forEach(function(q){
+      html += '<option value="'+esc(q)+'">'+esc(data[q].quarter||q)+'</option>';
+    });
+    html += '</select>';
+    html += '<span style="flex:1"></span>';
+    html += '<span style="font-size:9px;color:var(--t3)">$/MWh · 가격 낮을수록 입찰 경쟁 치열</span>';
+    html += '</div>';
+
+    html += '<div id="bm-lt-table-wrap"></div>';
+
+    if (latest.notes) {
+      html += '<div style="margin-top:12px;padding:10px 12px;background:var(--surface2);border-left:3px solid var(--blue);border-radius:0 var(--r-md) var(--r-md) 0;font-size:10px;color:var(--t2);line-height:1.5">' +
+        '<div style="font-size:9px;color:var(--t3);font-weight:700;letter-spacing:.08em;text-transform:uppercase;margin-bottom:4px">리포트 노트</div>' +
+        esc(latest.notes) + '</div>';
+    }
+
+    contentEl.innerHTML = html;
+    window._levelTenData = data;
+    valRenderLevelTenQuarter(quarters[0]);
+    valRenderVsMarket();
+
+  } catch(e) {
+    contentEl.innerHTML = '<div style="color:var(--red);font-size:11px;padding:20px;text-align:center">⚠️ 로드 실패: '+esc(e.message)+'</div>';
+  }
+}
+
+function valRenderLevelTenQuarter(q) {
+  var wrap = document.getElementById('bm-lt-table-wrap');
+  if (!wrap || !window._levelTenData) return;
+  var entries = (window._levelTenData[q] || {}).entries || [];
+  if (!entries.length) {
+    wrap.innerHTML = '<div style="color:var(--t3);font-size:11px;padding:12px;text-align:center">해당 분기 데이터가 없습니다</div>';
+    return;
+  }
+
+  // XSS 방어용 escape 헬퍼 (AI 파싱 결과라도 안전하게)
+  function esc(s) {
+    return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+
+  // tech별로 그룹화
+  var byTech = {};
+  entries.forEach(function(e){
+    var t = e.tech || 'unknown';
+    if (!byTech[t]) byTech[t] = [];
+    byTech[t].push(e);
+  });
+
+  var html = '';
+  Object.keys(byTech).sort().forEach(function(tech){
+    var techIcon = tech === 'solar' ? '☀️' : tech === 'wind' ? '💨' : tech === 'storage' ? '🔋' : '⚡';
+    html += '<div style="margin-bottom:14px">';
+    html += '<div style="font-size:10px;font-weight:700;color:var(--t2);margin-bottom:6px;text-transform:capitalize">'+techIcon+' '+esc(tech)+'</div>';
+    html += '<table style="width:100%;border-collapse:collapse;font-size:11px;font-variant-numeric:tabular-nums">';
+    html += '<thead><tr style="border-bottom:1px solid var(--border)">' +
+      '<th style="padding:6px 10px;text-align:left;font-size:9px;color:var(--t3);font-weight:700;letter-spacing:.06em;background:var(--surface2)">Region</th>' +
+      '<th style="padding:6px 10px;text-align:right;font-size:9px;color:var(--t3);font-weight:700;letter-spacing:.06em;background:var(--surface2)">Term</th>' +
+      '<th style="padding:6px 10px;text-align:right;font-size:9px;color:var(--t3);font-weight:700;letter-spacing:.06em;background:var(--surface2)">P25</th>' +
+      '<th style="padding:6px 10px;text-align:right;font-size:9px;color:var(--t3);font-weight:700;letter-spacing:.06em;background:var(--surface2)">P50</th>' +
+      '<th style="padding:6px 10px;text-align:right;font-size:9px;color:var(--t3);font-weight:700;letter-spacing:.06em;background:var(--surface2)">P75</th>' +
+      '</tr></thead><tbody>';
+    byTech[tech].forEach(function(e){
+      html += '<tr style="border-bottom:1px solid rgba(255,255,255,.04)">';
+      html += '<td style="padding:6px 10px;color:var(--t1);font-weight:600">'+esc(e.region||'—')+'</td>';
+      html += '<td style="padding:6px 10px;text-align:right;color:var(--t2)">'+(e.term_yr?Number(e.term_yr)+'yr':'—')+'</td>';
+      html += '<td style="padding:6px 10px;text-align:right;color:var(--amber);font-weight:700">'+(e.p25!=null?'$'+Number(e.p25).toFixed(2):'—')+'</td>';
+      html += '<td style="padding:6px 10px;text-align:right;color:var(--t2)">'+(e.p50!=null?'$'+Number(e.p50).toFixed(2):'—')+'</td>';
+      html += '<td style="padding:6px 10px;text-align:right;color:var(--t2)">'+(e.p75!=null?'$'+Number(e.p75).toFixed(2):'—')+'</td>';
+      html += '</tr>';
+    });
+    html += '</tbody></table></div>';
+  });
+
+  wrap.innerHTML = html;
+}
+
+// ── LevelTen 업로드 ─────────────────────────────────
+async function valUploadLevelTen() {
+  var quarter = (document.getElementById('bm-lt-quarter')||{}).value || '';
+  var fileInput = document.getElementById('bm-lt-file');
+  var file = fileInput && fileInput.files[0];
+  var statusEl = document.getElementById('bm-lt-upload-status');
+  var submitBtn = document.getElementById('bm-lt-submit');
+
+  if (!quarter.match(/^\d{4}-Q[1-4]$/i)) {
+    statusEl.innerHTML = '<span style="color:var(--red)">⚠️ 분기 형식: YYYY-Q1 ~ YYYY-Q4</span>';
+    return;
+  }
+  if (!file) {
+    statusEl.innerHTML = '<span style="color:var(--red)">⚠️ 파일을 선택하세요</span>';
+    return;
+  }
+
+  submitBtn.disabled = true;
+  submitBtn.textContent = '⏳ 파싱 중...';
+  statusEl.innerHTML = '<span style="color:var(--t3)">📤 업로드 & AI 파싱 중 (최대 90초 소요)...</span>';
+
+  var fd = new FormData();
+  fd.append('file', file);
+  fd.append('quarter', quarter.toUpperCase());
+
+  var token = (window.HWR_AUTH && window.HWR_AUTH.token) || window._authToken || localStorage.getItem('hwr_token') || '';
+  var apiBase = (typeof API_URL !== 'undefined' ? API_URL : (window.API_URL || ''));
+
+  try {
+    var res = await fetch(apiBase + '/benchmark/levelten/upload', {
+      method: 'POST',
+      headers: { 'Authorization': 'Bearer ' + token },
+      body: fd
+    });
+    var j = await res.json();
+    if (!res.ok) throw new Error(j.detail || ('HTTP '+res.status));
+
+    statusEl.innerHTML = '<span style="color:var(--green)">✓ '+j.entries_count+'개 엔트리 파싱 완료</span>';
+    setTimeout(function(){
+      document.getElementById('bm-lt-modal').style.display = 'none';
+      statusEl.innerHTML = '';
+      submitBtn.disabled = false;
+      submitBtn.textContent = '업로드 & 파싱';
+      if (fileInput) fileInput.value = '';
+      valLoadLevelTen();
+    }, 1200);
+  } catch(e) {
+    var safeMsg = String(e.message||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    statusEl.innerHTML = '<span style="color:var(--red)">⚠️ 실패: '+safeMsg+'</span>';
+    submitBtn.disabled = false;
+    submitBtn.textContent = '업로드 & 파싱';
+  }
+}
+
+// ── 내 프로젝트 vs 시장 비교 위젯 ────────────────────
+function valRenderVsMarket() {
+  var wrap = document.getElementById('bm-vs-market');
+  var body = document.getElementById('bm-vs-market-body');
+  if (!wrap || !body) return;
+
+  // 현재 프로젝트 데이터
+  var proj = window._lastValData;
+  if (!proj || !proj.outputs) {
+    wrap.style.display = 'none';
+    return;
+  }
+  var o = proj.outputs || {}, a = proj.assumptions || {};
+  var sirr = o.sponsor_irr || 0;
+  var ppa = o.ppa_price || a.ppa_price || 0;
+
+  var lines = [];
+
+  // 10Y Treasury 대비 스프레드
+  var md = window._marketData;
+  if (md && md.series && md.series.us_10y && md.series.us_10y.ok && sirr > 0) {
+    var tenY = md.series.us_10y.data.latest;
+    var spread = (sirr * 100 - tenY) * 100; // bp
+    var col = spread >= 600 ? 'var(--green)' : spread >= 400 ? 'var(--amber)' : 'var(--red)';
+    lines.push({
+      label: 'Sponsor IRR vs 10Y Treasury',
+      val: (sirr*100).toFixed(2) + '% IRR  vs  ' + tenY.toFixed(2) + '% 10Y',
+      delta: '+' + spread.toFixed(0) + ' bp 스프레드',
+      col: col,
+      hint: spread >= 600 ? '양호 (신재생 프로젝트 기준)' : spread >= 400 ? '적정' : '타이트'
+    });
+  }
+
+  // LevelTen vs 우리 PPA
+  var lt = window._levelTenData;
+  if (lt && ppa > 0) {
+    var quarters = Object.keys(lt).sort().reverse();
+    if (quarters.length) {
+      var latest = lt[quarters[0]];
+      // solar 평균 P25 계산 (우리가 태양광 중심이라 가정)
+      var solarP25s = (latest.entries||[]).filter(function(e){return e.tech==='solar' && e.p25!=null;}).map(function(e){return Number(e.p25);});
+      if (solarP25s.length) {
+        var avgP25 = solarP25s.reduce(function(a,b){return a+b;},0) / solarP25s.length;
+        var diff = ppa - avgP25;
+        var col = diff >= 5 ? 'var(--green)' : diff >= 0 ? 'var(--amber)' : 'var(--red)';
+        lines.push({
+          label: 'PPA Price vs LevelTen Solar P25 (평균)',
+          val: '$' + ppa.toFixed(2) + '/MWh  vs  $' + avgP25.toFixed(2) + '/MWh',
+          delta: (diff >= 0 ? '+' : '') + diff.toFixed(2) + ' $/MWh',
+          col: col,
+          hint: diff >= 5 ? '프리미엄 확보' : diff >= 0 ? '시장 평균' : '시장 하회'
+        });
+      }
+    }
+  }
+
+  if (!lines.length) {
+    wrap.style.display = 'none';
+    return;
+  }
+
+  body.innerHTML = lines.map(function(ln){
+    return '<div style="display:grid;grid-template-columns:1fr auto;gap:12px;padding:10px 0;border-bottom:1px solid var(--border)">' +
+      '<div>' +
+        '<div style="font-size:9px;color:var(--t3);font-weight:700;letter-spacing:.06em;text-transform:uppercase;margin-bottom:3px">'+ln.label+'</div>' +
+        '<div style="font-size:12px;color:var(--t1);font-variant-numeric:tabular-nums">'+ln.val+'</div>' +
+        '<div style="font-size:10px;color:var(--t3);margin-top:2px">'+ln.hint+'</div>' +
+      '</div>' +
+      '<div style="text-align:right"><div style="font-size:14px;font-weight:800;color:'+ln.col+';font-variant-numeric:tabular-nums">'+ln.delta+'</div></div>' +
+    '</div>';
+  }).join('');
+  wrap.style.display = 'block';
 }
 
 // ── Scenario 비교 실행
@@ -8902,17 +9212,9 @@ function valDrawChart(detail) {
   html += '</div>';
 
   // ── CF 자동 해석
-  // CF 패턴 해석 버튼 + 결과 영역
-  html += '<div style="margin-top:20px;border-top:1px solid var(--border);padding-top:16px">'
-    + '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">'
-    +   '<div style="font-size:9px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--t3)">CF 패턴 해석</div>'
-    +   '<button id="cf-interp-btn" onclick="valRunCFInterp()" style="padding:5px 14px;background:var(--surface3);border:1px solid var(--border2);color:var(--t2);border-radius:var(--r-md);font-size:10px;font-weight:700;cursor:pointer;font-family:var(--font)">AI 해석</button>'
-    + '</div>'
-    + '<div id="cf-interp-result" style="font-size:11px;color:var(--t3)">AI 해석 버튼을 눌러 CF 패턴을 분석합니다.</div>'
-    + '</div>';
-
   chartSec.innerHTML = html;
 
+  // 현재 CF 데이터를 전역에 보관 (버튼 클릭 시 사용)
   window._cfDetail = detail;
   window._cfVals   = vals;
 }
@@ -8923,12 +9225,11 @@ function valCFLang(lang) {
   var krBtn = document.getElementById('cf-lang-kr');
   if (enBtn) { enBtn.style.background = lang==='en'?'var(--blue-d)':'transparent'; enBtn.style.color = lang==='en'?'#fff':'var(--t3)'; }
   if (krBtn) { krBtn.style.background = lang==='kr'?'var(--blue-d)':'transparent'; krBtn.style.color = lang==='kr'?'#fff':'var(--t3)'; }
-  // 캐시 있으면 즉시 표시 — API 호출 없음
+  // 해당 언어 캐시가 있으면 즉시 표시, 없으면 재호출
   var cached = lang==='en' ? window._cfAnalysisEn : window._cfAnalysisKr;
   if (cached) {
     valRenderCFAnalysis(cached, lang);
   } else {
-    // 캐시 없으면 자동으로 해당 언어로 실행
     valRunCFAnalysis(lang);
   }
 }
@@ -8944,7 +9245,7 @@ function valRenderCFAnalysis(p, lang) {
   var thesis    = p.thesis    || (isEn ? (p.thesis_en||'')    : (p.thesis_kr||''));
   var risks     = p.risks     || (isEn ? (p.risks_en||[])     : (p.risks_kr||[]));
   var rec       = p.rec       || (isEn ? (p.rec_en||'')       : (p.rec_kr||''));
-  var sens      = isEn ? (p.sensitivity_en||p.sensitivity||'') : (p.sensitivity_kr||p.sensitivity||'');
+  var sens      = p.sensitivity || (isEn ? (p.sensitivity_en||'') : (p.sensitivity_kr||''));
   var thr       = p.threshold_status || {};
 
   var L = {
@@ -9032,7 +9333,7 @@ function valRenderCFAnalysis(p, lang) {
         +     '<span style="font-size:11.5px;font-weight:700;color:var(--t1)">'+title+'</span>'
         +     (sev ? '<span style="font-size:9px;font-weight:700;color:'+sc+';letter-spacing:.06em">'+sev.toUpperCase()+'</span>' : '')
         +   '</div>'
-        +   (detail ? '<div style="font-size:11px;color:var(--t2);line-height:1.75;margin-top:3px">'+detail+'</div>' : '')
+        +   (detail ? '<div style="font-size:11px;color:var(--t3);line-height:1.7">'+detail+'</div>' : '')
         + '</div></div>';
     });
     html += section(L.risks, riskHtml);
@@ -9044,52 +9345,6 @@ function valRenderCFAnalysis(p, lang) {
   );
 
   res.innerHTML = html;
-}
-
-async function valRunCFInterp() {
-  var detail = window._cfDetail;
-  var vals   = window._cfVals;
-  if (!detail || !vals) return;
-
-  var btn = document.getElementById('cf-interp-btn');
-  var res = document.getElementById('cf-interp-result');
-  if (btn) { btn.textContent = '⏳ 분석 중...'; btn.disabled = true; }
-  if (res) res.innerHTML = '<span style="color:var(--t3)">분석 중...</span>';
-
-  var cfText = detail.map(function(d, i) {
-    return 'Y' + d.yr + ' $' + (vals[i]/1000).toFixed(1) + 'M'
-      + (d.aug > 0 ? '(증설)' : '');
-  }).join(', ');
-
-  try {
-    var data = await apiCall('POST', '/valuation/analyze-cf', {
-      cf_text: cfText,
-      project_name: (document.getElementById('val-proj-select')||{}).value||'',
-      context: '',
-      thresholds: {},
-      current_metrics: {},
-      lang: 'kr',
-      mode: 'interp'
-    });
-    var parsed = JSON.parse(data.result);
-    var insights = parsed.insights || parsed.risks || [];
-    var thesis   = parsed.thesis || parsed.summary || '';
-
-    var html = thesis ? '<div style="font-size:11px;color:var(--t2);line-height:1.8;margin-bottom:10px">'+thesis+'</div>' : '';
-    insights.forEach(function(ins) {
-      var t = typeof ins==='object'?(ins.title||ins.detail||ins):ins;
-      var b = typeof ins==='object'?(ins.detail||ins.body||''):'';
-      html += '<div style="padding:8px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--r-md);margin-bottom:6px">'
-        + '<div style="font-size:11px;font-weight:700;color:var(--t1);margin-bottom:2px">'+t+'</div>'
-        + (b ? '<div style="font-size:10px;color:var(--t3);line-height:1.6">'+b+'</div>' : '')
-        + '</div>';
-    });
-    if (res) res.innerHTML = html || '<span style="color:var(--t3)">결과 없음</span>';
-    if (btn) { btn.textContent = '↻ 재분석'; btn.disabled = false; }
-  } catch(e) {
-    if (res) res.innerHTML = '<span style="color:var(--red)">⚠️ ' + e.message + '</span>';
-    if (btn) { btn.textContent = 'AI 해석'; btn.disabled = false; }
-  }
 }
 
 async function valRunCFAnalysis(lang) {
@@ -9113,30 +9368,6 @@ async function valRunCFAnalysis(lang) {
 
   function tv(id){ var el=document.getElementById(id); return el?el.textContent.trim():''; }
   var projName = (document.getElementById('val-proj-select')||{}).value || '프로젝트';
-
-  // PROJECTS 배열만 사용
-  var projMeta = {};
-  if (typeof PROJECTS !== 'undefined') {
-    var f1 = PROJECTS.find(function(p){ return p.name===projName; });
-    if (f1) projMeta = f1;
-  }
-
-  var codDate = projMeta.cod != null ? String(projMeta.cod) : '';
-  var ntpDate = projMeta.ntp != null ? String(projMeta.ntp) : '';
-  var codYear = codDate ? parseInt(codDate) : null;
-  var itcRisk = codYear ? (codYear <= 2030 ? 'LOW' : 'HIGH') : 'UNKNOWN';
-  var stage   = projMeta.stage || '';
-
-  var projCtx = [
-    stage           ? 'Development Stage: '         + stage          : '',
-    projMeta.iso    ? 'ISO/Market: '                + projMeta.iso   : '',
-    projMeta.type   ? 'Project Type: '              + projMeta.type  : '',
-    ntpDate         ? 'Expected NTP: '              + ntpDate        : '',
-    codDate         ? 'Expected COD: '              + codDate        : '',
-    projMeta.state  ? 'State: '                     + projMeta.state : '',
-    codDate         ? 'ITC Expiry Risk vs 2030-07-04: ' + itcRisk    : ''
-  ].filter(Boolean).join(' | ');
-
   var ctx = 'Sponsor IRR: '+tv('vo-sirr')+' | Dev Margin: '+tv('vo-dev-margin')
            +' | CAPEX: '+tv('vo-capex')+' | Debt: '+tv('vo-debt')
            +' | TE: '+tv('vo-te')+' | Sponsor Eq: '+tv('vo-eq')
@@ -9144,27 +9375,21 @@ async function valRunCFAnalysis(lang) {
 
   try {
     var thr = valGetThresholds();
+    // Dev Margin c/Wp 계산
+    var devM_raw = 0;
+    var devMStr = tv('vo-dev-margin'); // e.g. "$39.8M"
     var mwac = parseFloat((document.getElementById('vi-pv-mwac')||{}).value)||199;
-    var devMval = parseFloat(tv('vo-dev-margin').replace(/[^0-9.]/g,''))||0;
+    var devMval = parseFloat(devMStr.replace(/[^0-9.]/g,''))||0;
     var devM_cwp = mwac > 0 ? (devMval*1000/(mwac*1000)*100).toFixed(1) : '—';
 
     var data = await apiCall('POST', '/valuation/analyze-cf', {
       cf_text: cfText,
       project_name: projName,
       context: ctx,
-      project_meta: {
-        stage: projMeta.stage || '',
-        iso: projMeta.iso || '',
-        type: projMeta.type || '',
-        ntp: ntpDate,
-        cod: codDate,
-        risk_factor: projMeta.risk_factor != null ? projMeta.risk_factor : '',
-        itc_expiry_risk: itcRisk,
-        proj_ctx: projCtx
-      },
       thresholds: {
         dev_margin_cwp: thr.dev_margin_cwp,
-        sponsor_irr_pct: thr.sponsor_irr_pct
+        sponsor_irr_pct: thr.sponsor_irr_pct,
+        itc_min_pct: thr.itc_min_pct
       },
       current_metrics: {
         dev_margin_cwp: devM_cwp,
@@ -9173,17 +9398,6 @@ async function valRunCFAnalysis(lang) {
         ppa_term: (document.getElementById('vi-ppa-t')||{}).value||'25',
         toll_term: (document.getElementById('vi-toll-t')||{}).value||'20',
         pv_mwac: mwac
-      },
-      lang: lang,
-      project_meta: {
-        stage: projMeta.stage || '',
-        iso: projMeta.iso || '',
-        type: projMeta.type || '',
-        ntp: ntpDate,
-        cod: codDate,
-        risk_factor: projMeta.risk_factor != null ? projMeta.risk_factor : '',
-        itc_expiry_risk: itcRisk,
-        proj_ctx: projCtx
       }
     });
     if (!data || !data.ok) throw new Error('API 오류');
@@ -9547,7 +9761,7 @@ function valSwitchTab(name, btn) {
 
 /* ── LEFT INPUT PANEL ── */
 .val-left {
-  width:260px; flex-shrink:0; overflow-y:auto; overflow-x:hidden;
+  width:220px; flex-shrink:0; overflow-y:auto; overflow-x:hidden;
   border-right:1px solid var(--border);
   display:flex; flex-direction:column;
   background:var(--surface);
@@ -9567,18 +9781,18 @@ function valSwitchTab(name, btn) {
 }
 .val-sec-toggle { font-size:8px; color:var(--t3); transition:transform .2s; }
 .val-sec-toggle.open { transform:rotate(180deg); }
-.val-sec-body { padding:6px 12px 10px; }
-.val-grid2 { display:grid; grid-template-columns:1fr 1fr; gap:4px; }
+.val-sec-body { padding:8px 16px 14px; }
+.val-grid2 { display:grid; grid-template-columns:1fr 1fr; gap:6px; }
 .val-grid1 { display:grid; grid-template-columns:1fr; gap:6px; }
 
 .vf { display:flex; flex-direction:column; gap:3px; min-width:0; }
 .vf label {
-  font-size:8.5px; color:var(--t3); font-weight:600;
+  font-size:9px; color:var(--t3); font-weight:600;
   letter-spacing:.02em; white-space:nowrap; overflow:hidden;
   text-overflow:ellipsis;
 }
 .vf input, .vf select {
-  width:100%; padding:5px 7px;
+  width:100%; padding:6px 8px;
   background:rgba(255,255,255,.04); border:1px solid rgba(255,255,255,.07);
   border-radius:5px; color:var(--t1); font-size:11px; font-family:var(--font);
   transition:border-color .12s, background .12s; box-sizing:border-box;
@@ -9851,19 +10065,7 @@ function valSwitchTab(name, btn) {
 </div>
 
 <div class="val-upload-bar">
-  <!-- 검색 가능한 프로젝트 선택 -->
-  <div id="val-proj-wrap" style="position:relative;min-width:180px;max-width:220px">
-    <input id="val-proj-search" autocomplete="off" placeholder="🔍 프로젝트 검색..."
-      style="width:100%;padding:5px 10px;background:var(--surface3);border:1px solid var(--border);
-             border-radius:var(--r-md);color:var(--t1);font-size:11px;font-family:var(--font);
-             cursor:pointer;box-sizing:border-box"
-      onfocus="valProjDropOpen()" oninput="valProjDropFilter(this.value)">
-    <div id="val-proj-drop" style="display:none;position:absolute;top:100%;left:0;right:0;
-      background:var(--surface2);border:1px solid var(--border2);border-radius:var(--r-md);
-      max-height:240px;overflow-y:auto;z-index:500;margin-top:2px;box-shadow:0 8px 24px rgba(0,0,0,.4)">
-    </div>
-    <select id="val-proj-select" style="display:none"></select>
-  </div>
+  <select id="val-proj-select" class="val-proj-sel" style="padding:5px 10px;background:var(--surface3);border:1px solid var(--border);border-radius:var(--r-md);color:var(--t1);font-size:11px;font-family:var(--font);cursor:pointer;max-width:180px"></select>
   <label class="val-upload-label">
     <span>📎</span>
     <span id="val-upload-fname">PF Model 업로드 (.xlsb / .xlsx)</span>
@@ -9893,7 +10095,11 @@ function valSwitchTab(name, btn) {
     <input id="thr-sponsor-irr" type="number" step="0.5" value="9.0" style="width:52px;padding:3px 8px;background:var(--surface3);border:1px solid var(--border);border-radius:5px;color:var(--t1);font-size:11px;font-family:var(--font)">
     <span style="color:var(--t3);font-size:10px">% min</span>
   </div>
-
+  <div style="display:flex;align-items:center;gap:6px">
+    <label style="font-size:10px;color:var(--t3)">ITC Hurdle</label>
+    <input id="thr-itc" type="number" step="5" value="30" style="width:52px;padding:3px 8px;background:var(--surface3);border:1px solid var(--border);border-radius:5px;color:var(--t1);font-size:11px;font-family:var(--font)">
+    <span style="color:var(--t3);font-size:10px">% min</span>
+  </div>
   <span style="margin-left:auto;font-size:9px;color:var(--t3)">설정값은 자동 저장됩니다</span>
 </div>
 
@@ -10026,10 +10232,10 @@ function valSwitchTab(name, btn) {
       <button class="val-tab" onclick="valSwitchTab('sensitivity',this)">Sensitivity</button>
       <button class="val-tab val-tab-locked" id="val-tab-cf" onclick="valSwitchTab('cashflow',this)" title="Calculate 후 활성화됩니다" style="opacity:.35;cursor:not-allowed;pointer-events:none">Cash Flow</button>
       <button class="val-tab" onclick="valSwitchTab('history',this)">History</button>
-      <button class="val-tab" onclick="valSwitchTab('benchmark',this);valLoadBenchmark()">Benchmark</button>
+      <button class="val-tab" onclick="valSwitchTab('benchmark',this);valOnBenchmarkOpen()">Benchmark</button>
       <button class="val-tab val-tab-locked" id="val-tab-ic" onclick="valSwitchTab('ic',this)" title="Calculate 후 활성화됩니다" style="opacity:.35;cursor:not-allowed;pointer-events:none">IC Opinion</button>
       <span id="val-calc-status" style="margin-left:auto"></span>
-      <button onclick="valExportICOpinion()" id="val-export-btn" style="margin-left:8px;margin-right:4px;padding:5px 12px;background:transparent;border:1px solid var(--border2);border-radius:var(--r-md);font-size:10px;font-weight:600;color:var(--t3);cursor:pointer;font-family:var(--font);transition:all var(--ease);white-space:nowrap" onmouseover="this.style.color='var(--t1)';this.style.borderColor='var(--t2)'" onmouseout="this.style.color='var(--t3)';this.style.borderColor='var(--border2)'">✨ Export IC Opinion</button>
+      <button onclick="valExportPDF()" id="val-export-btn" style="margin-left:8px;margin-right:4px;padding:5px 12px;background:transparent;border:1px solid var(--border2);border-radius:var(--r-md);font-size:10px;font-weight:600;color:var(--t3);cursor:pointer;font-family:var(--font);transition:all var(--ease);white-space:nowrap" onmouseover="this.style.color='var(--t1)';this.style.borderColor='var(--t2)'" onmouseout="this.style.color='var(--t3)';this.style.borderColor='var(--border2)'">✨ Export IC Summary</button>
     </div>
 
     <!-- OVERVIEW -->
@@ -10288,20 +10494,102 @@ function valSwitchTab(name, btn) {
 
     <!-- BENCHMARK -->
     <div class="val-tab-panel" id="val-panel-benchmark">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
-        <div>
-          <div style="font-size:13px;font-weight:700;color:var(--t1)">프로젝트 Benchmark</div>
-          <div style="font-size:10px;color:var(--t3);margin-top:2px">Valuation 데이터가 있는 프로젝트 비교 · 클릭하면 해당 프로젝트 로드</div>
+
+      <!-- 서브탭: Internal(프로젝트) / External(시장) -->
+      <div style="display:flex;gap:4px;margin-bottom:16px;border-bottom:1px solid var(--border);padding-bottom:0">
+        <button id="bm-sub-internal" class="bm-sub-btn active" onclick="valSwitchBmSub('internal')" style="padding:8px 16px;background:transparent;border:none;border-bottom:2px solid var(--blue);color:var(--t1);font-size:11px;font-weight:700;cursor:pointer;font-family:var(--font);letter-spacing:.03em">📊 Internal (프로젝트 비교)</button>
+        <button id="bm-sub-external" class="bm-sub-btn" onclick="valSwitchBmSub('external')" style="padding:8px 16px;background:transparent;border:none;border-bottom:2px solid transparent;color:var(--t3);font-size:11px;font-weight:600;cursor:pointer;font-family:var(--font);letter-spacing:.03em">🌐 External (시장 벤치마크)</button>
+      </div>
+
+      <!-- ── INTERNAL (기존) ── -->
+      <div id="bm-panel-internal">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+          <div>
+            <div style="font-size:13px;font-weight:700;color:var(--t1)">프로젝트 Benchmark</div>
+            <div style="font-size:10px;color:var(--t3);margin-top:2px">Valuation 데이터가 있는 프로젝트 비교 · 클릭하면 해당 프로젝트 로드</div>
+          </div>
+          <button onclick="valLoadBenchmark()" style="padding:5px 12px;background:var(--surface3);border:1px solid var(--border2);border-radius:var(--r-md);font-size:10px;color:var(--t2);cursor:pointer;font-family:var(--font)">↻ 새로고침</button>
         </div>
-        <button onclick="valLoadBenchmark()" style="padding:5px 12px;background:var(--surface3);border:1px solid var(--border2);border-radius:var(--r-md);font-size:10px;color:var(--t2);cursor:pointer;font-family:var(--font)">↻ 새로고침</button>
+        <div id="val-bm-stats" style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:16px"></div>
+        <div id="val-bm-chart" style="background:var(--surface);border:1px solid var(--border);border-radius:var(--r-lg);padding:16px;margin-bottom:16px"></div>
+        <div id="val-bm-loading" class="val-empty" style="padding:32px">
+          <div class="val-empty-icon">📊</div>
+          <div class="val-empty-title">Benchmark 탭을 클릭하면 데이터를 로드합니다</div>
+        </div>
+        <div id="val-bm-table" style="display:none;background:var(--surface);border:1px solid var(--border);border-radius:var(--r-lg);overflow:hidden"></div>
       </div>
-      <div id="val-bm-stats" style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:16px"></div>
-      <div id="val-bm-chart" style="background:var(--surface);border:1px solid var(--border);border-radius:var(--r-lg);padding:16px;margin-bottom:16px"></div>
-      <div id="val-bm-loading" class="val-empty" style="padding:32px">
-        <div class="val-empty-icon">📊</div>
-        <div class="val-empty-title">Benchmark 탭을 클릭하면 데이터를 로드합니다</div>
+
+      <!-- ── EXTERNAL (신규) ── -->
+      <div id="bm-panel-external" style="display:none">
+
+        <!-- Market Rates 섹션 -->
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+          <div>
+            <div style="font-size:13px;font-weight:700;color:var(--t1)">시장 금리 & 매크로</div>
+            <div style="font-size:10px;color:var(--t3);margin-top:2px">FRED + Stooq · 6시간 캐시 · <span id="bm-ext-fetched" style="color:var(--t2)"></span></div>
+          </div>
+          <button onclick="valLoadMarketBenchmark(true)" style="padding:5px 12px;background:var(--surface3);border:1px solid var(--border2);border-radius:var(--r-md);font-size:10px;color:var(--t2);cursor:pointer;font-family:var(--font)">↻ 새로고침</button>
+        </div>
+
+        <!-- 금리 그룹 -->
+        <div style="font-size:9px;color:var(--t3);font-weight:700;letter-spacing:.08em;text-transform:uppercase;margin-bottom:6px">금리 (할인율 기준점)</div>
+        <div id="bm-ext-rates" style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:14px"></div>
+
+        <!-- 에너지/매크로/환율/주식 -->
+        <div style="font-size:9px;color:var(--t3);font-weight:700;letter-spacing:.08em;text-transform:uppercase;margin-bottom:6px">에너지 · 매크로 · 섹터</div>
+        <div id="bm-ext-others" style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:20px"></div>
+
+        <!-- LevelTen 섹션 -->
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;margin-top:4px">
+          <div>
+            <div style="font-size:13px;font-weight:700;color:var(--t1)">LevelTen PPA Price Index</div>
+            <div style="font-size:10px;color:var(--t3);margin-top:2px">수동 업로드 · <span id="bm-lt-meta" style="color:var(--t2)"></span></div>
+          </div>
+          <div style="display:flex;gap:6px">
+            <button id="bm-lt-upload-btn" onclick="document.getElementById('bm-lt-modal').style.display='flex'" style="padding:5px 12px;background:var(--blue-d);border:none;border-radius:var(--r-md);font-size:10px;color:#fff;cursor:pointer;font-family:var(--font);font-weight:700">📤 업로드</button>
+            <button onclick="valLoadLevelTen()" style="padding:5px 12px;background:var(--surface3);border:1px solid var(--border2);border-radius:var(--r-md);font-size:10px;color:var(--t2);cursor:pointer;font-family:var(--font)">↻</button>
+          </div>
+        </div>
+
+        <div id="bm-lt-content" style="background:var(--surface);border:1px solid var(--border);border-radius:var(--r-lg);padding:16px;margin-bottom:16px;min-height:80px">
+          <div class="val-empty" style="padding:16px">
+            <div class="val-empty-icon" style="font-size:24px">📈</div>
+            <div class="val-empty-title" style="font-size:11px">LevelTen 리포트를 업로드하면 여기에 표시됩니다</div>
+          </div>
+        </div>
+
+        <!-- 내 프로젝트 vs 시장 비교 -->
+        <div id="bm-vs-market" style="background:var(--surface);border:1px solid var(--border);border-radius:var(--r-lg);padding:14px;display:none">
+          <div style="font-size:9px;color:var(--t3);font-weight:700;letter-spacing:.08em;text-transform:uppercase;margin-bottom:10px">현재 프로젝트 vs 시장</div>
+          <div id="bm-vs-market-body"></div>
+        </div>
       </div>
-      <div id="val-bm-table" style="display:none;background:var(--surface);border:1px solid var(--border);border-radius:var(--r-lg);overflow:hidden"></div>
+
+      <!-- ── LEVELTEN UPLOAD MODAL ── -->
+      <div id="bm-lt-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:9999;align-items:center;justify-content:center;backdrop-filter:blur(4px)" onclick="if(event.target===this)this.style.display='none'">
+        <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--r-lg);padding:24px;width:440px;max-width:92vw">
+          <div style="font-size:14px;font-weight:700;color:var(--t1);margin-bottom:4px">LevelTen 리포트 업로드</div>
+          <div style="font-size:10px;color:var(--t3);margin-bottom:16px">PDF · XLSX · CSV 지원 · AI가 자동 파싱</div>
+
+          <div style="margin-bottom:12px">
+            <label style="font-size:10px;color:var(--t3);font-weight:600;display:block;margin-bottom:4px">분기 (Quarter)</label>
+            <input id="bm-lt-quarter" type="text" placeholder="2026-Q1" style="width:100%;padding:8px 10px;background:var(--surface3);border:1px solid var(--border2);border-radius:var(--r-md);color:var(--t1);font-size:12px;font-family:var(--font)">
+          </div>
+
+          <div style="margin-bottom:16px">
+            <label style="font-size:10px;color:var(--t3);font-weight:600;display:block;margin-bottom:4px">파일</label>
+            <input id="bm-lt-file" type="file" accept=".pdf,.xlsx,.xls,.xlsb,.csv,.tsv" style="width:100%;padding:8px;background:var(--surface3);border:1px solid var(--border2);border-radius:var(--r-md);color:var(--t2);font-size:11px;font-family:var(--font)">
+          </div>
+
+          <div id="bm-lt-upload-status" style="font-size:10px;color:var(--t3);margin-bottom:12px;min-height:14px"></div>
+
+          <div style="display:flex;gap:8px;justify-content:flex-end">
+            <button onclick="document.getElementById('bm-lt-modal').style.display='none'" style="padding:7px 14px;background:transparent;border:1px solid var(--border2);border-radius:var(--r-md);font-size:11px;color:var(--t3);cursor:pointer;font-family:var(--font)">취소</button>
+            <button onclick="valUploadLevelTen()" id="bm-lt-submit" style="padding:7px 14px;background:var(--blue-d);color:#fff;border:none;border-radius:var(--r-md);font-size:11px;font-weight:700;cursor:pointer;font-family:var(--font)">업로드 & 파싱</button>
+          </div>
+        </div>
+      </div>
+
     </div>
 
   
