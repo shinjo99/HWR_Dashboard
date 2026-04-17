@@ -7686,7 +7686,11 @@ function initValuationPage() {
   var sel = document.getElementById('val-proj-select');
   if (!sel) return;
   if (sel.options.length === 0) {
-    PROJECTS.forEach(function(p) {
+    // A→Z 프로젝트명 기준 정렬 (원본 PROJECTS 배열은 건드리지 않음)
+    var sortedProjects = PROJECTS.slice().sort(function(a, b) {
+      return (a.name || '').localeCompare(b.name || '', 'en', {sensitivity: 'base'});
+    });
+    sortedProjects.forEach(function(p) {
       var opt = document.createElement('option');
       opt.value = p.id;
       opt.textContent = p.name + ' (' + p.state + ', ' + p.iso + ')';
@@ -7702,16 +7706,33 @@ function valLoadProject(projectId) {
   var safeId = projectId.replace(/[/.]/g, '_');
   // Reset outputs
   ['vo-dev-margin','vo-epc-margin','vo-total-margin','vo-lirr','vo-uirr','vo-sirr',
-   'vo-capex','vo-debt','vo-te','vo-eq','vo-ppa','vo-toll','vo-specs','vo-dates'].forEach(function(id) {
+   'vo-capex','vo-debt','vo-te','vo-eq','vo-ppa','vo-toll','vo-specs','vo-dates',
+   'vo-irr-lev-pretax','vo-irr-lev-aftertax-before','vo-irr-lev-aftertax-after',
+   'vo-irr-unlev-pretax','vo-wacc'].forEach(function(id) {
     var el = document.getElementById(id); if (el) el.textContent = '—';
   });
   var badge = document.getElementById('val-data-badge');
   if (badge) { badge.textContent = 'Loading...'; badge.style.background='var(--surface3)'; badge.style.color='var(--t3)'; }
 
+  // 프로젝트 전환 시 CF/IC 탭은 일단 잠금 상태로 리셋 (데이터 로드 후 valDisplayData가 재활성화)
+  ['val-tab-cf', 'val-tab-ic'].forEach(function(tid) {
+    var tab = document.getElementById(tid);
+    if (tab) {
+      tab.classList.add('val-tab-locked');
+      tab.style.opacity = '.35';
+      tab.style.cursor = 'not-allowed';
+      tab.style.pointerEvents = 'none';
+      tab.title = '저장된 Valuation 데이터가 있거나 Calculate 후 활성화됩니다';
+    }
+  });
+
+  // 현재 세션 valuation 데이터 초기화 (전환 시 이전 데이터 잔존 방지)
+  window._lastValData = null;
+
   // Load from Firebase
   apiCall('GET', '/valuation/' + safeId + '/latest').then(function(data) {
     if (!data || !data.outputs) {
-      if (badge) { badge.textContent = 'No data — upload model'; }
+      if (badge) { badge.textContent = 'No data — upload model'; badge.style.background='var(--surface3)'; badge.style.color='var(--t3)'; }
       return;
     }
     valDisplayData(data, safeId);
@@ -7749,6 +7770,51 @@ function valDisplayData(data, safeId) {
   el = document.getElementById('vo-lirr'); if(el) el.textContent = fmtPct(o.levered_irr);
   el = document.getElementById('vo-uirr'); if(el) el.textContent = fmtPct(o.unlevered_irr);
   el = document.getElementById('vo-sirr'); if(el) el.textContent = fmtPct(o.sponsor_irr_contract);
+
+  // ── Returns Detail 5 카드 (Levered Pre-Tax / AT Before NOL / AT After NOL / Unlevered / WACC)
+  var irrPct = function(v) { return (v != null && !isNaN(v)) ? (v * 100).toFixed(2) + '%' : '—'; };
+  el = document.getElementById('vo-irr-lev-pretax');         if(el) el.textContent = irrPct(o.sponsor_irr_levered_pretax);
+  el = document.getElementById('vo-irr-lev-aftertax-before'); if(el) el.textContent = irrPct(o.sponsor_irr_aftertax_before_nol);
+  el = document.getElementById('vo-irr-lev-aftertax-after');  if(el) el.textContent = irrPct(o.sponsor_irr_aftertax_after_nol);
+  el = document.getElementById('vo-irr-unlev-pretax');        if(el) el.textContent = irrPct(o.sponsor_irr_unlevered_pretax || o.unlevered_irr);
+  el = document.getElementById('vo-wacc');                    if(el) el.textContent = irrPct(o.wacc);
+
+  // 비교 인사이트 자동 생성
+  var insightEl = document.getElementById('vo-irr-insights');
+  var insightTxt = document.getElementById('vo-irr-insight-text');
+  if (insightEl && insightTxt) {
+    var insights = [];
+    var uPre = o.sponsor_irr_unlevered_pretax || o.unlevered_irr;
+    var wacc = o.wacc;
+    var lPre = o.sponsor_irr_levered_pretax || o.sponsor_irr;
+    var atBefore = o.sponsor_irr_aftertax_before_nol;
+    var atAfter = o.sponsor_irr_aftertax_after_nol;
+
+    // 1. Unlevered vs WACC — 가치 창출 여부
+    if (uPre && wacc) {
+      var spread = (uPre - wacc) * 100;
+      var verdict = spread > 0 ? '가치 창출' : '가치 파괴';
+      var col = spread > 0 ? 'var(--green)' : 'var(--red)';
+      insights.push('Unlevered '+(uPre*100).toFixed(2)+'% '+(spread>0?'>':'<')+' WACC '+(wacc*100).toFixed(2)+'% → <strong style="color:'+col+'">'+verdict+' '+(spread>0?'+':'')+spread.toFixed(2)+'%p</strong>');
+    }
+    // 2. Levered vs Unlevered — 레버리지 효과
+    if (lPre && uPre) {
+      var lev = (lPre - uPre) * 100;
+      insights.push('레버리지 효과: <strong>+'+lev.toFixed(2)+'%p</strong>');
+    }
+    // 3. NOL 지연 손실
+    if (atBefore && atAfter) {
+      var nolLoss = (atBefore - atAfter) * 100;
+      insights.push('NOL 지연 손실: <strong style="color:var(--amber)">-'+nolLoss.toFixed(2)+'%p</strong>');
+    }
+
+    if (insights.length) {
+      insightTxt.innerHTML = insights.join(' &nbsp;·&nbsp; ');
+      insightEl.style.display = 'block';
+    } else {
+      insightEl.style.display = 'none';
+    }
+  }
 
   // Capital structure
   el = document.getElementById('vo-capex'); if(el) el.textContent = fmt(o.capex_total);
@@ -7843,6 +7909,12 @@ function valDisplayData(data, safeId) {
       }).join('');
     }
   }).catch(function(){});
+
+  // ── 데이터가 존재하면 Cash Flow / IC Opinion 탭 자동 활성화
+  // (엑셀 업로드 or 저장된 버전 로드 시점)
+  if (o && (o.sponsor_irr || o.sponsor_irr_levered_pretax || o.dev_margin)) {
+    if (typeof valActivateCFTab === 'function') valActivateCFTab();
+  }
 }
 
 function valLoadVersionEncoded(el) {
@@ -7867,18 +7939,7 @@ function valActivateCFTab() {
     tab.classList.remove('val-tab-locked');
     tab.style.opacity = ''; tab.style.cursor = '';
     tab.style.pointerEvents = ''; tab.title = '';
-    if (!tab.querySelector('.cf-ready-dot')) {
-      var dot = document.createElement('span');
-      dot.className = 'cf-ready-dot';
-      dot.style.cssText = 'display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--green);margin-right:5px;vertical-align:middle;animation:cfPulse 2s ease-in-out 3';
-      tab.insertBefore(dot, tab.firstChild);
-    }
-    tab.style.color = 'var(--green)';
-    setTimeout(function() {
-      tab.style.color = '';
-      var dot = tab.querySelector('.cf-ready-dot');
-      if (dot) dot.style.animation = 'none';
-    }, 6000);
+    // 초록 점 / 녹색 글자 효과 제거 — 단순히 활성화만 함
   }
   activateTab('val-tab-cf', 'Cash Flow');
   activateTab('val-tab-ic', 'IC Opinion');
@@ -8025,132 +8086,118 @@ function valLoadHistory(safeId) {
 // ── IC Summary PDF Export
 async function valExportPDF() {
   var btn = document.getElementById('val-export-btn');
-  var doc = document.getElementById('val-print-doc');
-  if (!doc) return;
-
-  if (btn) { btn.textContent = '⏳ AI 작성 중...'; btn.disabled = true; btn.style.opacity = '.6'; }
-
-  function txt(id) { var el=document.getElementById(id); return el?el.textContent.trim():'—'; }
-  var projSel = document.getElementById('val-proj-select');
-  var projName = projSel ? (projSel.options[projSel.selectedIndex]||{}).text||'—' : '—';
-  var today = new Date().toLocaleDateString('ko-KR',{year:'numeric',month:'2-digit',day:'2-digit'});
-  var prepBy = (window._authUser||{}).email || 'HEUH Team';
-
-  // 현재 계산값 수집
-  var metrics = {
-    sirr: txt('vo-sirr'), lirr: txt('vo-lirr'), uirr: txt('vo-uirr'),
-    dev_margin: txt('vo-dev-margin'), ebitda_yield: txt('vo-ebitda-yield'),
-    capex: txt('vo-capex'), debt: txt('vo-debt'), debt_pct: txt('vo-debt-pct'),
-    te: txt('vo-te'), eq: txt('vo-eq'), ppa: txt('vo-ppa'),
-    toll: txt('vo-toll'), credit: txt('vo-credit-display'), flip: txt('vo-flip')
-  };
-
-  // 시나리오 데이터
-  var scenarios = [];
-  ['base','upside','stress'].forEach(function(sc) {
-    var el = document.getElementById('val-sc-result-'+sc);
-    if (el && el.style.display !== 'none') {
-      var rows = el.querySelectorAll('.val-sc-kpi-row');
-      scenarios.push({
-        name: sc.toUpperCase(),
-        irr: rows[0] ? rows[0].querySelector('.val-sc-kpi-val').textContent : '—',
-        margin: rows[1] ? rows[1].querySelector('.val-sc-kpi-val').textContent : '—'
-      });
-    }
-  });
-
-  // 히스토리
-  var history = [];
-  document.querySelectorAll('#vo-history-list .val-history-item').forEach(function(item, i) {
-    if (i >= 3) return;
-    var name = (item.querySelector('.val-hi-name')||{}).textContent || '';
-    var meta = (item.querySelector('.val-hi-meta')||{}).textContent || '';
-    var rEl = item.querySelector('[style*="border-left"]');
-    history.push({ date: meta.split('·')[0].trim(), reason: rEl ? rEl.textContent.replace('📝','').trim() : name });
-  });
+  if (btn) { btn.textContent = '⏳ PDF 생성 중...'; btn.disabled = true; btn.style.opacity = '.6'; }
 
   try {
-    var data = await apiCall('POST', '/valuation/generate-ic-summary', {
-      project_name: projName, metrics: metrics,
-      scenarios: scenarios, history: history, date: today
-    });
-    if (!data || !data.ok) throw new Error('API 오류');
+    var projSel = document.getElementById('val-proj-select');
+    var projName = projSel ? (projSel.options[projSel.selectedIndex]||{}).text||'—' : '—';
+    var today = new Date().toISOString().slice(0,10);
+    var prepBy = (window._authUser||{}).email || 'HEUH Team';
 
-    var parsed = JSON.parse(data.result);
-    var sections = parsed.sections || [];
+    // 현재 프로젝트의 전체 valuation 데이터
+    var valData = window._lastValData || {};
+    var outputs = valData.outputs || {};
+    var assumptions = valData.assumptions || {};
 
-    // Print document HTML 생성
-    var sectionsHtml = sections.map(function(s) {
-      return '<div class="vp-section">'
-        + '<div class="vp-sec-title">' + s.title + '</div>'
-        + '<div class="vp-sec-body">' + (s.content || '').replace(/\n/g,'<br>') + '</div>'
-        + '</div>';
-    }).join('');
+    // Threshold 설정값
+    var thresholds = {
+      sponsor_irr_pct: parseFloat((document.getElementById('thr-sponsor-irr')||{}).value) || 9.0,
+      dev_margin_cwp: parseFloat((document.getElementById('thr-dev-margin')||{}).value) || 10.0,
+    };
 
-    // Capital structure bar 계산
-    var debtN = parseFloat((metrics.debt||'').replace(/[^0-9.]/g,''))||0;
-    var teN   = parseFloat((metrics.te||'').replace(/[^0-9.]/g,''))||0;
-    var eqN   = parseFloat((metrics.eq||'').replace(/[^0-9.]/g,''))||0;
-    var total = debtN+teN+eqN||1;
-    var dW=(debtN/total*100).toFixed(1)+'%', tW=(teN/total*100).toFixed(1)+'%', eW=(eqN/total*100).toFixed(1)+'%';
-
-    var scHtml = '';
-    if (scenarios.length) {
-      scHtml = '<table class="vp-sc-table"><thead><tr>'
-        + '<th class="lbl">Scenario</th><th class="base">BASE</th><th class="up">UPSIDE</th><th class="stress">STRESS</th>'
-        + '</tr></thead><tbody>'
-        + '<tr><td class="lbl">Sponsor IRR</td>'
-        + scenarios.map(function(s,i){ return '<td class="hi" style="color:'+(i===0?'#1D4ED8':i===1?'#15803D':'#DC2626')+'">'+s.irr+'</td>'; }).join('')
-        + '</tr><tr><td class="lbl">Dev Margin</td>'
-        + scenarios.map(function(s,i){ return '<td style="color:'+(i===0?'#1D4ED8':i===1?'#15803D':'#DC2626')+'">'+s.margin+'</td>'; }).join('')
-        + '</tr></tbody></table>';
+    // IC Opinion AI 분석 결과 (있으면 포함)
+    var icAnalysis = {};
+    var lang = window._cfLang || 'kr';
+    var cached = lang === 'en' ? window._cfAnalysisEn : window._cfAnalysisKr;
+    if (cached) {
+      icAnalysis = {
+        verdict: cached.verdict,
+        verdict_color: cached.verdict_color,
+        thesis: cached.thesis,
+        rec: cached.rec,
+        risks: cached.risks || [],
+        threshold_status: cached.threshold_status || {},
+        dev_ic: cached.dev_ic || {},
+        sensitivity_kr: cached.sensitivity_kr,
+        sensitivity_en: cached.sensitivity_en,
+      };
     }
 
-    doc.innerHTML = [
-      '<div class="vp-page">',
-      '<div class="vp-header">',
-      '<div class="vp-header-left">',
-      '<div><div class="vp-logo-block">HEUH</div><div class="vp-doc-type">Hanwha Energy USA Holdings</div></div>',
-      '<div><div style="font-size:9pt;font-weight:700;color:#0A2647;margin-top:2px">Investment Committee Summary</div>',
-      '<div style="font-size:7.5pt;color:#64748B">AI-Generated · For Internal Review</div></div>',
-      '</div>',
-      '<div class="vp-header-right">',
-      '<div class="vp-proj-name">'+projName+'</div>',
-      '<div class="vp-confidential">Confidential &middot; Not for Distribution</div>',
-      '</div></div>',
+    // 시나리오 결과 수집
+    var scenarios = [];
+    ['base','upside','stress'].forEach(function(sc) {
+      var el = document.getElementById('val-sc-result-'+sc);
+      if (el && el.style.display !== 'none') {
+        var rows = el.querySelectorAll('.val-sc-kpi-row');
+        scenarios.push({
+          name: sc.toUpperCase(),
+          irr: rows[0] ? rows[0].querySelector('.val-sc-kpi-val').textContent : '—',
+          margin: rows[1] ? rows[1].querySelector('.val-sc-kpi-val').textContent : '—'
+        });
+      }
+    });
 
-      '<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:14px">',
-      '<div class="vp-info-cell"><div class="vp-info-lbl">Sponsor IRR</div><div class="vp-info-val" style="color:#15803D">'+metrics.sirr+'</div></div>',
-      '<div class="vp-info-cell"><div class="vp-info-lbl">Dev Margin</div><div class="vp-info-val" style="color:#B45309">'+metrics.dev_margin+'</div></div>',
-      '<div class="vp-info-cell"><div class="vp-info-lbl">EBITDA Yield</div><div class="vp-info-val">'+metrics.ebitda_yield+'</div></div>',
-      '<div class="vp-info-cell"><div class="vp-info-lbl">Total CAPEX</div><div class="vp-info-val">'+metrics.capex+'</div></div>',
-      '</div>',
+    // State/ISO는 PROJECTS 배열에서 추출
+    var projId = projSel ? projSel.value : '';
+    var projMeta = (typeof PROJECTS !== 'undefined') ? PROJECTS.find(function(p){ return p.id === projId; }) : null;
+    var state = projMeta ? projMeta.state : '';
+    var iso   = projMeta ? projMeta.iso : '';
+    var cleanProjName = projMeta ? projMeta.name : projName.split(' (')[0];
 
-      scHtml ? '<div style="margin-bottom:14px">'+scHtml+'</div>' : '',
+    var payload = {
+      project_name: cleanProjName,
+      date: today,
+      prepared_by: prepBy,
+      state: state,
+      iso: iso,
+      outputs: outputs,
+      assumptions: assumptions,
+      thresholds: thresholds,
+      scenarios: scenarios,
+      ic_analysis: icAnalysis,
+      verdict: icAnalysis.verdict || '',
+      verdict_color: icAnalysis.verdict_color || 'amber',
+    };
 
-      '<div class="vp-cs-bar" style="margin-bottom:10px">',
-      '<div class="vp-cs-seg-debt" style="width:'+dW+'"><span>Debt '+metrics.debt+'</span></div>',
-      '<div class="vp-cs-seg-te" style="width:'+tW+'"><span>TE '+metrics.te+'</span></div>',
-      '<div class="vp-cs-seg-eq" style="width:'+eW+'"><span>Equity '+metrics.eq+'</span></div>',
-      '</div>',
+    // 서버에 PDF 요청 (바이너리 응답)
+    var token = (window.HWR_AUTH && window.HWR_AUTH.token) || localStorage.getItem('hwr_token') || '';
+    var apiBase = (typeof API_URL !== 'undefined' ? API_URL : (window.API_URL || ''));
+    var res = await fetch(apiBase + '/valuation/export-pdf', {
+      method: 'POST',
+      headers: {
+        'Authorization': 'Bearer ' + token,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(payload),
+    });
 
-      sectionsHtml,
+    if (!res.ok) {
+      var errText = '';
+      try { var j = await res.json(); errText = j.detail || ''; } catch(e) {}
+      throw new Error(errText || ('HTTP '+res.status));
+    }
 
-      '<div class="vp-footer">',
-      '<div class="vp-footer-left">Hanwha Energy USA Holdings &middot; AI-Generated IC Summary<br>본 문서는 내부 검토용입니다. AI 생성 내용은 반드시 검토 후 사용하세요.</div>',
-      '<div class="vp-footer-right">Prepared by: '+prepBy+'<br>Date: '+today+'</div>',
-      '</div></div>'
-    ].join('');
+    // PDF 다운로드
+    var blob = await res.blob();
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement('a');
+    a.href = url;
+    a.download = 'IC_Summary_'+cleanProjName.replace(/\s+/g,'_')+'_'+today.replace(/-/g,'')+'.pdf';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(function(){ URL.revokeObjectURL(url); }, 3000);
 
-    doc.style.display = 'block';
-    if (btn) { btn.textContent = '✨ Export IC Summary'; btn.disabled = false; btn.style.opacity = '1'; }
-    setTimeout(function() {
-      window.print();
-      setTimeout(function(){ doc.style.display='none'; }, 1000);
-    }, 300);
-
+    if (btn) {
+      btn.textContent = '✓ 다운로드 완료';
+      setTimeout(function() {
+        btn.textContent = '✨ Export IC Summary';
+        btn.disabled = false;
+        btn.style.opacity = '1';
+      }, 2500);
+    }
   } catch(e) {
-    alert('IC Summary 생성 실패: ' + e.message);
+    alert('IC Summary PDF 생성 실패: ' + e.message);
     if (btn) { btn.textContent = '✨ Export IC Summary'; btn.disabled = false; btn.style.opacity = '1'; }
   }
 }
@@ -8330,6 +8377,111 @@ function valOnBenchmarkOpen() {
   }
 }
 
+// ── 피어 IRR 벤치마크 (Firebase 저장) ──────────────
+// 기본값 (아직 저장 없을 때): 2025~2026 업계 일반 레인지
+var _defaultPeerIRR = {
+  solar_min: 9.5,  solar_max: 12.0,
+  hybrid_min: 10.0, hybrid_max: 13.0,
+  wind_min: 9.0,   wind_max: 11.5,
+  note: '업계 일반 레인지 (편집 전 기본값)'
+};
+
+async function valLoadPeerIRR() {
+  var displayEl = document.getElementById('bm-peer-display');
+  if (!displayEl) return;
+  var peer = _defaultPeerIRR;
+  try {
+    var data = await apiCall('GET', '/benchmark/peer-irr');
+    if (data && data.solar_min != null) {
+      peer = data;
+    }
+  } catch(e) {}
+  window._peerIRR = peer;
+
+  function card(title, min, max, color) {
+    return '<div style="background:var(--surface);border:1px solid var(--border);border-left:3px solid '+color+';border-radius:8px;padding:8px 10px">' +
+      '<div style="font-size:8.5px;color:var(--t3);font-weight:700;letter-spacing:.06em;text-transform:uppercase;margin-bottom:4px">'+title+'</div>' +
+      '<div style="font-size:14px;font-weight:800;color:var(--t1);font-variant-numeric:tabular-nums">'+min.toFixed(1)+'% ~ '+max.toFixed(1)+'%</div>' +
+      '<div style="font-size:9px;color:var(--t3);margin-top:2px">Levered · Pre-Tax (IRR)</div>' +
+      '</div>';
+  }
+  displayEl.innerHTML =
+    card('Solar', peer.solar_min, peer.solar_max, 'var(--amber)') +
+    card('Solar + BESS', peer.hybrid_min, peer.hybrid_max, 'var(--green)') +
+    card('Wind', peer.wind_min, peer.wind_max, 'var(--blue-h)');
+
+  if (peer.note) {
+    displayEl.innerHTML += '<div style="grid-column:span 3;font-size:9px;color:var(--t3);margin-top:2px;padding:4px 2px;text-align:right;font-style:italic">'+peer.note.replace(/</g,'&lt;')+'</div>';
+  }
+
+  // vs 시장 비교 재렌더
+  if (typeof valRenderVsMarket === 'function') valRenderVsMarket();
+}
+
+function valTogglePeerEdit() {
+  var modal = document.getElementById('bm-peer-modal');
+  if (!modal) return;
+  var peer = window._peerIRR || _defaultPeerIRR;
+  // 입력 필드에 현재값 채우기
+  var fillField = function(id, v) { var el = document.getElementById(id); if (el) el.value = v!=null?v:''; };
+  fillField('bm-peer-solar-min',  peer.solar_min);
+  fillField('bm-peer-solar-max',  peer.solar_max);
+  fillField('bm-peer-hybrid-min', peer.hybrid_min);
+  fillField('bm-peer-hybrid-max', peer.hybrid_max);
+  fillField('bm-peer-wind-min',   peer.wind_min);
+  fillField('bm-peer-wind-max',   peer.wind_max);
+  fillField('bm-peer-note',       peer.note);
+  var statusEl = document.getElementById('bm-peer-status');
+  if (statusEl) statusEl.innerHTML = '';
+  modal.style.display = 'flex';
+}
+
+async function valSavePeerIRR() {
+  var statusEl = document.getElementById('bm-peer-status');
+  var getNum = function(id, def) {
+    var el = document.getElementById(id);
+    var v = parseFloat((el||{}).value);
+    return isNaN(v) ? def : v;
+  };
+  var payload = {
+    solar_min:  getNum('bm-peer-solar-min',  9.5),
+    solar_max:  getNum('bm-peer-solar-max',  12.0),
+    hybrid_min: getNum('bm-peer-hybrid-min', 10.0),
+    hybrid_max: getNum('bm-peer-hybrid-max', 13.0),
+    wind_min:   getNum('bm-peer-wind-min',   9.0),
+    wind_max:   getNum('bm-peer-wind-max',   11.5),
+    note:       ((document.getElementById('bm-peer-note')||{}).value || '').slice(0, 200),
+  };
+
+  // 기본 검증
+  if (payload.solar_min >= payload.solar_max) { if(statusEl) statusEl.innerHTML = '<span style="color:var(--red)">⚠️ Solar Min &lt; Max 이어야 합니다</span>'; return; }
+  if (payload.hybrid_min >= payload.hybrid_max) { if(statusEl) statusEl.innerHTML = '<span style="color:var(--red)">⚠️ Solar+BESS Min &lt; Max 이어야 합니다</span>'; return; }
+  if (payload.wind_min >= payload.wind_max) { if(statusEl) statusEl.innerHTML = '<span style="color:var(--red)">⚠️ Wind Min &lt; Max 이어야 합니다</span>'; return; }
+
+  if (statusEl) statusEl.innerHTML = '<span style="color:var(--t3)">저장 중...</span>';
+  try {
+    await apiCall('POST', '/benchmark/peer-irr', payload);
+    if (statusEl) statusEl.innerHTML = '<span style="color:var(--green)">✓ 저장 완료</span>';
+    setTimeout(function() {
+      document.getElementById('bm-peer-modal').style.display = 'none';
+      valLoadPeerIRR();
+    }, 700);
+  } catch(e) {
+    var safe = String(e.message||'').replace(/</g,'&lt;');
+    if (statusEl) statusEl.innerHTML = '<span style="color:var(--red)">⚠️ 저장 실패: '+safe+'</span>';
+  }
+}
+
+// ── LevelTen 섹션 접기/펴기 ──────────────────────────
+function valToggleLevelTen() {
+  var content = document.getElementById('bm-lt-content');
+  var chev = document.getElementById('bm-lt-chevron');
+  if (!content) return;
+  var isOpen = content.style.display !== 'none';
+  content.style.display = isOpen ? 'none' : 'block';
+  if (chev) chev.style.transform = isOpen ? 'rotate(-90deg)' : 'rotate(0deg)';
+}
+
 function valSwitchBmSub(sub) {
   var btnInt = document.getElementById('bm-sub-internal');
   var btnExt = document.getElementById('bm-sub-external');
@@ -8363,6 +8515,7 @@ function valSwitchBmSub(sub) {
     // External 최초 진입 시 데이터 로드
     if (!window._bmExtLoaded) {
       valLoadMarketBenchmark(false);
+      valLoadPeerIRR();
       valLoadLevelTen();
       window._bmExtLoaded = true;
     }
@@ -8374,7 +8527,7 @@ async function valLoadMarketBenchmark(force) {
   var ratesEl = document.getElementById('bm-ext-rates');
   var othersEl = document.getElementById('bm-ext-others');
   var fetchedEl = document.getElementById('bm-ext-fetched');
-  if (ratesEl) ratesEl.innerHTML = '<div style="grid-column:span 4;color:var(--t3);font-size:11px;padding:20px;text-align:center">📡 시장 데이터 로딩 중...</div>';
+  if (ratesEl) ratesEl.innerHTML = '<div style="grid-column:span 4;color:var(--t3);font-size:11px;padding:16px;text-align:center">📡 시장 데이터 로딩 중...</div>';
   if (othersEl) othersEl.innerHTML = '';
 
   try {
@@ -8384,54 +8537,82 @@ async function valLoadMarketBenchmark(force) {
 
     if (fetchedEl) {
       var fd = data.fetched_at ? new Date(data.fetched_at + 'Z') : null;
-      fetchedEl.textContent = fd ? ('마지막 갱신: ' + fd.toLocaleString('ko-KR')) : '';
+      // 오늘 날짜 기준으로 "데이터 기준 4/15 · 오늘 4/17" 형식
+      var today = new Date();
+      var todayStr = (today.getMonth()+1)+'/'+today.getDate();
+      fetchedEl.textContent = fd ? ('조회 ' + fd.toLocaleDateString('ko-KR') + ' · 오늘 ' + todayStr) : '';
     }
 
-    // 카드 빌더
+    // 컴팩트 카드 빌더 (세로 높이 축소)
     function buildCard(key, meta) {
       var d = meta.data;
       var label = meta.label || key;
       var unit = meta.unit || '';
       if (!meta.ok || !d) {
-        return '<div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--r-lg);padding:12px 14px;opacity:.5">' +
-          '<div style="font-size:9px;color:var(--t3);font-weight:700;letter-spacing:.08em;text-transform:uppercase;margin-bottom:6px">'+label+'</div>' +
-          '<div style="font-size:12px;color:var(--t3)">데이터 없음</div>' +
+        return '<div style="background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:8px 10px;opacity:.5;min-height:72px">' +
+          '<div style="font-size:8.5px;color:var(--t3);font-weight:700;letter-spacing:.05em;text-transform:uppercase;margin-bottom:4px">'+label+'</div>' +
+          '<div style="font-size:10px;color:var(--t3)">데이터 없음</div>' +
           '</div>';
       }
       var val = d.latest;
       var disp = unit === '%' ? val.toFixed(2) + '%'
-               : unit === 'Index' && key === 'cpi' && meta.yoy_pct != null ? (meta.yoy_pct >= 0 ? '+' : '') + meta.yoy_pct.toFixed(2) + '% YoY'
+               : unit === 'Index' && key === 'cpi' && meta.yoy_pct != null ? (meta.yoy_pct >= 0 ? '+' : '') + meta.yoy_pct.toFixed(2) + '%'
                : unit === '$' ? '$' + val.toFixed(2)
                : unit === '$/MMBtu' ? '$' + val.toFixed(2)
-               : unit === 'KRW' ? val.toFixed(1) + '원'
-               : val.toFixed(2) + ' ' + unit;
-      var d1w = d.d_1w || 0;
+               : unit === 'KRW' ? val.toFixed(1)
+               : val.toFixed(2);
       var d1m = d.d_1m || 0;
-      var chgColor = d1w > 0 ? 'var(--green)' : d1w < 0 ? 'var(--red)' : 'var(--t3)';
-      var chgSign = d1w > 0 ? '▲' : d1w < 0 ? '▼' : '·';
-      var chgTxt = Math.abs(d1w) >= 0.01 ? chgSign + ' ' + Math.abs(d1w).toFixed(2) : '±0.00';
-      // 스파크라인 SVG
+      var chgColor = d1m > 0 ? 'var(--green)' : d1m < 0 ? 'var(--red)' : 'var(--t3)';
+      var chgSign = d1m > 0 ? '▲' : d1m < 0 ? '▼' : '·';
+      var chgTxt = Math.abs(d1m) >= 0.01 ? chgSign + ' ' + Math.abs(d1m).toFixed(2) : '±0.00';
+
+      // 월간 간격 데이터 포인트 추출 (spark에서 대략 4주 간격)
       var spark = d.spark || [];
+      var monthlyPoints = [];
+      if (spark.length >= 5) {
+        // 4주(영업일 20일) 간격으로 샘플링 - 약 최근 3~6개 포인트
+        for (var i = spark.length - 1; i >= 0 && monthlyPoints.length < 4; i -= Math.max(1, Math.floor(spark.length/4))) {
+          monthlyPoints.unshift(spark[i]);
+        }
+      }
+
+      // 월간 값 표시 (최근 3개, 가장 최근 제외)
+      var monthlyHtml = '';
+      if (monthlyPoints.length >= 2) {
+        var prev = monthlyPoints.slice(0, -1).slice(-3); // 현재값 제외 최근 2~3개
+        if (prev.length) {
+          monthlyHtml = '<div style="display:flex;gap:4px;justify-content:space-between;margin-top:3px;font-size:8.5px;color:var(--t3);font-variant-numeric:tabular-nums">';
+          prev.forEach(function(v, idx) {
+            var mnLabel = ['-3m', '-2m', '-1m'].slice(-prev.length)[idx];
+            var fmtv = unit==='%' ? v.toFixed(2) : v.toFixed(2);
+            monthlyHtml += '<span>'+mnLabel+': <strong style="color:var(--t2);font-weight:600">'+fmtv+'</strong></span>';
+          });
+          monthlyHtml += '</div>';
+        }
+      }
+
+      // 스파크라인
       var sparkSvg = '';
       if (spark.length > 1) {
         var mn = Math.min.apply(null, spark), mx = Math.max.apply(null, spark);
         var range = mx - mn || 1;
         var pts = spark.map(function(v, i) {
           var x = (i / (spark.length - 1)) * 100;
-          var y = 20 - ((v - mn) / range) * 18;
+          var y = 16 - ((v - mn) / range) * 14;
           return x.toFixed(1) + ',' + y.toFixed(1);
         }).join(' ');
         var lineColor = d1m > 0 ? 'var(--green)' : d1m < 0 ? 'var(--red)' : 'var(--t3)';
-        sparkSvg = '<svg width="100%" height="22" viewBox="0 0 100 22" preserveAspectRatio="none" style="margin-top:4px;display:block"><polyline points="'+pts+'" fill="none" stroke="'+lineColor+'" stroke-width="1.2" vector-effect="non-scaling-stroke" opacity="0.7"/></svg>';
+        sparkSvg = '<svg width="100%" height="18" viewBox="0 0 100 18" preserveAspectRatio="none" style="margin-top:3px;display:block"><polyline points="'+pts+'" fill="none" stroke="'+lineColor+'" stroke-width="1.2" vector-effect="non-scaling-stroke" opacity="0.7"/></svg>';
       }
-      return '<div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--r-lg);padding:10px 12px">' +
-        '<div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:4px">' +
-          '<div style="font-size:9px;color:var(--t3);font-weight:700;letter-spacing:.05em;text-transform:uppercase">'+label+'</div>' +
-          '<div style="font-size:9px;color:'+chgColor+';font-weight:700">'+chgTxt+'</div>' +
+
+      return '<div style="background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:8px 10px">' +
+        '<div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:3px">' +
+          '<div style="font-size:8.5px;color:var(--t3);font-weight:700;letter-spacing:.04em;text-transform:uppercase;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:75%" title="'+label+'">'+label+'</div>' +
+          '<div style="font-size:8.5px;color:'+chgColor+';font-weight:700;white-space:nowrap">'+chgTxt+'</div>' +
         '</div>' +
-        '<div style="font-size:16px;font-weight:800;color:var(--t1);font-variant-numeric:tabular-nums">'+disp+'</div>' +
+        '<div style="font-size:14px;font-weight:800;color:var(--t1);font-variant-numeric:tabular-nums;line-height:1.1">'+disp+'</div>' +
         sparkSvg +
-        '<div style="font-size:8px;color:var(--t3);margin-top:2px">'+(d.latest_date||'')+'</div>' +
+        monthlyHtml +
       '</div>';
     }
 
@@ -8636,40 +8817,80 @@ function valRenderVsMarket() {
     return;
   }
   var o = proj.outputs || {}, a = proj.assumptions || {};
-  var sirr = o.sponsor_irr || 0;
+  // Levered Pre-Tax IRR 우선, 없으면 기존 sponsor_irr
+  var sirr = o.sponsor_irr_levered_pretax || o.sponsor_irr || 0;
+  var uirr = o.sponsor_irr_unlevered_pretax || o.unlevered_irr || 0;
+  var wacc = o.wacc || 0;
   var ppa = o.ppa_price || a.ppa_price || 0;
 
   var lines = [];
 
-  // 10Y Treasury 대비 스프레드
-  var md = window._marketData;
-  if (md && md.series && md.series.us_10y && md.series.us_10y.ok && sirr > 0) {
-    var tenY = md.series.us_10y.data.latest;
-    var spread = (sirr * 100 - tenY) * 100; // bp
-    var col = spread >= 600 ? 'var(--green)' : spread >= 400 ? 'var(--amber)' : 'var(--red)';
+  // 1. 피어 IRR 벤치마크 vs 우리 Levered Pre-Tax IRR (핵심)
+  var peer = window._peerIRR;
+  if (peer && sirr > 0) {
+    // 프로젝트 타입 추정 (BESS 있으면 hybrid)
+    var hasBess = (a.bess_mw && a.bess_mw > 0) || (o.bess_toll && o.bess_toll > 0);
+    var peerMin = hasBess ? peer.hybrid_min : peer.solar_min;
+    var peerMax = hasBess ? peer.hybrid_max : peer.solar_max;
+    var peerLabel = hasBess ? 'Solar + BESS' : 'Solar';
+    var sirrPct = sirr * 100;
+    var status, col;
+    if (sirrPct >= peerMax) { status = '시장 최상위'; col = 'var(--green)'; }
+    else if (sirrPct >= (peerMin + peerMax) / 2) { status = '시장 평균 이상'; col = 'var(--green)'; }
+    else if (sirrPct >= peerMin) { status = '시장 하단'; col = 'var(--amber)'; }
+    else { status = '시장 하회'; col = 'var(--red)'; }
+
     lines.push({
-      label: 'Sponsor IRR vs 10Y Treasury',
-      val: (sirr*100).toFixed(2) + '% IRR  vs  ' + tenY.toFixed(2) + '% 10Y',
-      delta: '+' + spread.toFixed(0) + ' bp 스프레드',
+      label: '🎯 Sponsor IRR vs 피어 ' + peerLabel + ' 벤치마크',
+      val: sirrPct.toFixed(2) + '% (Levered Pre-Tax)  vs  ' + peerMin.toFixed(1) + '% ~ ' + peerMax.toFixed(1) + '%',
+      delta: status,
       col: col,
-      hint: spread >= 600 ? '양호 (신재생 프로젝트 기준)' : spread >= 400 ? '적정' : '타이트'
+      hint: 'HEUH 실제 / 업계 피어 Solar+BESS 평균'
     });
   }
 
-  // LevelTen vs 우리 PPA
+  // 2. Unlevered IRR vs WACC — 가치 창출 여부 (가장 중요한 의사결정 지표)
+  if (uirr > 0 && wacc > 0) {
+    var spread = (uirr - wacc) * 100;
+    var col = spread >= 1.0 ? 'var(--green)' : spread >= 0 ? 'var(--amber)' : 'var(--red)';
+    var status = spread >= 1.0 ? '가치 창출' : spread >= 0 ? '손익 분기' : '가치 파괴';
+    lines.push({
+      label: '💰 Project Unlevered IRR vs WACC',
+      val: (uirr*100).toFixed(2) + '%  vs  ' + (wacc*100).toFixed(2) + '% WACC',
+      delta: (spread >= 0 ? '+' : '') + spread.toFixed(2) + '%p',
+      col: col,
+      hint: status + ' · 자본구조 무관 사업성'
+    });
+  }
+
+  // 3. 10Y Treasury 스프레드 (참고)
+  var md = window._marketData;
+  if (md && md.series && md.series.us_10y && md.series.us_10y.ok && sirr > 0) {
+    var tenY = md.series.us_10y.data.latest;
+    var sprd = (sirr * 100 - tenY) * 100;
+    var col = sprd >= 600 ? 'var(--green)' : sprd >= 400 ? 'var(--amber)' : 'var(--red)';
+    lines.push({
+      label: '📊 Sponsor IRR vs 10Y Treasury (Risk-Free)',
+      val: (sirr*100).toFixed(2) + '%  vs  ' + tenY.toFixed(2) + '% 10Y',
+      delta: '+' + sprd.toFixed(0) + ' bp',
+      col: col,
+      hint: sprd >= 600 ? '양호한 risk premium' : sprd >= 400 ? '적정' : '타이트'
+    });
+  }
+
+  // 4. LevelTen vs 우리 PPA
   var lt = window._levelTenData;
   if (lt && ppa > 0) {
     var quarters = Object.keys(lt).sort().reverse();
     if (quarters.length) {
       var latest = lt[quarters[0]];
-      // solar 평균 P25 계산 (우리가 태양광 중심이라 가정)
       var solarP25s = (latest.entries||[]).filter(function(e){return e.tech==='solar' && e.p25!=null;}).map(function(e){return Number(e.p25);});
       if (solarP25s.length) {
         var avgP25 = solarP25s.reduce(function(a,b){return a+b;},0) / solarP25s.length;
         var diff = ppa - avgP25;
         var col = diff >= 5 ? 'var(--green)' : diff >= 0 ? 'var(--amber)' : 'var(--red)';
         lines.push({
-          label: 'PPA Price vs LevelTen Solar P25 (평균)',
+          label: '⚡ PPA Price vs LevelTen Solar P25',
           val: '$' + ppa.toFixed(2) + '/MWh  vs  $' + avgP25.toFixed(2) + '/MWh',
           delta: (diff >= 0 ? '+' : '') + diff.toFixed(2) + ' $/MWh',
           col: col,
@@ -8684,14 +8905,15 @@ function valRenderVsMarket() {
     return;
   }
 
-  body.innerHTML = lines.map(function(ln){
-    return '<div style="display:grid;grid-template-columns:1fr auto;gap:12px;padding:10px 0;border-bottom:1px solid var(--border)">' +
+  body.innerHTML = lines.map(function(ln, i){
+    var border = i < lines.length - 1 ? 'border-bottom:1px solid var(--border);' : '';
+    return '<div style="display:grid;grid-template-columns:1fr auto;gap:12px;padding:8px 0;'+border+'">' +
       '<div>' +
-        '<div style="font-size:9px;color:var(--t3);font-weight:700;letter-spacing:.06em;text-transform:uppercase;margin-bottom:3px">'+ln.label+'</div>' +
-        '<div style="font-size:12px;color:var(--t1);font-variant-numeric:tabular-nums">'+ln.val+'</div>' +
-        '<div style="font-size:10px;color:var(--t3);margin-top:2px">'+ln.hint+'</div>' +
+        '<div style="font-size:9px;color:var(--t3);font-weight:700;letter-spacing:.06em;margin-bottom:2px">'+ln.label+'</div>' +
+        '<div style="font-size:11px;color:var(--t1);font-variant-numeric:tabular-nums">'+ln.val+'</div>' +
+        '<div style="font-size:9px;color:var(--t3);margin-top:1px">'+ln.hint+'</div>' +
       '</div>' +
-      '<div style="text-align:right"><div style="font-size:14px;font-weight:800;color:'+ln.col+';font-variant-numeric:tabular-nums">'+ln.delta+'</div></div>' +
+      '<div style="text-align:right"><div style="font-size:13px;font-weight:800;color:'+ln.col+';font-variant-numeric:tabular-nums">'+ln.delta+'</div></div>' +
     '</div>';
   }).join('');
   wrap.style.display = 'block';
@@ -8721,9 +8943,9 @@ function valInitScenarios(baseInputs) {
       inp.value = val ? parseFloat(val).toFixed(field==='ppa_price'||field==='bess_toll'?2:1) : '';
     });
   }
-  setScenario('base',   {ppa:1.0,  toll:1.0,  capex:1.0});
-  setScenario('upside', {ppa:1.05, toll:1.05, capex:0.97});
-  setScenario('stress', {ppa:0.93, toll:0.95, capex:1.04});
+  setScenario('base',   {ppa:1.00, toll:1.00, capex:1.00});
+  setScenario('upside', {ppa:1.03, toll:1.00, capex:0.96}); // PPA +3%, CAPEX -4%, Toll 공통
+  setScenario('stress', {ppa:0.97, toll:1.00, capex:1.05}); // PPA -3%, CAPEX +5%, Toll 공통
   // Enable run button
   var btn = document.getElementById('val-run-scenarios-btn');
   if (btn) { btn.style.opacity='1'; btn.style.pointerEvents='auto'; }
@@ -9225,12 +9447,18 @@ function valCFLang(lang) {
   var krBtn = document.getElementById('cf-lang-kr');
   if (enBtn) { enBtn.style.background = lang==='en'?'var(--blue-d)':'transparent'; enBtn.style.color = lang==='en'?'#fff':'var(--t3)'; }
   if (krBtn) { krBtn.style.background = lang==='kr'?'var(--blue-d)':'transparent'; krBtn.style.color = lang==='kr'?'#fff':'var(--t3)'; }
-  // 해당 언어 캐시가 있으면 즉시 표시, 없으면 재호출
+  // 해당 언어 캐시가 있으면 즉시 표시, 없으면 재실행 버튼 안내 (자동 실행 금지)
   var cached = lang==='en' ? window._cfAnalysisEn : window._cfAnalysisKr;
   if (cached) {
     valRenderCFAnalysis(cached, lang);
   } else {
-    valRunCFAnalysis(lang);
+    var res = document.getElementById('cf-ai-result');
+    if (res) {
+      var msg = lang==='en'
+        ? 'English analysis not yet generated. Click <strong>Run AI Analysis</strong> to generate.'
+        : '한국어 분석이 아직 생성되지 않았습니다. 상단 <strong>Run AI Analysis</strong> 버튼을 눌러 실행하세요.';
+      res.innerHTML = '<div style="padding:32px;text-align:center;color:var(--t3);font-size:11px;background:var(--surface2);border:1px dashed var(--border2);border-radius:var(--r-lg)">'+msg+'</div>';
+    }
   }
 }
 
@@ -9283,15 +9511,14 @@ function valRenderCFAnalysis(p, lang) {
     + '</div>'
     + '<div style="text-align:right">'
     +   '<div style="font-size:9px;color:var(--t3);margin-bottom:5px">'+L.metrics+'</div>'
-    +   '<div style="font-size:11px;font-weight:600;color:var(--t2);font-variant-numeric:tabular-nums;max-width:260px;text-align:right">'+(p.metrics||'')+'</div>'
+    +   '<div style="font-size:11px;font-weight:600;color:var(--t2);font-variant-numeric:tabular-nums;max-width:520px;text-align:right;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="'+(p.metrics||'').replace(/"/g,'&quot;')+'">'+(p.metrics||'')+'</div>'
     + '</div></div>';
 
-  // ② Threshold Check (3칸 그리드)
-  var thrHtml = '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px">';
+  // ② Threshold Check (2칸 그리드 - ITC 제거)
+  var thrHtml = '<div style="display:grid;grid-template-columns:repeat(2,1fr);gap:10px">';
   var checks = [
-    { label: isEn?'Sponsor IRR':'Sponsor IRR', ok: thr.irr_ok,    gap: thr.irr_gap||'' },
-    { label: isEn?'Dev Margin':'Dev Margin',   ok: thr.margin_ok,  gap: thr.margin_gap||'' },
-    { label: isEn?'ITC Rate':'ITC 세율',       ok: thr.itc_ok,     gap: '' }
+    { label: isEn?'Sponsor IRR (Levered Pre-Tax)':'Sponsor IRR (Levered Pre-Tax)', ok: thr.irr_ok,    gap: thr.irr_gap||'' },
+    { label: isEn?'Dev Margin':'Dev Margin',   ok: thr.margin_ok,  gap: thr.margin_gap||'' }
   ];
   checks.forEach(function(ch) {
     var ok = ch.ok === true || ch.ok === 'true';
@@ -9345,6 +9572,64 @@ function valRenderCFAnalysis(p, lang) {
   );
 
   res.innerHTML = html;
+}
+
+// ── CF 패턴 해석 (Cash Flow 탭 전용, 간단한 인사이트)
+async function valRunCFInterp() {
+  var detail = window._cfDetail;
+  var vals   = window._cfVals;
+  var btn    = document.getElementById('cf-interp-btn');
+  var resEl  = document.getElementById('cf-interp-result');
+  var body   = document.getElementById('cf-interp-body');
+  if (!detail || !vals || !vals.length) {
+    if (body) body.innerHTML = '<span style="color:var(--t3)">먼저 Calculate를 실행하세요.</span>';
+    if (resEl) resEl.style.display = 'block';
+    return;
+  }
+  if (btn) { btn.textContent = '⏳ 해석 중...'; btn.disabled = true; btn.style.opacity = '.6'; }
+  if (resEl) resEl.style.display = 'block';
+  if (body) body.innerHTML = '<span style="color:var(--t3)">Claude가 CF 패턴을 분석 중입니다...</span>';
+
+  var cfText = detail.slice(0, 10).map(function(d, i) {
+    return 'Y' + d.yr + ' $' + (vals[i]/1000).toFixed(1) + 'M';
+  }).join(', ');
+  var projName = (document.getElementById('val-proj-select')||{}).value || '프로젝트';
+
+  try {
+    var data = await apiCall('POST', '/valuation/analyze-cf', {
+      cf_text: cfText,
+      project_name: projName,
+      mode: 'interp',
+      lang: (window._cfLang || 'kr')
+    });
+    if (!data || !data.ok) throw new Error('분석 실패');
+    // 응답 파싱
+    var raw = data.result || '';
+    var parsed = null;
+    try {
+      parsed = JSON.parse(raw);
+    } catch(e) {
+      // 코드블록 제거 후 재시도
+      var m = raw.match(/\{[\s\S]*\}/);
+      if (m) try { parsed = JSON.parse(m[0]); } catch(e2) {}
+    }
+    if (!parsed || !parsed.insights) {
+      if (body) body.innerHTML = '<span style="color:var(--red)">AI 응답 파싱 실패. 재시도해주세요.</span>';
+      return;
+    }
+    // 렌더링
+    function esc(s) { return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+    var html = parsed.insights.map(function(ins, i) {
+      var dot = ['🔹','🔸','🔺','🔻'][i % 4];
+      return '<div style="display:flex;gap:8px;margin-bottom:6px"><span style="flex-shrink:0">'+dot+'</span><div><strong style="color:var(--t1)">'+esc(ins.title||'')+'</strong> — <span style="color:var(--t2)">'+esc(ins.detail||'')+'</span></div></div>';
+    }).join('');
+    if (body) body.innerHTML = html;
+  } catch(e) {
+    var safe = String(e.message||'').replace(/</g,'&lt;');
+    if (body) body.innerHTML = '<span style="color:var(--red)">⚠️ 실패: '+safe+'</span>';
+  } finally {
+    if (btn) { btn.textContent = '✨ AI 해석'; btn.disabled = false; btn.style.opacity = '1'; }
+  }
 }
 
 async function valRunCFAnalysis(lang) {
@@ -10083,23 +10368,34 @@ function valSwitchTab(name, btn) {
 </div>
 
 <!-- Threshold Settings Bar -->
-<div id="val-threshold-bar" style="display:flex;align-items:center;gap:12px;padding:8px 28px;background:var(--surface);border-bottom:1px solid var(--border);font-size:11px">
-  <span style="font-size:9px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--t3);white-space:nowrap">Investment Threshold</span>
+<div id="val-threshold-bar" style="display:flex;align-items:center;gap:14px;padding:12px 28px;background:linear-gradient(180deg,var(--surface) 0%,var(--surface2) 100%);border-bottom:1px solid var(--border);font-size:11px">
   <div style="display:flex;align-items:center;gap:6px">
-    <label style="font-size:10px;color:var(--t3)">Dev Margin</label>
-    <input id="thr-dev-margin" type="number" step="1" value="10" style="width:52px;padding:3px 8px;background:var(--surface3);border:1px solid var(--border);border-radius:5px;color:var(--t1);font-size:11px;font-family:var(--font)">
-    <span style="color:var(--t3);font-size:10px">c/Wp min</span>
+    <span style="font-size:9px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:var(--blue-h);white-space:nowrap">📌 Investment Threshold</span>
   </div>
-  <div style="display:flex;align-items:center;gap:6px">
-    <label style="font-size:10px;color:var(--t3)">Sponsor IRR</label>
-    <input id="thr-sponsor-irr" type="number" step="0.5" value="9.0" style="width:52px;padding:3px 8px;background:var(--surface3);border:1px solid var(--border);border-radius:5px;color:var(--t1);font-size:11px;font-family:var(--font)">
-    <span style="color:var(--t3);font-size:10px">% min</span>
+
+  <!-- Dev Margin Threshold 카드 -->
+  <div style="display:flex;align-items:center;gap:10px;padding:7px 14px;background:var(--surface3);border:1px solid var(--border2);border-radius:10px;box-shadow:0 1px 3px rgba(0,0,0,.12)">
+    <div style="display:flex;flex-direction:column;gap:1px">
+      <label style="font-size:9px;font-weight:700;color:var(--t3);letter-spacing:.08em;text-transform:uppercase">Dev Margin</label>
+      <span style="font-size:8px;color:var(--t3)">Minimum</span>
+    </div>
+    <input id="thr-dev-margin" type="number" step="1" value="10" style="width:56px;padding:5px 8px;background:var(--surface);border:1px solid var(--border2);border-radius:6px;color:var(--blue-h);font-size:14px;font-weight:800;font-family:var(--font);text-align:center">
+    <span style="color:var(--t2);font-size:10px;font-weight:600">c/Wp</span>
   </div>
-  <div style="display:flex;align-items:center;gap:6px">
-    <label style="font-size:10px;color:var(--t3)">ITC Hurdle</label>
-    <input id="thr-itc" type="number" step="5" value="30" style="width:52px;padding:3px 8px;background:var(--surface3);border:1px solid var(--border);border-radius:5px;color:var(--t1);font-size:11px;font-family:var(--font)">
-    <span style="color:var(--t3);font-size:10px">% min</span>
+
+  <!-- Sponsor IRR Threshold 카드 -->
+  <div style="display:flex;align-items:center;gap:10px;padding:7px 14px;background:var(--surface3);border:1px solid var(--border2);border-radius:10px;box-shadow:0 1px 3px rgba(0,0,0,.12)">
+    <div style="display:flex;flex-direction:column;gap:1px">
+      <label style="font-size:9px;font-weight:700;color:var(--t3);letter-spacing:.08em;text-transform:uppercase">Sponsor IRR</label>
+      <span style="font-size:8px;color:var(--t3)">Levered Pre-Tax · Min</span>
+    </div>
+    <input id="thr-sponsor-irr" type="number" step="0.5" value="9.0" style="width:60px;padding:5px 8px;background:var(--surface);border:1px solid var(--border2);border-radius:6px;color:var(--blue-h);font-size:14px;font-weight:800;font-family:var(--font);text-align:center">
+    <span style="color:var(--t2);font-size:10px;font-weight:600">%</span>
   </div>
+
+  <!-- ITC Hurdle 제거됨 (고정값이라 불필요) — hidden input만 남겨 기존 JS 호환 -->
+  <input id="thr-itc" type="hidden" value="30">
+
   <span style="margin-left:auto;font-size:9px;color:var(--t3)">설정값은 자동 저장됩니다</span>
 </div>
 
@@ -10284,22 +10580,58 @@ function valSwitchTab(name, btn) {
           </div>
         </div>
 
-        <!-- Secondary IRRs -->
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px">
-          <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--r-lg);padding:14px 16px;display:flex;justify-content:space-between;align-items:center">
-            <div>
-              <div style="font-size:9px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--t3);margin-bottom:4px">Levered IRR</div>
-              <div style="font-size:10px;color:var(--t3)">Project · Full Life</div>
-            </div>
-            <div id="vo-lirr" style="font-size:22px;font-weight:800;color:var(--t1);font-variant-numeric:tabular-nums">—</div>
+        <!-- Returns Detail — 5개 IRR/WACC 통합 패널 -->
+        <div style="background:linear-gradient(180deg,var(--surface) 0%,var(--surface2) 100%);border:1px solid var(--border);border-radius:var(--r-lg);padding:14px 16px;margin-bottom:16px">
+          <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:10px">
+            <div style="font-size:9px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--t3)">Returns Detail</div>
+            <div style="font-size:9px;color:var(--t3)">Full Life · Useful Life of Project</div>
           </div>
-          <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--r-lg);padding:14px 16px;display:flex;justify-content:space-between;align-items:center">
-            <div>
-              <div style="font-size:9px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--t3);margin-bottom:4px">Unlevered IRR</div>
-              <div style="font-size:10px;color:var(--t3)">No Debt / TE</div>
+          <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:10px">
+
+            <!-- Levered Pre-Tax (메인) -->
+            <div style="padding:10px 12px;background:var(--surface);border:1px solid var(--border2);border-radius:8px;border-left:3px solid var(--green)">
+              <div style="font-size:8.5px;font-weight:700;color:var(--green);letter-spacing:.06em;text-transform:uppercase;margin-bottom:4px">Sponsor IRR</div>
+              <div id="vo-irr-lev-pretax" style="font-size:20px;font-weight:800;color:var(--t1);font-variant-numeric:tabular-nums;line-height:1.1">—</div>
+              <div style="font-size:9px;color:var(--t3);margin-top:3px">Levered · Pre-Tax</div>
             </div>
-            <div id="vo-uirr" style="font-size:22px;font-weight:800;color:var(--t1);font-variant-numeric:tabular-nums">—</div>
+
+            <!-- Levered After-Tax Before NOL -->
+            <div style="padding:10px 12px;background:var(--surface);border:1px solid var(--border);border-radius:8px">
+              <div style="font-size:8.5px;font-weight:700;color:var(--t3);letter-spacing:.06em;text-transform:uppercase;margin-bottom:4px">Sponsor IRR</div>
+              <div id="vo-irr-lev-aftertax-before" style="font-size:18px;font-weight:700;color:var(--t2);font-variant-numeric:tabular-nums;line-height:1.1">—</div>
+              <div style="font-size:9px;color:var(--t3);margin-top:3px">Levered · After-Tax (Before NOL)</div>
+            </div>
+
+            <!-- Levered After-Tax After NOL (현실값) -->
+            <div style="padding:10px 12px;background:var(--surface);border:1px solid var(--border2);border-radius:8px;border-left:2px solid var(--amber)">
+              <div style="font-size:8.5px;font-weight:700;color:var(--amber);letter-spacing:.06em;text-transform:uppercase;margin-bottom:4px">Sponsor IRR</div>
+              <div id="vo-irr-lev-aftertax-after" style="font-size:18px;font-weight:700;color:var(--t1);font-variant-numeric:tabular-nums;line-height:1.1">—</div>
+              <div style="font-size:9px;color:var(--t3);margin-top:3px">Levered · After-Tax (After NOL)</div>
+            </div>
+
+            <!-- Project Unlevered -->
+            <div style="padding:10px 12px;background:var(--surface);border:1px solid var(--border);border-radius:8px">
+              <div style="font-size:8.5px;font-weight:700;color:var(--t3);letter-spacing:.06em;text-transform:uppercase;margin-bottom:4px">Project IRR</div>
+              <div id="vo-irr-unlev-pretax" style="font-size:18px;font-weight:700;color:var(--t2);font-variant-numeric:tabular-nums;line-height:1.1">—</div>
+              <div style="font-size:9px;color:var(--t3);margin-top:3px">Unlevered · Pre-Tax</div>
+            </div>
+
+            <!-- WACC (기준) -->
+            <div style="padding:10px 12px;background:var(--surface);border:1px solid var(--border2);border-radius:8px;border-left:2px solid var(--blue-h)">
+              <div style="font-size:8.5px;font-weight:700;color:var(--blue-h);letter-spacing:.06em;text-transform:uppercase;margin-bottom:4px">WACC</div>
+              <div id="vo-wacc" style="font-size:18px;font-weight:700;color:var(--t1);font-variant-numeric:tabular-nums;line-height:1.1">—</div>
+              <div style="font-size:9px;color:var(--t3);margin-top:3px">Capital Cost · Hurdle</div>
+            </div>
           </div>
+
+          <!-- 비교 인사이트 (동적 계산) -->
+          <div id="vo-irr-insights" style="margin-top:10px;padding:8px 12px;background:var(--surface2);border-radius:6px;font-size:10px;color:var(--t3);display:none">
+            <span id="vo-irr-insight-text"></span>
+          </div>
+
+          <!-- 숨은 레거시 ID (기존 JS 호환용) -->
+          <span id="vo-lirr" style="display:none"></span>
+          <span id="vo-uirr" style="display:none"></span>
         </div>
 
         <!-- Capital Structure -->
@@ -10478,8 +10810,17 @@ function valSwitchTab(name, btn) {
         <div class="val-empty-title">Calculate 후 CF 차트가 표시됩니다</div>
       </div>
       <div id="vo-chart-section" style="display:none">
-        <div style="font-size:9px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--t3);margin-bottom:14px">Annual Sponsor Cash Flow (Y1–Y20)</div>
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+          <div style="font-size:9px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--t3)">Annual Sponsor Cash Flow (Y1–Y20)</div>
+          <button id="cf-interp-btn" onclick="valRunCFInterp()" style="padding:5px 12px;background:var(--blue-d);border:none;border-radius:var(--r-md);font-size:10px;font-weight:700;color:#fff;cursor:pointer;font-family:var(--font)">✨ AI 해석</button>
+        </div>
         <canvas id="val-cf-canvas" style="width:100%;height:180px;display:block"></canvas>
+
+        <!-- AI CF 해석 결과 -->
+        <div id="cf-interp-result" style="display:none;margin-top:14px;padding:12px 14px;background:var(--surface);border:1px solid var(--border);border-radius:var(--r-lg)">
+          <div style="font-size:9px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--blue-h);margin-bottom:8px">✨ AI CF 패턴 인사이트</div>
+          <div id="cf-interp-body" style="font-size:11px;color:var(--t2);line-height:1.6"></div>
+        </div>
       </div>
     </div>
 
@@ -10522,46 +10863,103 @@ function valSwitchTab(name, btn) {
       <!-- ── EXTERNAL (신규) ── -->
       <div id="bm-panel-external" style="display:none">
 
-        <!-- Market Rates 섹션 -->
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+        <!-- 1. Market Rates 섹션 (컴팩트) -->
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
           <div>
-            <div style="font-size:13px;font-weight:700;color:var(--t1)">시장 금리 & 매크로</div>
-            <div style="font-size:10px;color:var(--t3);margin-top:2px">FRED + Stooq · 6시간 캐시 · <span id="bm-ext-fetched" style="color:var(--t2)"></span></div>
+            <div style="font-size:12px;font-weight:700;color:var(--t1)">시장 금리 지표</div>
+            <div style="font-size:9px;color:var(--t3);margin-top:1px">할인율 · 자금조달 비용 참고 · <span id="bm-ext-fetched" style="color:var(--t2)"></span></div>
           </div>
-          <button onclick="valLoadMarketBenchmark(true)" style="padding:5px 12px;background:var(--surface3);border:1px solid var(--border2);border-radius:var(--r-md);font-size:10px;color:var(--t2);cursor:pointer;font-family:var(--font)">↻ 새로고침</button>
+          <button onclick="valLoadMarketBenchmark(true)" style="padding:4px 10px;background:var(--surface3);border:1px solid var(--border2);border-radius:var(--r-md);font-size:10px;color:var(--t2);cursor:pointer;font-family:var(--font)">↻ 새로고침</button>
         </div>
 
-        <!-- 금리 그룹 -->
-        <div style="font-size:9px;color:var(--t3);font-weight:700;letter-spacing:.08em;text-transform:uppercase;margin-bottom:6px">금리 (할인율 기준점)</div>
-        <div id="bm-ext-rates" style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:14px"></div>
+        <!-- 금리 카드 (컴팩트) -->
+        <div id="bm-ext-rates" style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-bottom:10px"></div>
 
-        <!-- 에너지/매크로/환율/주식 -->
-        <div style="font-size:9px;color:var(--t3);font-weight:700;letter-spacing:.08em;text-transform:uppercase;margin-bottom:6px">에너지 · 매크로 · 섹터</div>
-        <div id="bm-ext-others" style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:20px"></div>
+        <!-- 기타 섹터 (컴팩트) -->
+        <div id="bm-ext-others" style="display:grid;grid-template-columns:repeat(5,1fr);gap:6px;margin-bottom:14px"></div>
 
-        <!-- LevelTen 섹션 -->
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;margin-top:4px">
+        <!-- 2. 피어 IRR 벤치마크 (수동 편집) -->
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;padding-top:12px;border-top:1px solid var(--border)">
           <div>
-            <div style="font-size:13px;font-weight:700;color:var(--t1)">LevelTen PPA Price Index</div>
-            <div style="font-size:10px;color:var(--t3);margin-top:2px">수동 업로드 · <span id="bm-lt-meta" style="color:var(--t2)"></span></div>
+            <div style="font-size:12px;font-weight:700;color:var(--t1)">시장 피어 IRR 벤치마크</div>
+            <div style="font-size:9px;color:var(--t3);margin-top:1px">북미 신재생 개발사 평균 타겟 · 내부 수동 입력</div>
           </div>
-          <div style="display:flex;gap:6px">
-            <button id="bm-lt-upload-btn" onclick="document.getElementById('bm-lt-modal').style.display='flex'" style="padding:5px 12px;background:var(--blue-d);border:none;border-radius:var(--r-md);font-size:10px;color:#fff;cursor:pointer;font-family:var(--font);font-weight:700">📤 업로드</button>
-            <button onclick="valLoadLevelTen()" style="padding:5px 12px;background:var(--surface3);border:1px solid var(--border2);border-radius:var(--r-md);font-size:10px;color:var(--t2);cursor:pointer;font-family:var(--font)">↻</button>
+          <button id="bm-peer-edit-btn" onclick="valTogglePeerEdit()" style="padding:4px 10px;background:var(--surface3);border:1px solid var(--border2);border-radius:var(--r-md);font-size:10px;color:var(--t2);cursor:pointer;font-family:var(--font)">✏️ 편집</button>
+        </div>
+        <div id="bm-peer-display" style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-bottom:14px"></div>
+
+        <!-- 3. LevelTen 섹션 (접기 가능) -->
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;padding-top:12px;border-top:1px solid var(--border);cursor:pointer" onclick="valToggleLevelTen()">
+          <div style="display:flex;align-items:center;gap:8px">
+            <span id="bm-lt-chevron" style="font-size:10px;color:var(--t3);transition:transform .2s">▼</span>
+            <div>
+              <div style="font-size:12px;font-weight:700;color:var(--t1)">LevelTen PPA Price Index</div>
+              <div style="font-size:9px;color:var(--t3);margin-top:1px"><span id="bm-lt-meta" style="color:var(--t2)">데이터 없음</span></div>
+            </div>
+          </div>
+          <div style="display:flex;gap:6px" onclick="event.stopPropagation()">
+            <button id="bm-lt-upload-btn" onclick="document.getElementById('bm-lt-modal').style.display='flex'" style="padding:4px 10px;background:var(--blue-d);border:none;border-radius:var(--r-md);font-size:10px;color:#fff;cursor:pointer;font-family:var(--font);font-weight:700">📤 업로드</button>
+            <button onclick="valLoadLevelTen()" style="padding:4px 10px;background:var(--surface3);border:1px solid var(--border2);border-radius:var(--r-md);font-size:10px;color:var(--t2);cursor:pointer;font-family:var(--font)">↻</button>
           </div>
         </div>
 
-        <div id="bm-lt-content" style="background:var(--surface);border:1px solid var(--border);border-radius:var(--r-lg);padding:16px;margin-bottom:16px;min-height:80px">
-          <div class="val-empty" style="padding:16px">
-            <div class="val-empty-icon" style="font-size:24px">📈</div>
-            <div class="val-empty-title" style="font-size:11px">LevelTen 리포트를 업로드하면 여기에 표시됩니다</div>
+        <div id="bm-lt-content" style="background:var(--surface);border:1px solid var(--border);border-radius:var(--r-lg);padding:12px;margin-bottom:12px;min-height:60px;display:none">
+          <div class="val-empty" style="padding:12px">
+            <div class="val-empty-icon" style="font-size:22px">📈</div>
+            <div class="val-empty-title" style="font-size:10px">LevelTen 리포트를 업로드하면 여기에 표시됩니다</div>
           </div>
         </div>
 
-        <!-- 내 프로젝트 vs 시장 비교 -->
-        <div id="bm-vs-market" style="background:var(--surface);border:1px solid var(--border);border-radius:var(--r-lg);padding:14px;display:none">
-          <div style="font-size:9px;color:var(--t3);font-weight:700;letter-spacing:.08em;text-transform:uppercase;margin-bottom:10px">현재 프로젝트 vs 시장</div>
+        <!-- 4. 내 프로젝트 vs 시장 비교 -->
+        <div id="bm-vs-market" style="background:var(--surface);border:1px solid var(--border);border-radius:var(--r-lg);padding:12px;display:none">
+          <div style="font-size:9px;color:var(--t3);font-weight:700;letter-spacing:.08em;text-transform:uppercase;margin-bottom:8px">📌 현재 프로젝트 vs 시장</div>
           <div id="bm-vs-market-body"></div>
+        </div>
+      </div>
+
+      <!-- ── PEER IRR EDIT MODAL ── -->
+      <div id="bm-peer-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:9999;align-items:center;justify-content:center;backdrop-filter:blur(4px)" onclick="if(event.target===this)this.style.display='none'">
+        <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--r-lg);padding:24px;width:480px;max-width:92vw">
+          <div style="font-size:14px;font-weight:700;color:var(--t1);margin-bottom:4px">시장 피어 IRR 벤치마크 편집</div>
+          <div style="font-size:10px;color:var(--t3);margin-bottom:16px">분기마다 업데이트 권장 · 업계 발표 자료/리서치 기반</div>
+
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px">
+            <div>
+              <label style="font-size:10px;color:var(--t3);font-weight:600;display:block;margin-bottom:4px">Solar · Levered Pre-Tax · Min (%)</label>
+              <input id="bm-peer-solar-min" type="number" step="0.5" placeholder="9.5" style="width:100%;padding:7px 10px;background:var(--surface3);border:1px solid var(--border2);border-radius:var(--r-md);color:var(--t1);font-size:12px;font-family:var(--font)">
+            </div>
+            <div>
+              <label style="font-size:10px;color:var(--t3);font-weight:600;display:block;margin-bottom:4px">Solar · Levered Pre-Tax · Max (%)</label>
+              <input id="bm-peer-solar-max" type="number" step="0.5" placeholder="12.0" style="width:100%;padding:7px 10px;background:var(--surface3);border:1px solid var(--border2);border-radius:var(--r-md);color:var(--t1);font-size:12px;font-family:var(--font)">
+            </div>
+            <div>
+              <label style="font-size:10px;color:var(--t3);font-weight:600;display:block;margin-bottom:4px">Solar+BESS · Min (%)</label>
+              <input id="bm-peer-hybrid-min" type="number" step="0.5" placeholder="10.0" style="width:100%;padding:7px 10px;background:var(--surface3);border:1px solid var(--border2);border-radius:var(--r-md);color:var(--t1);font-size:12px;font-family:var(--font)">
+            </div>
+            <div>
+              <label style="font-size:10px;color:var(--t3);font-weight:600;display:block;margin-bottom:4px">Solar+BESS · Max (%)</label>
+              <input id="bm-peer-hybrid-max" type="number" step="0.5" placeholder="13.0" style="width:100%;padding:7px 10px;background:var(--surface3);border:1px solid var(--border2);border-radius:var(--r-md);color:var(--t1);font-size:12px;font-family:var(--font)">
+            </div>
+            <div>
+              <label style="font-size:10px;color:var(--t3);font-weight:600;display:block;margin-bottom:4px">Wind · Min (%)</label>
+              <input id="bm-peer-wind-min" type="number" step="0.5" placeholder="9.0" style="width:100%;padding:7px 10px;background:var(--surface3);border:1px solid var(--border2);border-radius:var(--r-md);color:var(--t1);font-size:12px;font-family:var(--font)">
+            </div>
+            <div>
+              <label style="font-size:10px;color:var(--t3);font-weight:600;display:block;margin-bottom:4px">Wind · Max (%)</label>
+              <input id="bm-peer-wind-max" type="number" step="0.5" placeholder="11.5" style="width:100%;padding:7px 10px;background:var(--surface3);border:1px solid var(--border2);border-radius:var(--r-md);color:var(--t1);font-size:12px;font-family:var(--font)">
+            </div>
+          </div>
+          <div style="margin-bottom:12px">
+            <label style="font-size:10px;color:var(--t3);font-weight:600;display:block;margin-bottom:4px">비고 (출처·업데이트 분기 등)</label>
+            <input id="bm-peer-note" type="text" placeholder="2026-Q1 기준 (NextEra, Brookfield, Invenergy IR 참고)" style="width:100%;padding:7px 10px;background:var(--surface3);border:1px solid var(--border2);border-radius:var(--r-md);color:var(--t1);font-size:11px;font-family:var(--font)">
+          </div>
+
+          <div id="bm-peer-status" style="font-size:10px;color:var(--t3);margin-bottom:12px;min-height:14px"></div>
+
+          <div style="display:flex;gap:8px;justify-content:flex-end">
+            <button onclick="document.getElementById('bm-peer-modal').style.display='none'" style="padding:7px 14px;background:transparent;border:1px solid var(--border2);border-radius:var(--r-md);font-size:11px;color:var(--t3);cursor:pointer;font-family:var(--font)">취소</button>
+            <button onclick="valSavePeerIRR()" style="padding:7px 14px;background:var(--blue-d);color:#fff;border:none;border-radius:var(--r-md);font-size:11px;font-weight:700;cursor:pointer;font-family:var(--font)">저장</button>
+          </div>
         </div>
       </div>
 
