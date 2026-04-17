@@ -8191,14 +8191,14 @@ async function valExportPDF() {
     if (btn) {
       btn.textContent = '✓ 다운로드 완료';
       setTimeout(function() {
-        btn.textContent = '✨ Export IC Summary';
+        btn.textContent = '✨ Export IC Opinion';
         btn.disabled = false;
         btn.style.opacity = '1';
       }, 2500);
     }
   } catch(e) {
     alert('IC Summary PDF 생성 실패: ' + e.message);
-    if (btn) { btn.textContent = '✨ Export IC Summary'; btn.disabled = false; btn.style.opacity = '1'; }
+    if (btn) { btn.textContent = '✨ Export IC Opinion'; btn.disabled = false; btn.style.opacity = '1'; }
   }
 }
 
@@ -8920,10 +8920,26 @@ function valRenderVsMarket() {
 }
 
 // ── Scenario 비교 실행
+// 민감도 패널에서 현재 % 값을 읽어서 배수 계산
+function _valGetSensPcts() {
+  var get = function(id, def) {
+    var v = parseFloat((document.getElementById(id)||{}).value);
+    return (isNaN(v) || v < 0) ? def : v;
+  };
+  return {
+    ppa_up:   get('sens-ppa-up',   3) / 100,   // Upside에서 PPA +n%
+    ppa_dn:   get('sens-ppa-dn',   3) / 100,   // Stress에서 PPA -n%
+    capex_up: get('sens-capex-up', 4) / 100,   // Upside에서 CAPEX -n%
+    capex_dn: get('sens-capex-dn', 5) / 100,   // Stress에서 CAPEX +n%
+  };
+}
+
 function valInitScenarios(baseInputs) {
   if (!baseInputs) return;
-  // Base = 현재 인풋 그대로
+  window._valBaseInputs = baseInputs; // 재계산용 보관
   var capexM = baseInputs.capex_total_override || (baseInputs.capex_total ? baseInputs.capex_total/1000 : null);
+  var pcts = _valGetSensPcts();
+
   function setScenario(prefix, mults) {
     var card = document.getElementById('val-sc-'+prefix);
     if (!card) return;
@@ -8932,7 +8948,7 @@ function valInitScenarios(baseInputs) {
     if (rawFlip > 50) rawFlip = rawFlip / 100;
     var defaults = {
       ppa_price: (baseInputs.ppa_price || 68.82) * (mults.ppa||1),
-      bess_toll: (baseInputs.bess_toll || 14.50) * (mults.toll||1),
+      bess_toll: (baseInputs.bess_toll || 14.50), // 항상 Base값 (공통 고정)
       capex_total_override: capexM ? capexM * (mults.capex||1) : '',
       debt_ratio: (baseInputs.debt_ratio || 47.6),
       flip_yield: rawFlip
@@ -8943,12 +8959,56 @@ function valInitScenarios(baseInputs) {
       inp.value = val ? parseFloat(val).toFixed(field==='ppa_price'||field==='bess_toll'?2:1) : '';
     });
   }
-  setScenario('base',   {ppa:1.00, toll:1.00, capex:1.00});
-  setScenario('upside', {ppa:1.03, toll:1.00, capex:0.96}); // PPA +3%, CAPEX -4%, Toll 공통
-  setScenario('stress', {ppa:0.97, toll:1.00, capex:1.05}); // PPA -3%, CAPEX +5%, Toll 공통
-  // Enable run button
+
+  setScenario('base',   {ppa:1.00,             capex:1.00});
+  setScenario('upside', {ppa:1 + pcts.ppa_up,  capex:1 - pcts.capex_up});
+  setScenario('stress', {ppa:1 - pcts.ppa_dn,  capex:1 + pcts.capex_dn});
+
   var btn = document.getElementById('val-run-scenarios-btn');
   if (btn) { btn.style.opacity='1'; btn.style.pointerEvents='auto'; }
+}
+
+// ── 민감도 프리셋 적용 (Mild/Moderate/Severe)
+function valApplySensPreset(kind) {
+  var presets = {
+    mild:     { ppa: 2, capex_up: 2, capex_dn: 3 },
+    moderate: { ppa: 3, capex_up: 4, capex_dn: 5 },
+    severe:   { ppa: 5, capex_up: 6, capex_dn: 8 },
+  };
+  var p = presets[kind] || presets.moderate;
+  var set = function(id, v) { var el = document.getElementById(id); if (el) el.value = v; };
+  set('sens-ppa-up',   p.ppa);
+  set('sens-ppa-dn',   p.ppa);
+  set('sens-capex-up', p.capex_up);
+  set('sens-capex-dn', p.capex_dn);
+
+  // 버튼 스타일 업데이트
+  ['mild','moderate','severe'].forEach(function(k) {
+    var btns = document.querySelectorAll('[onclick*="valApplySensPreset(\''+k+'\')"]');
+    btns.forEach(function(btn) {
+      if (k === kind) {
+        btn.style.background = 'var(--blue-d)';
+        btn.style.color = '#fff';
+        btn.style.borderColor = 'transparent';
+        btn.style.border = 'none';
+        btn.style.fontWeight = '700';
+      } else {
+        btn.style.background = 'var(--surface3)';
+        btn.style.color = 'var(--t2)';
+        btn.style.border = '1px solid var(--border2)';
+        btn.style.fontWeight = '600';
+      }
+    });
+  });
+
+  // 시나리오 값도 재적용
+  valRecalcScenariosFromSens();
+}
+
+// ── 시나리오 값 재계산 (민감도 %만 변경 시)
+function valRecalcScenariosFromSens() {
+  if (!window._valBaseInputs) return;
+  valInitScenarios(window._valBaseInputs);
 }
 
 async function valRunScenarios() {
@@ -9652,11 +9712,40 @@ async function valRunCFAnalysis(lang) {
   }).join(' / ');
 
   function tv(id){ var el=document.getElementById(id); return el?el.textContent.trim():''; }
-  var projName = (document.getElementById('val-proj-select')||{}).value || '프로젝트';
+  // 프로젝트 ID → 실제 이름 변환 (PROJECTS 배열 참조)
+  var projId = (document.getElementById('val-proj-select')||{}).value || '';
+  var projMeta = (typeof PROJECTS !== 'undefined') ? PROJECTS.find(function(p){ return p.id === projId; }) : null;
+  var projName = projMeta ? projMeta.name : projId;
   var ctx = 'Sponsor IRR: '+tv('vo-sirr')+' | Dev Margin: '+tv('vo-dev-margin')
            +' | CAPEX: '+tv('vo-capex')+' | Debt: '+tv('vo-debt')
            +' | TE: '+tv('vo-te')+' | Sponsor Eq: '+tv('vo-eq')
            +' | PPA: '+tv('vo-ppa')+' | BESS Toll: '+tv('vo-toll');
+
+  // 시장 데이터 컨텍스트 수집 (FRED + LevelTen + Peer IRR)
+  var marketContext = {};
+  try {
+    var md = window._marketData;
+    if (md && md.series) {
+      var fmtRate = function(k){
+        var s = md.series[k];
+        if (!s || !s.ok || !s.data) return null;
+        return s.label + ': ' + s.data.latest.toFixed(2) + (s.unit==='%'?'%':'');
+      };
+      var rateBits = ['us_10y','us_2y','fed_funds','bbb_spread'].map(fmtRate).filter(Boolean);
+      if (rateBits.length) marketContext.rates_summary = rateBits.join(', ') + ' (as of ' + (md.fetched_at||'').slice(0,10) + ')';
+    }
+    var lt = window._levelTenData;
+    if (lt && Object.keys(lt).length) {
+      var latestQ = Object.keys(lt).sort().reverse()[0];
+      var entries = (lt[latestQ]||{}).entries || [];
+      var solarP25 = entries.filter(function(e){return e.tech==='solar' && e.p25;}).map(function(e){return e.region+' '+e.p25;});
+      if (solarP25.length) marketContext.levelten_summary = latestQ + ' Solar P25: ' + solarP25.slice(0,5).join(', ') + ' $/MWh';
+    }
+    var peer = window._peerIRR;
+    if (peer && peer.solar_min) {
+      marketContext.peer_irr_summary = 'Solar Levered Pre-Tax: '+peer.solar_min+'-'+peer.solar_max+'%, Solar+BESS: '+peer.hybrid_min+'-'+peer.hybrid_max+'%, Wind: '+peer.wind_min+'-'+peer.wind_max+'%';
+    }
+  } catch(e) {}
 
   try {
     var thr = valGetThresholds();
@@ -9671,6 +9760,7 @@ async function valRunCFAnalysis(lang) {
       cf_text: cfText,
       project_name: projName,
       context: ctx,
+      market_context: marketContext,
       thresholds: {
         dev_margin_cwp: thr.dev_margin_cwp,
         sponsor_irr_pct: thr.sponsor_irr_pct,
@@ -10050,9 +10140,11 @@ function valSwitchTab(name, btn) {
   border-right:1px solid var(--border);
   display:flex; flex-direction:column;
   background:var(--surface);
+  position:relative;
 }
-.val-left::-webkit-scrollbar { width:2px; }
-.val-left::-webkit-scrollbar-thumb { background:rgba(255,255,255,.08); border-radius:2px; }
+.val-left::-webkit-scrollbar { width:4px; }
+.val-left::-webkit-scrollbar-thumb { background:rgba(255,255,255,.12); border-radius:4px; }
+.val-left::-webkit-scrollbar-track { background:rgba(255,255,255,.02); }
 
 .val-section { border-bottom:1px solid rgba(255,255,255,.04); }
 .val-section-hd {
@@ -10108,8 +10200,12 @@ function valSwitchTab(name, btn) {
 
 /* Calculate button */
 .val-calc-wrap {
-  padding:12px 16px 80px; margin-top:auto; flex-shrink:0;
-  border-top:1px solid rgba(255,255,255,.04);
+  padding:12px 16px; margin-top:auto; flex-shrink:0;
+  border-top:1px solid rgba(255,255,255,.08);
+  background:var(--surface);
+  position:sticky; bottom:0;
+  z-index:5;
+  box-shadow:0 -4px 12px rgba(0,0,0,.25);
 }
 .val-calc-btn {
   width:100%; padding:10px; border:none; border-radius:8px; cursor:pointer;
@@ -10368,32 +10464,30 @@ function valSwitchTab(name, btn) {
 </div>
 
 <!-- Threshold Settings Bar -->
-<div id="val-threshold-bar" style="display:flex;align-items:center;gap:14px;padding:12px 28px;background:linear-gradient(180deg,var(--surface) 0%,var(--surface2) 100%);border-bottom:1px solid var(--border);font-size:11px">
-  <div style="display:flex;align-items:center;gap:6px">
-    <span style="font-size:9px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:var(--blue-h);white-space:nowrap">📌 Investment Threshold</span>
-  </div>
+<div id="val-threshold-bar" style="display:flex;align-items:center;gap:12px;padding:10px 28px;background:var(--surface);border-bottom:1px solid var(--border);font-size:11px">
+  <span style="font-size:9px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:var(--blue-h);white-space:nowrap">📌 Investment Threshold</span>
 
   <!-- Dev Margin Threshold 카드 -->
-  <div style="display:flex;align-items:center;gap:10px;padding:7px 14px;background:var(--surface3);border:1px solid var(--border2);border-radius:10px;box-shadow:0 1px 3px rgba(0,0,0,.12)">
-    <div style="display:flex;flex-direction:column;gap:1px">
-      <label style="font-size:9px;font-weight:700;color:var(--t3);letter-spacing:.08em;text-transform:uppercase">Dev Margin</label>
-      <span style="font-size:8px;color:var(--t3)">Minimum</span>
+  <div style="display:grid;grid-template-columns:auto auto auto;align-items:center;gap:10px;padding:6px 12px;background:var(--surface3);border:1px solid var(--border2);border-radius:8px;width:260px">
+    <div style="line-height:1.2">
+      <div style="font-size:9px;font-weight:700;color:var(--t3);letter-spacing:.06em;text-transform:uppercase">Dev Margin</div>
+      <div style="font-size:8px;color:var(--t3)">Minimum</div>
     </div>
-    <input id="thr-dev-margin" type="number" step="1" value="10" style="width:56px;padding:5px 8px;background:var(--surface);border:1px solid var(--border2);border-radius:6px;color:var(--blue-h);font-size:14px;font-weight:800;font-family:var(--font);text-align:center">
-    <span style="color:var(--t2);font-size:10px;font-weight:600">c/Wp</span>
+    <input id="thr-dev-margin" type="number" step="1" value="10" style="width:54px;padding:4px 6px;background:var(--surface);border:1px solid var(--border2);border-radius:5px;color:var(--blue-h);font-size:13px;font-weight:800;font-family:var(--font);text-align:center">
+    <span style="color:var(--t2);font-size:10px;font-weight:600;white-space:nowrap">c/Wp</span>
   </div>
 
   <!-- Sponsor IRR Threshold 카드 -->
-  <div style="display:flex;align-items:center;gap:10px;padding:7px 14px;background:var(--surface3);border:1px solid var(--border2);border-radius:10px;box-shadow:0 1px 3px rgba(0,0,0,.12)">
-    <div style="display:flex;flex-direction:column;gap:1px">
-      <label style="font-size:9px;font-weight:700;color:var(--t3);letter-spacing:.08em;text-transform:uppercase">Sponsor IRR</label>
-      <span style="font-size:8px;color:var(--t3)">Levered Pre-Tax · Min</span>
+  <div style="display:grid;grid-template-columns:auto auto auto;align-items:center;gap:10px;padding:6px 12px;background:var(--surface3);border:1px solid var(--border2);border-radius:8px;width:260px">
+    <div style="line-height:1.2">
+      <div style="font-size:9px;font-weight:700;color:var(--t3);letter-spacing:.06em;text-transform:uppercase">Sponsor IRR</div>
+      <div style="font-size:8px;color:var(--t3)">Levered Pre-Tax · Min</div>
     </div>
-    <input id="thr-sponsor-irr" type="number" step="0.5" value="9.0" style="width:60px;padding:5px 8px;background:var(--surface);border:1px solid var(--border2);border-radius:6px;color:var(--blue-h);font-size:14px;font-weight:800;font-family:var(--font);text-align:center">
-    <span style="color:var(--t2);font-size:10px;font-weight:600">%</span>
+    <input id="thr-sponsor-irr" type="number" step="0.5" value="9.0" style="width:54px;padding:4px 6px;background:var(--surface);border:1px solid var(--border2);border-radius:5px;color:var(--blue-h);font-size:13px;font-weight:800;font-family:var(--font);text-align:center">
+    <span style="color:var(--t2);font-size:10px;font-weight:600;white-space:nowrap">%</span>
   </div>
 
-  <!-- ITC Hurdle 제거됨 (고정값이라 불필요) — hidden input만 남겨 기존 JS 호환 -->
+  <!-- ITC Hurdle 제거됨 - hidden input만 남겨 기존 JS 호환 -->
   <input id="thr-itc" type="hidden" value="30">
 
   <span style="margin-left:auto;font-size:9px;color:var(--t3)">설정값은 자동 저장됩니다</span>
@@ -10531,7 +10625,7 @@ function valSwitchTab(name, btn) {
       <button class="val-tab" onclick="valSwitchTab('benchmark',this);valOnBenchmarkOpen()">Benchmark</button>
       <button class="val-tab val-tab-locked" id="val-tab-ic" onclick="valSwitchTab('ic',this)" title="Calculate 후 활성화됩니다" style="opacity:.35;cursor:not-allowed;pointer-events:none">IC Opinion</button>
       <span id="val-calc-status" style="margin-left:auto"></span>
-      <button onclick="valExportPDF()" id="val-export-btn" style="margin-left:8px;margin-right:4px;padding:5px 12px;background:transparent;border:1px solid var(--border2);border-radius:var(--r-md);font-size:10px;font-weight:600;color:var(--t3);cursor:pointer;font-family:var(--font);transition:all var(--ease);white-space:nowrap" onmouseover="this.style.color='var(--t1)';this.style.borderColor='var(--t2)'" onmouseout="this.style.color='var(--t3)';this.style.borderColor='var(--border2)'">✨ Export IC Summary</button>
+      <button onclick="valExportPDF()" id="val-export-btn" style="margin-left:8px;margin-right:4px;padding:5px 12px;background:transparent;border:1px solid var(--border2);border-radius:var(--r-md);font-size:10px;font-weight:600;color:var(--t3);cursor:pointer;font-family:var(--font);transition:all var(--ease);white-space:nowrap" onmouseover="this.style.color='var(--t1)';this.style.borderColor='var(--t2)'" onmouseout="this.style.color='var(--t3)';this.style.borderColor='var(--border2)'">✨ Export IC Opinion</button>
     </div>
 
     <!-- OVERVIEW -->
@@ -10728,6 +10822,61 @@ function valSwitchTab(name, btn) {
             <div style="font-size:10px;color:var(--t3);margin-top:2px">세 가지 시나리오를 동시에 계산하여 비교합니다</div>
           </div>
           <button id="val-run-scenarios-btn" onclick="valRunScenarios()" style="padding:7px 18px;background:var(--blue-d);color:#fff;border:none;border-radius:var(--r-md);font-size:11px;font-weight:700;cursor:pointer;font-family:var(--font);opacity:.4;pointer-events:none">▶ Run Scenarios</button>
+        </div>
+
+        <!-- Sensitivity 조정 패널 -->
+        <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--r-lg);padding:12px 14px;margin-bottom:14px">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+            <div>
+              <div style="font-size:10px;font-weight:700;color:var(--t1);letter-spacing:.05em">🎚️ 민감도 조정</div>
+              <div style="font-size:9px;color:var(--t3);margin-top:1px">BESS Toll은 모든 시나리오에서 Base값 고정</div>
+            </div>
+            <div style="display:flex;gap:4px">
+              <button onclick="valApplySensPreset('mild')"     style="padding:4px 10px;background:var(--surface3);border:1px solid var(--border2);border-radius:6px;font-size:9.5px;color:var(--t2);cursor:pointer;font-family:var(--font);font-weight:600">Mild (±2%)</button>
+              <button onclick="valApplySensPreset('moderate')" style="padding:4px 10px;background:var(--blue-d);border:none;border-radius:6px;font-size:9.5px;color:#fff;cursor:pointer;font-family:var(--font);font-weight:700">Moderate</button>
+              <button onclick="valApplySensPreset('severe')"   style="padding:4px 10px;background:var(--surface3);border:1px solid var(--border2);border-radius:6px;font-size:9.5px;color:var(--t2);cursor:pointer;font-family:var(--font);font-weight:600">Severe (±5%)</button>
+            </div>
+          </div>
+
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+            <!-- PPA -->
+            <div style="display:flex;align-items:center;gap:8px;padding:8px 10px;background:var(--surface2);border-radius:6px">
+              <div style="flex:1">
+                <div style="font-size:9px;font-weight:700;color:var(--t2);letter-spacing:.04em;text-transform:uppercase">PPA Price</div>
+                <div style="font-size:8px;color:var(--t3);margin-top:1px">Upside ↑ / Stress ↓</div>
+              </div>
+              <div style="display:flex;align-items:center;gap:4px">
+                <span style="font-size:9px;color:var(--green);font-weight:600">+</span>
+                <input id="sens-ppa-up" type="number" step="0.5" value="3" min="0" max="20" style="width:44px;padding:3px 6px;background:var(--surface);border:1px solid var(--border2);border-radius:4px;color:var(--t1);font-size:11px;font-weight:700;text-align:center;font-family:var(--font)">
+                <span style="font-size:9px;color:var(--t3)">%</span>
+                <span style="width:8px"></span>
+                <span style="font-size:9px;color:var(--red);font-weight:600">−</span>
+                <input id="sens-ppa-dn" type="number" step="0.5" value="3" min="0" max="20" style="width:44px;padding:3px 6px;background:var(--surface);border:1px solid var(--border2);border-radius:4px;color:var(--t1);font-size:11px;font-weight:700;text-align:center;font-family:var(--font)">
+                <span style="font-size:9px;color:var(--t3)">%</span>
+              </div>
+            </div>
+
+            <!-- CAPEX -->
+            <div style="display:flex;align-items:center;gap:8px;padding:8px 10px;background:var(--surface2);border-radius:6px">
+              <div style="flex:1">
+                <div style="font-size:9px;font-weight:700;color:var(--t2);letter-spacing:.04em;text-transform:uppercase">CAPEX</div>
+                <div style="font-size:8px;color:var(--t3);margin-top:1px">Upside ↓ / Stress ↑</div>
+              </div>
+              <div style="display:flex;align-items:center;gap:4px">
+                <span style="font-size:9px;color:var(--green);font-weight:600">−</span>
+                <input id="sens-capex-up" type="number" step="0.5" value="4" min="0" max="20" style="width:44px;padding:3px 6px;background:var(--surface);border:1px solid var(--border2);border-radius:4px;color:var(--t1);font-size:11px;font-weight:700;text-align:center;font-family:var(--font)">
+                <span style="font-size:9px;color:var(--t3)">%</span>
+                <span style="width:8px"></span>
+                <span style="font-size:9px;color:var(--red);font-weight:600">+</span>
+                <input id="sens-capex-dn" type="number" step="0.5" value="5" min="0" max="20" style="width:44px;padding:3px 6px;background:var(--surface);border:1px solid var(--border2);border-radius:4px;color:var(--t1);font-size:11px;font-weight:700;text-align:center;font-family:var(--font)">
+                <span style="font-size:9px;color:var(--t3)">%</span>
+              </div>
+            </div>
+          </div>
+
+          <div style="display:flex;justify-content:flex-end;margin-top:10px">
+            <button onclick="valRecalcScenariosFromSens()" style="padding:5px 14px;background:transparent;border:1px solid var(--blue-d);color:var(--blue-h);border-radius:6px;font-size:10px;font-weight:700;cursor:pointer;font-family:var(--font)">🔄 시나리오 값 재적용</button>
+          </div>
         </div>
 
         <!-- 3-column scenario inputs -->
