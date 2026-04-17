@@ -7852,6 +7852,7 @@ function valDisplayData(data, safeId) {
   setV('vi-ppa-esc', a.ppa_escalation ? a.ppa_escalation*100 : 0);
   setV('vi-toll-p', o.bess_toll_y1_effective || o.bess_toll || a.bess_toll);
   setV('vi-toll-t', o.bess_toll_term || a.bess_toll_term);
+  setV('vi-toll-esc', a.bess_toll_escalation ? a.bess_toll_escalation*100 : (a.toll_esc || 0));
   // Project specs
   setV('vi-pv-mwac', a.pv_mwac);
   setV('vi-dev-kwac', a.dev_fee_kwac || 200);
@@ -9012,6 +9013,137 @@ function valRecalcScenariosFromSens() {
   valInitScenarios(window._valBaseInputs);
 }
 
+// ═══ Break-Even Analysis ═══
+// Target Sponsor IRR 달성을 위해 필요한 PPA 가격을 역산
+// 방법: PPA를 여러 수치로 움직이며 calculate 돌리고, IRR 곡선에서 target 교차점 찾기
+async function valRunBreakEven() {
+  var btn = document.getElementById('be-run-btn');
+  var emptyEl = document.getElementById('be-empty');
+  var resultEl = document.getElementById('be-result');
+  var baseInputs = window._valBaseInputs || {};
+
+  if (!baseInputs.ppa_price) {
+    alert('먼저 Calculate를 실행하세요.');
+    return;
+  }
+
+  var targetIrr = parseFloat((document.getElementById('be-target-irr')||{}).value) || 11.0;
+  if (targetIrr <= 0 || targetIrr > 30) { alert('Target IRR은 0~30% 범위여야 합니다.'); return; }
+
+  if (btn) { btn.textContent = '⏳ 분석 중...'; btn.style.opacity='.6'; btn.style.pointerEvents='none'; }
+
+  var basePPA = baseInputs.ppa_price;
+  // PPA 민감도 레인지: 현재 ±15% (7개 점)
+  var ppaSteps = [-15, -10, -5, 0, 5, 10, 15];
+  var token = window._authToken || localStorage.getItem('hwr_token');
+  var apiBase = (typeof API_URL !== 'undefined' ? API_URL : (window.API_URL || ''));
+
+  try {
+    // 7개 PPA 값으로 병렬 calculate
+    var promises = ppaSteps.map(function(pct) {
+      var newPPA = basePPA * (1 + pct/100);
+      var inputs = Object.assign({}, baseInputs, { ppa_price: newPPA });
+      return fetch(apiBase + '/valuation/calculate', {
+        method: 'POST',
+        headers: { 'Authorization': 'Bearer '+token, 'Content-Type':'application/json' },
+        body: JSON.stringify(inputs)
+      }).then(function(r){ return r.json(); }).then(function(j){
+        return { pct: pct, ppa: newPPA, out: j };
+      });
+    });
+
+    var results = await Promise.all(promises);
+
+    // IRR, Dev Margin 추출
+    var rows = results.map(function(r) {
+      var o = r.out || {};
+      var irrVal = o.sponsor_irr_levered_pretax || o.sponsor_irr || 0;
+      return {
+        pct: r.pct,
+        ppa: r.ppa,
+        irr: irrVal * 100,  // %
+        dev_margin: o.dev_margin || 0,  // $k
+        margin_cwp: o.margin_cwp || 0
+      };
+    });
+
+    // Target IRR 교차점 선형 보간으로 찾기
+    var crossPPA = null, crossMargin = null;
+    for (var i = 0; i < rows.length - 1; i++) {
+      var a = rows[i], b = rows[i+1];
+      if ((a.irr - targetIrr) * (b.irr - targetIrr) <= 0 && a.irr !== b.irr) {
+        // 보간
+        var t = (targetIrr - a.irr) / (b.irr - a.irr);
+        crossPPA = a.ppa + t * (b.ppa - a.ppa);
+        crossMargin = a.margin_cwp + t * (b.margin_cwp - a.margin_cwp);
+        break;
+      }
+    }
+
+    // 현재 상태
+    var currentRow = rows.find(function(r){return r.pct===0;}) || rows[3];
+
+    // 결과 UI 렌더링
+    if (emptyEl) emptyEl.style.display = 'none';
+    if (resultEl) resultEl.style.display = 'block';
+
+    var cards = document.getElementById('be-cards');
+    if (cards) {
+      var sign = function(v) { return v>=0 ? '+' : ''; };
+      var ppaDelta = crossPPA != null ? (crossPPA - basePPA) : null;
+      var ppaColor = crossPPA == null ? 'var(--red)' : (ppaDelta >= 0 ? 'var(--red)' : 'var(--green)');
+      var ppaMsg = crossPPA == null
+        ? 'Target 불가능 (범위 내)'
+        : (ppaDelta >= 0 ? 'PPA 추가 필요' : 'PPA 여유 확보');
+
+      cards.innerHTML =
+        // 1. Target 달성 PPA
+        '<div style="padding:12px 14px;background:var(--surface2);border:1px solid var(--border);border-left:3px solid '+(crossPPA?'var(--blue-h)':'var(--red)')+';border-radius:6px">' +
+          '<div style="font-size:9px;color:var(--t3);font-weight:700;letter-spacing:.06em;text-transform:uppercase;margin-bottom:4px">Target ' + targetIrr.toFixed(1) + '% IRR 달성 PPA</div>' +
+          '<div style="font-size:18px;font-weight:800;color:var(--t1);font-variant-numeric:tabular-nums">' + (crossPPA ? '$'+crossPPA.toFixed(2) : '—') + '</div>' +
+          '<div style="font-size:9px;color:var(--t3);margin-top:2px">$/MWh</div>' +
+        '</div>' +
+        // 2. 현재 대비
+        '<div style="padding:12px 14px;background:var(--surface2);border:1px solid var(--border);border-left:3px solid '+ppaColor+';border-radius:6px">' +
+          '<div style="font-size:9px;color:var(--t3);font-weight:700;letter-spacing:.06em;text-transform:uppercase;margin-bottom:4px">현재 PPA 대비</div>' +
+          '<div style="font-size:18px;font-weight:800;color:'+ppaColor+';font-variant-numeric:tabular-nums">' +
+            (ppaDelta != null ? sign(ppaDelta)+'$'+ppaDelta.toFixed(2) : '—') +
+          '</div>' +
+          '<div style="font-size:9px;color:var(--t3);margin-top:2px">현재 $' + basePPA.toFixed(2) + ' · ' + ppaMsg + '</div>' +
+        '</div>' +
+        // 3. Target 시점 Dev Margin
+        '<div style="padding:12px 14px;background:var(--surface2);border:1px solid var(--border);border-left:3px solid var(--amber);border-radius:6px">' +
+          '<div style="font-size:9px;color:var(--t3);font-weight:700;letter-spacing:.06em;text-transform:uppercase;margin-bottom:4px">Target 시점 Dev Margin</div>' +
+          '<div style="font-size:18px;font-weight:800;color:var(--t1);font-variant-numeric:tabular-nums">' + (crossMargin ? crossMargin.toFixed(2) : '—') + '</div>' +
+          '<div style="font-size:9px;color:var(--t3);margin-top:2px">c/Wp</div>' +
+        '</div>';
+    }
+
+    // 테이블 채우기
+    var tbody = document.getElementById('be-table-body');
+    if (tbody) {
+      tbody.innerHTML = rows.map(function(r, i) {
+        var isBase = r.pct === 0;
+        var diff = r.irr - targetIrr;
+        var diffColor = diff >= 0 ? 'var(--green)' : 'var(--red)';
+        var diffStr = (diff>=0?'+':'') + diff.toFixed(2) + '%p';
+        var rowBg = isBase ? 'background:rgba(37,99,235,.08)' : '';
+        return '<tr style="border-bottom:1px solid rgba(255,255,255,.05);'+rowBg+'">' +
+          '<td style="padding:8px 12px;color:'+(isBase?'var(--blue-h)':'var(--t2)')+';font-weight:'+(isBase?'700':'500')+'">$'+r.ppa.toFixed(2)+(isBase?' <span style="font-size:8px;color:var(--t3);font-weight:600;margin-left:4px">(현재)</span>':'')+'</td>' +
+          '<td style="padding:8px 12px;text-align:right;color:var(--t1);font-weight:700">'+r.irr.toFixed(2)+'%</td>' +
+          '<td style="padding:8px 12px;text-align:right;color:var(--t2)">'+r.margin_cwp.toFixed(2)+' c/Wp</td>' +
+          '<td style="padding:8px 12px;text-align:center;color:'+diffColor+';font-weight:700">'+diffStr+'</td>' +
+          '</tr>';
+      }).join('');
+    }
+
+  } catch(e) {
+    alert('Break-Even 분석 실패: ' + e.message);
+  } finally {
+    if (btn) { btn.textContent = '▶ 분석 실행'; btn.style.opacity='1'; btn.style.pointerEvents='auto'; }
+  }
+}
+
 async function valRunScenarios() {
   var btn = document.getElementById('val-run-scenarios-btn');
   if (btn) { btn.textContent='⏳ Calculating...'; btn.style.opacity='.6'; btn.style.pointerEvents='none'; }
@@ -9195,6 +9327,7 @@ document.addEventListener('DOMContentLoaded', function() {
         ppa_esc:    gv('vi-ppa-esc', 0),
         bess_toll:  gv('vi-toll-p', 13.68),
         bess_toll_term: gv('vi-toll-t', 20),
+        bess_toll_esc:  gv('vi-toll-esc', 0),
         module_cwp: gv('vi-module', 31.5),
         bos_cwp:    gv('vi-bos', 42.9),
         ess_per_kwh: gv('vi-ess-eq', 234.5),
@@ -9832,6 +9965,7 @@ async function valRunCFAnalysis(lang) {
       project_name: projName,
       context: ctx,
       market_context: marketContext,
+      lang: lang,
       thresholds: {
         dev_margin_cwp: thr.dev_margin_cwp,
         sponsor_irr_pct: thr.sponsor_irr_pct,
@@ -10573,7 +10707,8 @@ function valSwitchTab(name, btn) {
           <div class="vf"><label>PPA Term (yr)</label><input class="vi" id="vi-ppa-t" type="number" step="1" placeholder="25"></div>
           <div class="vf"><label>PPA Esc. (%)</label><input class="vi" id="vi-ppa-esc" type="number" step="0.1" placeholder="0"></div>
           <div class="vf"><label>BESS Toll ($/kW-mo)</label><input class="vi" id="vi-toll-p" type="number" step="0.01" placeholder="14.50"></div>
-          <div class="vf" style="grid-column:span 2"><label>Toll Term (yr)</label><input class="vi" id="vi-toll-t" type="number" step="1" placeholder="20"></div>
+          <div class="vf"><label>Toll Term (yr)</label><input class="vi" id="vi-toll-t" type="number" step="1" placeholder="20"></div>
+          <div class="vf"><label>Toll Esc. (%)</label><input class="vi" id="vi-toll-esc" type="number" step="0.1" placeholder="0"></div>
         </div>
       </div>
     </div>
@@ -10990,6 +11125,47 @@ function valSwitchTab(name, btn) {
         </div>
 
         <div style="width:100%;height:1px;background:var(--border);margin:20px 0"></div>
+      </div>
+
+      <!-- ═══ BREAK-EVEN ANALYSIS (역산 민감도) ═══ -->
+      <div id="val-breakeven-section" style="background:var(--surface);border:1px solid var(--border);border-radius:var(--r-lg);padding:16px;margin-bottom:20px">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+          <div>
+            <div style="font-size:11px;font-weight:700;color:var(--t1)">🎯 Break-Even Analysis</div>
+            <div style="font-size:9px;color:var(--t3);margin-top:2px">Target Sponsor IRR 달성을 위한 조건 역산 · PPA 가격 기준</div>
+          </div>
+          <div style="display:flex;gap:8px;align-items:center">
+            <label style="font-size:9px;color:var(--t3);font-weight:600">Target IRR</label>
+            <input id="be-target-irr" type="number" step="0.5" value="11.0" style="width:56px;padding:4px 6px;background:var(--surface);border:1px solid var(--border2);border-radius:5px;color:var(--blue-h);font-size:12px;font-weight:700;text-align:center;font-family:var(--font)">
+            <span style="font-size:10px;color:var(--t3)">%</span>
+            <button onclick="valRunBreakEven()" id="be-run-btn" style="padding:5px 14px;background:var(--blue-d);color:#fff;border:none;border-radius:var(--r-md);font-size:10px;font-weight:700;cursor:pointer;font-family:var(--font);margin-left:8px">▶ 분석 실행</button>
+          </div>
+        </div>
+
+        <div id="be-empty" style="padding:28px 16px;text-align:center;background:var(--surface2);border:1px dashed var(--border2);border-radius:var(--r-md);font-size:10px;color:var(--t3)">
+          Target IRR 달성을 위해 필요한 PPA 가격 / Dev Margin / CAPEX 여유를 계산합니다. Calculate 완료 후 분석 실행.
+        </div>
+
+        <div id="be-result" style="display:none">
+          <!-- 핵심 결과 카드 3개 -->
+          <div id="be-cards" style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:14px"></div>
+
+          <!-- 민감도 표: PPA 변화에 따른 Sponsor IRR / Dev Margin -->
+          <div style="font-size:9px;color:var(--t3);font-weight:700;letter-spacing:.08em;text-transform:uppercase;margin-bottom:6px">PPA 변화 → Sponsor IRR · Dev Margin 움직임</div>
+          <div id="be-table-wrap" style="background:var(--surface2);border:1px solid var(--border);border-radius:var(--r-md);overflow:hidden">
+            <table id="be-table" style="width:100%;border-collapse:collapse;font-size:10.5px;font-variant-numeric:tabular-nums">
+              <thead>
+                <tr style="background:var(--surface3)">
+                  <th style="text-align:left;padding:8px 12px;font-size:9px;font-weight:700;color:var(--t3);letter-spacing:.06em;text-transform:uppercase">PPA ($/MWh)</th>
+                  <th style="text-align:right;padding:8px 12px;font-size:9px;font-weight:700;color:var(--t3);letter-spacing:.06em;text-transform:uppercase">Sponsor IRR</th>
+                  <th style="text-align:right;padding:8px 12px;font-size:9px;font-weight:700;color:var(--t3);letter-spacing:.06em;text-transform:uppercase">Dev Margin</th>
+                  <th style="text-align:center;padding:8px 12px;font-size:9px;font-weight:700;color:var(--t3);letter-spacing:.06em;text-transform:uppercase">Target 대비</th>
+                </tr>
+              </thead>
+              <tbody id="be-table-body"></tbody>
+            </table>
+          </div>
+        </div>
       </div>
 
       <!-- PPA SENSITIVITY -->
