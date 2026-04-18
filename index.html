@@ -20,8 +20,8 @@
   --border2:rgba(90,120,210,.22);
   --border3:rgba(80,110,200,.32);
   --t1:#DCE8FF;
-  --t2:#7080A8;
-  --t3:#384A6E;
+  --t2:#9AA8C8;
+  --t3:#6B7FA8;
   
   --blue:#4A8CF7;
   --blue-h:#6BA3FA;
@@ -7974,9 +7974,44 @@ function valActivateCFTab() {
 }
 
 // ── 버전 저장 모달
-function valShowSaveModal() {
+async function valShowSaveModal() {
   var modal = document.getElementById('val-save-modal');
-  if (modal) modal.style.display = 'flex';
+  if (!modal) return;
+
+  // 자동 버전명 생성 (현재 날짜 + 요청자)
+  var now = new Date();
+  var pad = function(n){return n<10?'0'+n:n;};
+  var versionName = now.getFullYear() + '-' + pad(now.getMonth()+1) + '-' + pad(now.getDate())
+                  + ' ' + pad(now.getHours()) + ':' + pad(now.getMinutes())
+                  + ' @ ' + ((window.HWR_AUTH||{}).email||'—').split('@')[0];
+  var vsmSc = document.getElementById('vsm-scenario');
+  if (vsmSc) vsmSc.value = versionName;
+
+  // Admin 목록 로드 → 드롭다운 채우기
+  var approverSel = document.getElementById('vsm-approver');
+  if (approverSel) {
+    approverSel.innerHTML = '<option value="">— 로드 중... —</option>';
+    try {
+      var admins = await apiCall('GET', '/auth/admins');
+      if (admins && admins.admins && admins.admins.length) {
+        approverSel.innerHTML = '<option value="">— 승인자 선택 —</option>' +
+          admins.admins.map(function(a){
+            return '<option value="'+a+'">'+a+'</option>';
+          }).join('');
+      } else {
+        approverSel.innerHTML = '<option value="">— 등록된 Admin 없음 —</option>';
+      }
+    } catch(e) {
+      // Fallback: 수동 입력 허용
+      approverSel.outerHTML = '<input id="vsm-approver" placeholder="예: admin@hwr.com" style="width:100%;padding:8px 10px;background:var(--surface3);border:1px solid var(--border);border-radius:var(--r-md);color:var(--t1);font-size:12px;font-family:var(--font);box-sizing:border-box">';
+    }
+  }
+
+  // 입력 필드 리셋
+  var reasonEl = document.getElementById('vsm-reason');
+  if (reasonEl) reasonEl.value = '';
+
+  modal.style.display = 'flex';
 }
 function valCloseSaveModal() {
   var modal = document.getElementById('val-save-modal');
@@ -7986,8 +8021,8 @@ async function valSaveVersion() {
   var reason = (document.getElementById('vsm-reason')||{}).value||'';
   var approver = (document.getElementById('vsm-approver')||{}).value||'';
   var scenario = (document.getElementById('vsm-scenario')||{}).value||'';
-  if (!reason.trim()) { alert('변경 근거를 입력하세요.'); return; }
-  if (!approver.trim()) { alert('승인 요청자를 입력하세요.'); return; }
+  if (!reason.trim()) { alert('변경 요약을 입력하세요.'); return; }
+  if (!approver.trim()) { alert('승인자를 선택하세요.'); return; }
 
   var calc = window._lastCalcResult;
   if (!calc) { alert('먼저 Calculate를 실행하세요.'); return; }
@@ -8278,6 +8313,12 @@ async function valExportPDF() {
 
 // ── Benchmark: 전체 프로젝트 비교
 var _bmLoaded = false;
+
+function valFilterByISO(iso) {
+  window._bmIsoFilter = iso;
+  valLoadBenchmark();  // 재렌더
+}
+
 async function valLoadBenchmark() {
   _bmLoaded = false;
   var loadEl = document.getElementById('val-bm-loading');
@@ -8294,20 +8335,22 @@ async function valLoadBenchmark() {
     var allData = await apiCall('GET', '/valuation');
     if (!allData) throw new Error('No data');
 
-    var rows = [];
+    var rowsRaw = [];
     Object.keys(allData).forEach(function(pid) {
       var d = allData[pid];
       if (!d || !d.outputs) return;
       var o = d.outputs; var a = d.assumptions||{};
-      // Match project name from PROJECTS array
+      // Match project name + ISO from PROJECTS array
       var projName = pid;
+      var projISO = '';
       if (typeof PROJECTS !== 'undefined') {
         var found = PROJECTS.find(function(p){ return p.id===pid||(p.id||'').replace(/[/.]/g,'_')===pid; });
-        if (found) projName = found.name || pid;
+        if (found) { projName = found.name || pid; projISO = (found.iso||'').toUpperCase(); }
       }
-      rows.push({
+      rowsRaw.push({
         pid: pid,
         name: projName,
+        iso: projISO || '—',
         ppa: o.ppa_price||a.ppa_price||0,
         ppa_term: o.ppa_term||a.ppa_term||0,
         bess_toll: o.bess_toll||a.bess_toll||0,
@@ -8322,6 +8365,29 @@ async function valLoadBenchmark() {
         isCurrent: pid === currentProjId || pid === currentProjId.replace(/[/.]/g,'_')
       });
     });
+
+    // 중복 제거: 같은 이름의 프로젝트는 가장 최신 업로드 1개만 유지
+    var dedupMap = {};
+    rowsRaw.forEach(function(r) {
+      var key = r.name.toLowerCase().trim();
+      if (!dedupMap[key] || r.uploaded_at > dedupMap[key].uploaded_at) {
+        dedupMap[key] = r;
+      }
+    });
+    var rows = Object.values(dedupMap);
+
+    // 현재 선택된 ISO 필터 적용
+    var isoFilter = window._bmIsoFilter || 'ALL';
+    if (isoFilter !== 'ALL') {
+      rows = rows.filter(function(r){ return r.iso === isoFilter; });
+    }
+
+    // ISO별 그룹 카운트 (탭 표시용)
+    var isoCounts = { ALL: Object.values(dedupMap).length };
+    Object.values(dedupMap).forEach(function(r) {
+      isoCounts[r.iso] = (isoCounts[r.iso] || 0) + 1;
+    });
+    window._bmIsoCounts = isoCounts;
 
     if (!rows.length) {
       if(loadEl) loadEl.innerHTML='<div class="val-empty-icon">📭</div><div class="val-empty-title">아직 업로드된 Valuation 데이터가 없습니다</div>';
@@ -8369,20 +8435,35 @@ async function valLoadBenchmark() {
     }
 
     // Table
-    var cols = ['프로젝트','PPA ($/MWh)','PPA Term','BESS Toll','CAPEX ($M)','Dev Margin','Sponsor IRR','EBITDA Yield','업로드일'];
-    var html = '<table style="width:100%;border-collapse:collapse;font-size:11px;font-variant-numeric:tabular-nums">';
+    // ISO 필터 탭 먼저 렌더
+    var isoTabsHtml = '<div style="display:flex;gap:4px;margin-bottom:10px;padding-bottom:8px;border-bottom:1px solid var(--border);flex-wrap:wrap">';
+    var isoOrder = ['ALL','ERCOT','CAISO','PJM','MISO','SPP','ISO-NE','NYISO','AESO','—'];
+    isoOrder.forEach(function(iso) {
+      var cnt = isoCounts[iso] || 0;
+      if (iso !== 'ALL' && !cnt) return;
+      var isActive = iso === isoFilter;
+      var lbl = iso === 'ALL' ? '전체' : iso === '—' ? 'ISO 미지정' : iso;
+      isoTabsHtml += '<button onclick="valFilterByISO(\''+iso+'\')" style="padding:4px 10px;background:'+(isActive?'var(--blue-d)':'transparent')+';border:1px solid '+(isActive?'var(--blue-d)':'var(--border2)')+';border-radius:14px;font-size:10px;color:'+(isActive?'#fff':'var(--t2)')+';cursor:pointer;font-family:var(--font);font-weight:'+(isActive?'700':'500')+'">'+lbl+' ('+cnt+')</button>';
+    });
+    isoTabsHtml += '</div>';
+
+    var cols = ['프로젝트','ISO','PPA ($/MWh)','PPA Term','BESS Toll','CAPEX ($M)','Dev Margin','Sponsor IRR','EBITDA Yield','업로드일'];
+    var html = isoTabsHtml + '<table style="width:100%;border-collapse:collapse;font-size:11px;font-variant-numeric:tabular-nums">';
     html += '<thead><tr style="border-bottom:1px solid var(--border)">';
     cols.forEach(function(col,i){
-      html += '<th style="padding:9px 12px;text-align:'+(i===0?'left':'right')+';font-size:9px;color:var(--t3);font-weight:700;letter-spacing:.06em;background:var(--surface2);white-space:nowrap">'+col+'</th>';
+      html += '<th style="padding:9px 12px;text-align:'+(i===0||i===1?'left':'right')+';font-size:9px;color:var(--t3);font-weight:700;letter-spacing:.06em;background:var(--surface2);white-space:nowrap">'+col+'</th>';
     });
     html += '</tr></thead><tbody>';
 
-    rows.forEach(function(r) {
+    // 상위 20개 제한 (IRR 내림차순 정렬 기반)
+    var displayRows = rows.slice(0, 20);
+    displayRows.forEach(function(r) {
       var isCur = r.isCurrent;
       var bg = isCur ? 'background:rgba(37,99,235,.08);' : '';
       var sirrColor = r.sponsor_irr>=0.10?'var(--green)':r.sponsor_irr>=0.07?'var(--amber)':'var(--red)';
       html += '<tr style="border-bottom:1px solid rgba(255,255,255,.04);'+bg+'cursor:pointer" onclick="valLoadBenchmarkProject(this.dataset.pid)" data-pid="'+r.pid+'" title="클릭하여 로드">';
       html += '<td style="padding:8px 12px;font-weight:'+(isCur?'700':'400')+';color:var(--t1)">'+r.name+(isCur?' ◀':'')+'</td>';
+      html += '<td style="padding:8px 12px;color:var(--t3);font-size:10px;font-weight:600">'+r.iso+'</td>';
       html += '<td style="padding:8px 12px;text-align:right;color:var(--t2)">'+(r.ppa?'$'+r.ppa.toFixed(2):'—')+'</td>';
       html += '<td style="padding:8px 12px;text-align:right;color:var(--t2)">'+(r.ppa_term?r.ppa_term+'yr':'—')+'</td>';
       html += '<td style="padding:8px 12px;text-align:right;color:var(--t2)">'+(r.bess_toll?'$'+r.bess_toll.toFixed(2):'—')+'</td>';
@@ -8396,13 +8477,20 @@ async function valLoadBenchmark() {
 
     // Average row
     html += '<tr style="border-top:1px solid var(--border2);background:var(--surface2)">';
-    html += '<td style="padding:8px 12px;font-size:9px;font-weight:700;color:var(--t3);text-transform:uppercase;letter-spacing:.06em">Average</td>';
+    html += '<td style="padding:8px 12px;font-size:9px;font-weight:700;color:var(--t3);text-transform:uppercase;letter-spacing:.06em">Average ('+displayRows.length+')</td>';
+    html += '<td style="padding:8px 12px"></td>';
     html += '<td style="padding:8px 12px;text-align:right;font-weight:600;color:var(--t2)">$'+avgPPA.toFixed(2)+'</td>';
     html += '<td colspan="3" style="padding:8px 12px"></td>';
     html += '<td style="padding:8px 12px;text-align:right;font-weight:700;color:var(--amber)">$'+avgMargin.toFixed(1)+'M</td>';
     html += '<td style="padding:8px 12px;text-align:right;font-weight:700;color:var(--green)">'+(avgIRR*100).toFixed(2)+'%</td>';
     html += '<td colspan="2"></td></tr>';
     html += '</tbody></table>';
+
+    // 20개 초과 시 힌트
+    if (rows.length > 20) {
+      html += '<div style="font-size:9px;color:var(--t3);margin-top:6px;text-align:center;font-style:italic">총 '+rows.length+'개 중 IRR 상위 20개 표시 (ISO 필터 또는 검색으로 세분화)</div>';
+    }
+
     tableEl.innerHTML = html;
     if(loadEl) loadEl.style.display='none';
     if(tableEl) tableEl.style.display='block';
@@ -8553,6 +8641,41 @@ function valToggleLevelTen() {
   var isOpen = content.style.display !== 'none';
   content.style.display = isOpen ? 'none' : 'block';
   if (chev) chev.style.transform = isOpen ? 'rotate(-90deg)' : 'rotate(0deg)';
+}
+
+// ── LevelTen 업로드 모달 열기 + 분기 옵션 생성 ──────
+function valOpenLevelTenModal() {
+  var modal = document.getElementById('bm-lt-modal');
+  if (!modal) return;
+
+  // 최근 12분기 자동 생성 (가장 최근 분기가 기본값)
+  var qSel = document.getElementById('bm-lt-quarter');
+  if (qSel && qSel.tagName === 'SELECT') {
+    var now = new Date();
+    var curQ = Math.floor(now.getMonth() / 3) + 1;
+    var curY = now.getFullYear();
+    var quarters = [];
+    for (var i = 0; i < 12; i++) {
+      quarters.push(curY + '-Q' + curQ);
+      curQ--;
+      if (curQ < 1) { curQ = 4; curY--; }
+    }
+    // 업로드된 분기는 제외 (이미 있는 것 → '(업로드됨)' 마크)
+    var existing = window._levelTenData || {};
+    qSel.innerHTML = '<option value="">— 분기 선택 —</option>' +
+      quarters.map(function(q) {
+        var already = existing[q] ? ' ✓ 업로드됨' : '';
+        return '<option value="'+q+'">'+q+already+'</option>';
+      }).join('');
+  }
+
+  // 파일 입력 리셋
+  var fileIn = document.getElementById('bm-lt-file');
+  if (fileIn) fileIn.value = '';
+  var status = document.getElementById('bm-lt-upload-status');
+  if (status) status.innerHTML = '';
+
+  modal.style.display = 'flex';
 }
 
 // ── BESS Tolling AI Research 섹션 접기/펴기 ──────────
@@ -8868,9 +8991,13 @@ async function valLoadMarketBenchmark(force) {
       if (monthlyPoints.length >= 2) {
         var prev = monthlyPoints.slice(0, -1).slice(-3); // 현재값 제외 최근 2~3개
         if (prev.length) {
+          var nowMo = new Date();
+          var monthLabels = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
           monthlyHtml = '<div style="display:flex;gap:4px;justify-content:space-between;margin-top:3px;font-size:8.5px;color:var(--t3);font-variant-numeric:tabular-nums">';
           prev.forEach(function(v, idx) {
-            var mnLabel = ['-3m', '-2m', '-1m'].slice(-prev.length)[idx];
+            var monthsBack = prev.length - idx;  // prev.length=3이면 3,2,1
+            var d = new Date(nowMo.getFullYear(), nowMo.getMonth() - monthsBack, 1);
+            var mnLabel = monthLabels[d.getMonth()];
             var fmtv = unit==='%' ? v.toFixed(2) : v.toFixed(2);
             monthlyHtml += '<span>'+mnLabel+': <strong style="color:var(--t2);font-weight:600">'+fmtv+'</strong></span>';
           });
@@ -8892,18 +9019,27 @@ async function valLoadMarketBenchmark(force) {
         var lineColor = d1m > 0 ? 'var(--green)' : d1m < 0 ? 'var(--red)' : 'var(--t3)';
 
         // 각 데이터 포인트에 invisible hit area (hover 시 툴팁)
-        // 영업일 기준 대략: spark 길이 = 최근 N 거래일 (약 90일)
+        // 거래일 데이터 (주말/공휴일 제외) — 오늘부터 역산하여 실제 날짜 계산
         var totalDays = spark.length;
+        var today = new Date();
         var hitDots = pts.map(function(p) {
-          // 상대 일자 계산 (뒤에서부터 -0, -1, ... 거래일)
+          // 상대 거래일 역산 — 주말 스킵
           var daysAgo = totalDays - 1 - p.idx;
-          var labelDays = daysAgo === 0 ? 'Today' : ('-' + daysAgo + 'd');
+          var d = new Date(today);
+          var businessDaysBack = 0;
+          while (businessDaysBack < daysAgo) {
+            d.setDate(d.getDate() - 1);
+            var wday = d.getDay();
+            if (wday !== 0 && wday !== 6) businessDaysBack++;
+          }
+          var pad = function(n){return n<10?'0'+n:n;};
+          var dateStr = d.getFullYear() + '-' + pad(d.getMonth()+1) + '-' + pad(d.getDate());
           var fmtv = unit==='%' ? p.v.toFixed(2)+'%'
                    : unit==='$' ? '$'+p.v.toFixed(2)
                    : unit==='$/MMBtu' ? '$'+p.v.toFixed(2)
                    : p.v.toFixed(2);
-          return '<circle cx="'+p.x.toFixed(1)+'" cy="'+p.y.toFixed(1)+'" r="3" fill="'+lineColor+'" fill-opacity="0" stroke="'+lineColor+'" stroke-width="0" class="spark-dot" '+
-            'data-label="'+labelDays+'" data-value="'+fmtv+'" '+
+          return '<circle cx="'+p.x.toFixed(1)+'" cy="'+p.y.toFixed(1)+'" r="1.5" fill="'+lineColor+'" fill-opacity="0" stroke="'+lineColor+'" stroke-width="0" class="spark-dot" '+
+            'data-label="'+dateStr+'" data-value="'+fmtv+'" '+
             'onmouseover="valShowSparkTip(event, this)" onmouseout="valHideSparkTip()"/>';
         }).join('');
 
@@ -9080,7 +9216,7 @@ function valRenderLevelTenQuarter(q) {
   function esc(s) {
     return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
   }
-  function fmt$(v) { return v==null ? '—' : '$' + Number(v).toFixed(2); }
+  function fmt$(v, dec) { return v==null ? '—' : '$' + Number(v).toFixed(dec==null?2:dec); }
   function fmtPct(v) { return v==null ? '' : (v>=0?'+':'') + Number(v).toFixed(1) + '%'; }
   function pctColor(v) { return v==null ? 'var(--t3)' : v>0 ? 'var(--green)' : v<0 ? 'var(--red)' : 'var(--t3)'; }
 
@@ -9089,19 +9225,25 @@ function valRenderLevelTenQuarter(q) {
   var ourOut = ourData.outputs || {};
   var ourAssum = ourData.assumptions || {};
   var ourPPA = ourOut.ppa_price || ourAssum.ppa_price;
+  var ourBessToll = ourOut.bess_toll || ourAssum.bess_toll;
   var projId = document.getElementById('val-proj-select');
   projId = projId ? projId.value : '';
   var projMeta = (window.PROJECTS||[]).find(function(p){return p.id===projId;}) || {};
   var ourISO = (projMeta.iso||'').toUpperCase();
+  var ourHub = (projMeta.hub || '').toUpperCase();
 
-  // 새 스키마 (solar_iso, storage_iso, solar_continental) 우선, 없으면 legacy entries 사용
+  // 스키마 (Solar 우선, Storage는 box plot 5개 통계치)
   var solarISO = data.solar_iso || [];
+  var solarHub = data.solar_hub || [];
   var storageISO = data.storage_iso || [];
+  var durationMix = data.storage_duration_mix || [];
+  var solarPSV = data.solar_psv || [];
+  var pipeline = data.pipeline_breakdown || [];
   var cont = data.solar_continental || {};
   var insights = data.key_insights || [];
   var notes = data.notes || '';
 
-  // Legacy fallback
+  // Legacy fallback (구형 데이터)
   if (!solarISO.length && data.entries) {
     solarISO = data.entries.filter(function(e){return e.tech==='solar';}).map(function(e){
       return {region:e.region, p25:e.p25, qoq_pct:null, yoy_pct:null};
@@ -9109,7 +9251,7 @@ function valRenderLevelTenQuarter(q) {
   }
   if (!storageISO.length && data.entries) {
     storageISO = data.entries.filter(function(e){return e.tech==='storage';}).map(function(e){
-      return {region:e.region, p25:e.p25, p50:e.p50, p75:e.p75};
+      return {region:e.region, p25:e.p25, median:e.p50, p75:e.p75};
     });
   }
 
@@ -9120,54 +9262,102 @@ function valRenderLevelTenQuarter(q) {
 
   var html = '';
 
-  // ── A. Continental Index (전 대륙 P10-P90 스프레드) ──
-  if (cont.p25 != null) {
-    html += '<div style="padding:10px 12px;background:linear-gradient(135deg,rgba(37,99,235,.06) 0%,rgba(139,92,246,.04) 100%);border:1px solid rgba(37,99,235,.15);border-radius:8px;margin-bottom:14px">';
-    html += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">';
-    html += '<div style="font-size:10px;color:var(--t2);font-weight:700;letter-spacing:.04em">☀️ Solar Market-Averaged Continental Index</div>';
-    if (cont.qoq_pct != null || cont.yoy_pct != null) {
-      var trends = [];
-      if (cont.qoq_pct != null) trends.push('QoQ <span style="color:'+pctColor(cont.qoq_pct)+'">'+fmtPct(cont.qoq_pct)+'</span>');
-      if (cont.yoy_pct != null) trends.push('YoY <span style="color:'+pctColor(cont.yoy_pct)+'">'+fmtPct(cont.yoy_pct)+'</span>');
-      html += '<div style="font-size:9px;color:var(--t3)">' + trends.join(' · ') + '</div>';
+  // ══════════════════════════════════════════════════
+  //  ① Hero Card — 우리 포지션 (percentile 바)
+  // ══════════════════════════════════════════════════
+  var ourISOSolarP25 = null, ourISOSolarQoQ = null, ourISOSolarYoY = null;
+  solarISO.forEach(function(e){
+    if (e.region && ourISO && e.region.toUpperCase() === ourISO) {
+      ourISOSolarP25 = e.p25;
+      ourISOSolarQoQ = e.qoq_pct;
+      ourISOSolarYoY = e.yoy_pct;
     }
+  });
+
+  if (ourPPA && ourISO) {
+    html += '<div style="padding:14px 16px;background:linear-gradient(135deg,rgba(37,99,235,.08) 0%,rgba(139,92,246,.05) 100%);border:1px solid rgba(37,99,235,.2);border-radius:10px;margin-bottom:14px">';
+    html += '<div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:10px">';
+    html += '<div style="font-size:11px;font-weight:800;color:var(--blue-h);letter-spacing:.04em">🎯 ' + esc(projMeta.name||'Project') + '의 ' + esc(ourISO) + ' 시장 포지션</div>';
+    html += '<div style="font-size:9px;color:var(--t3)">' + esc(q) + '</div>';
     html += '</div>';
-    html += '<div style="display:grid;grid-template-columns:repeat(5,1fr);gap:6px;font-variant-numeric:tabular-nums">';
-    [['P10',cont.p10],['P25',cont.p25],['P50',cont.p50],['P75',cont.p75],['P90',cont.p90]].forEach(function(p,i){
-      var isBase = i===1;  // P25가 기준값
-      html += '<div style="text-align:center;padding:6px;'+(isBase?'background:var(--surface);border-radius:4px':'')+'">';
-      html += '<div style="font-size:8px;color:var(--t3);font-weight:700;letter-spacing:.06em;margin-bottom:2px">'+p[0]+'</div>';
-      html += '<div style="font-size:12px;font-weight:'+(isBase?'800':'600')+';color:'+(isBase?'var(--blue-h)':'var(--t2)')+'">'+fmt$(p[1])+'</div>';
+
+    // Percentile bar (Continental P10-P90 기준)
+    if (cont.p10 && cont.p90) {
+      var p10 = cont.p10, p25 = cont.p25, p50 = cont.p50, p75 = cont.p75, p90 = cont.p90;
+      var range = p90 - p10;
+      var ourPos = Math.max(0, Math.min(100, ((ourPPA - p10) / range) * 100));
+      html += '<div style="margin-bottom:12px">';
+      html += '<div style="position:relative;height:42px;background:var(--surface2);border-radius:6px;padding:4px 6px">';
+      // Background gradient marking percentile zones
+      html += '<div style="position:absolute;top:4px;left:6px;right:6px;bottom:4px;background:linear-gradient(90deg,rgba(16,185,129,.15) 0%,rgba(37,99,235,.1) 50%,rgba(217,119,6,.15) 100%);border-radius:4px"></div>';
+      // Percentile ticks
+      ['P10','P25','P50','P75','P90'].forEach(function(lbl, i){
+        var pct = i * 25;
+        html += '<div style="position:absolute;top:4px;bottom:4px;left:calc(6px + (100% - 12px) * ' + pct + '/100);width:1px;background:rgba(255,255,255,.15)"></div>';
+        html += '<div style="position:absolute;top:18px;left:calc(6px + (100% - 12px) * ' + pct + '/100);transform:translateX(-50%);font-size:8px;color:var(--t3);font-weight:700">'+lbl+'</div>';
+        html += '<div style="position:absolute;top:28px;left:calc(6px + (100% - 12px) * ' + pct + '/100);transform:translateX(-50%);font-size:8.5px;color:var(--t2);font-weight:600">$'+Number([p10,p25,p50,p75,p90][i]||0).toFixed(0)+'</div>';
+      });
+      // Our position marker
+      html += '<div style="position:absolute;top:2px;bottom:14px;left:calc(6px + (100% - 12px) * ' + ourPos.toFixed(1) + '/100);transform:translateX(-50%);z-index:2">';
+      html += '<div style="width:3px;height:100%;background:var(--blue-h);box-shadow:0 0 8px var(--blue-h);border-radius:2px"></div>';
+      html += '<div style="position:absolute;bottom:100%;left:50%;transform:translateX(-50%);background:var(--blue-h);color:#fff;font-size:9px;font-weight:800;padding:2px 6px;border-radius:3px;white-space:nowrap;margin-bottom:2px">우리 $'+ourPPA.toFixed(2)+'</div>';
       html += '</div>';
-    });
-    html += '</div></div>';
+      html += '</div>';
+      // Position interpretation
+      var percentileDesc = '';
+      if (ourPos <= 25) percentileDesc = '시장 하위 25%ile (경쟁력 있는 가격)';
+      else if (ourPos <= 50) percentileDesc = '시장 중간 하위 (평균 이하)';
+      else if (ourPos <= 75) percentileDesc = '시장 중간 상위 (평균 이상 프리미엄)';
+      else percentileDesc = '시장 상위 25%ile (최고가 구간)';
+      html += '<div style="font-size:10px;color:var(--t2);margin-top:6px;text-align:center">📊 <b style="color:var(--blue-h)">'+percentileDesc+'</b> · 전 대륙 Solar PPA offer 분포 기준</div>';
+      html += '</div>';
+    }
+
+    // ISO별 비교 요약
+    if (ourISOSolarP25) {
+      var diff = ourPPA - ourISOSolarP25;
+      var diffPct = (diff / ourISOSolarP25) * 100;
+      var diffCol = diff >= 0 ? 'var(--green)' : 'var(--red)';
+      html += '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;padding:10px;background:var(--surface);border-radius:6px">';
+      html += '<div><div style="font-size:8px;color:var(--t3);font-weight:700;letter-spacing:.06em;margin-bottom:3px">'+esc(ourISO)+' SOLAR P25</div><div style="font-size:14px;font-weight:800;color:var(--amber)">$'+ourISOSolarP25.toFixed(2)+'</div></div>';
+      html += '<div><div style="font-size:8px;color:var(--t3);font-weight:700;letter-spacing:.06em;margin-bottom:3px">우리 PPA</div><div style="font-size:14px;font-weight:800;color:var(--blue-h)">$'+ourPPA.toFixed(2)+'</div></div>';
+      html += '<div><div style="font-size:8px;color:var(--t3);font-weight:700;letter-spacing:.06em;margin-bottom:3px">시장 대비</div><div style="font-size:14px;font-weight:800;color:'+diffCol+'">'+(diff>=0?'+':'')+'$'+diff.toFixed(2)+' <span style="font-size:10px;font-weight:600">('+(diffPct>=0?'+':'')+diffPct.toFixed(1)+'%)</span></div></div>';
+      html += '</div>';
+      if (ourISOSolarQoQ != null || ourISOSolarYoY != null) {
+        var trendLine = [];
+        if (ourISOSolarQoQ != null) trendLine.push(esc(ourISO)+' 시장 QoQ <span style="color:'+pctColor(ourISOSolarQoQ)+';font-weight:700">'+fmtPct(ourISOSolarQoQ)+'</span>');
+        if (ourISOSolarYoY != null) trendLine.push('YoY <span style="color:'+pctColor(ourISOSolarYoY)+';font-weight:700">'+fmtPct(ourISOSolarYoY)+'</span>');
+        html += '<div style="font-size:9.5px;color:var(--t3);margin-top:8px;text-align:center">'+trendLine.join(' · ')+'</div>';
+      }
+    }
+
+    html += '<div style="font-size:8.5px;color:var(--t3);margin-top:8px;padding-top:8px;border-top:1px solid rgba(255,255,255,.06);line-height:1.5">💡 P25 = 하위 25%ile 호가 (개발자 ask price) · LevelTen 리포트의 모든 가격은 <b>offer 가격</b>이며 실제 체결가 아님</div>';
+    html += '</div>';
   }
 
-  // ── B. Solar P25 by ISO (가장 중요) ──
+  // ══════════════════════════════════════════════════
+  //  ② Solar P25 by ISO 표
+  // ══════════════════════════════════════════════════
   if (solarISO.length) {
     html += '<div style="margin-bottom:14px">';
-    html += '<div style="font-size:10px;font-weight:700;color:var(--t2);margin-bottom:6px">☀️ Solar PPA Price (P25) by ISO</div>';
+    html += '<div style="font-size:10px;font-weight:700;color:var(--t2);margin-bottom:6px">☀️ Solar PPA P25 by ISO</div>';
     html += '<table style="width:100%;border-collapse:collapse;font-size:11px;font-variant-numeric:tabular-nums">';
     html += '<thead><tr style="border-bottom:1px solid var(--border);background:var(--surface2)">' +
       '<th style="padding:6px 10px;text-align:left;font-size:9px;color:var(--t3);font-weight:700">ISO</th>' +
       '<th style="padding:6px 10px;text-align:right;font-size:9px;color:var(--t3);font-weight:700">P25 ($/MWh)</th>' +
       '<th style="padding:6px 10px;text-align:right;font-size:9px;color:var(--t3);font-weight:700">QoQ</th>' +
       '<th style="padding:6px 10px;text-align:right;font-size:9px;color:var(--t3);font-weight:700">YoY</th>' +
-      '<th style="padding:6px 10px;text-align:right;font-size:9px;color:var(--t3);font-weight:700">우리 PPA 비교</th>' +
+      '<th style="padding:6px 10px;text-align:right;font-size:9px;color:var(--t3);font-weight:700">우리 PPA</th>' +
       '</tr></thead><tbody>';
-
-    // P25 기준 정렬 (낮은 순)
     solarISO.slice().sort(function(a,b){return (a.p25||999)-(b.p25||999);}).forEach(function(e){
       var isOurISO = e.region && ourISO && e.region.toUpperCase() === ourISO;
       var rowBg = isOurISO ? 'background:rgba(37,99,235,.08)' : '';
       html += '<tr style="border-bottom:1px solid rgba(255,255,255,.04);'+rowBg+'">';
       html += '<td style="padding:6px 10px;color:'+(isOurISO?'var(--blue-h)':'var(--t1)')+';font-weight:'+(isOurISO?'800':'600')+'">'+
-              esc(e.region||'—') + (isOurISO ? ' <span style="font-size:8px;color:var(--blue-h);font-weight:700;margin-left:4px;padding:1px 5px;border:1px solid var(--blue-h);border-radius:8px">OUR ISO</span>' : '') + '</td>';
+              esc(e.region||'—') + (isOurISO ? ' <span style="font-size:8px;color:var(--blue-h);font-weight:700;margin-left:4px;padding:1px 5px;border:1px solid var(--blue-h);border-radius:8px">OUR</span>' : '') + '</td>';
       html += '<td style="padding:6px 10px;text-align:right;color:var(--amber);font-weight:700">'+fmt$(e.p25)+'</td>';
       html += '<td style="padding:6px 10px;text-align:right;color:'+pctColor(e.qoq_pct)+'">'+fmtPct(e.qoq_pct)+'</td>';
       html += '<td style="padding:6px 10px;text-align:right;color:'+pctColor(e.yoy_pct)+'">'+fmtPct(e.yoy_pct)+'</td>';
-
-      // 우리 PPA vs ISO P25 비교
       var cmpTxt = '—', cmpCol = 'var(--t3)';
       if (isOurISO && ourPPA && e.p25) {
         var diff = ourPPA - e.p25;
@@ -9181,72 +9371,220 @@ function valRenderLevelTenQuarter(q) {
     html += '</tbody></table></div>';
   }
 
-  // ── C. BESS Storage Pricing (ISO별) ──
-  // 원칙: 리포트에 있는 것만 표시, AI 추정 불가
-  var storageAvailable = data.storage_available;
-  var storageNote = data.storage_note || '';
+  // ══════════════════════════════════════════════════
+  //  ③ Hub-level 상세 (우리 ISO만 자동 확장)
+  // ══════════════════════════════════════════════════
+  if (solarHub.length && ourISO) {
+    var ourHubs = solarHub.filter(function(h){ return h.region && h.region.toUpperCase() === ourISO; });
+    if (ourHubs.length) {
+      html += '<div style="margin-bottom:14px;padding:10px 12px;background:var(--surface2);border:1px solid var(--border);border-left:3px solid var(--blue-h);border-radius:6px">';
+      html += '<div style="font-size:10px;font-weight:700;color:var(--blue-h);margin-bottom:8px">📍 '+esc(ourISO)+' Hub-level Solar P25 (프로젝트 지역 상세)</div>';
+      html += '<table style="width:100%;border-collapse:collapse;font-size:10.5px;font-variant-numeric:tabular-nums">';
+      html += '<tbody>';
+      ourHubs.slice().sort(function(a,b){return (a.p25||0)-(b.p25||0);}).forEach(function(h){
+        var isOurHub = ourHub && h.hub && h.hub.toUpperCase().replace(/[_\s]/g,'') === ourHub.toUpperCase().replace(/[_\s]/g,'');
+        var rowBg = isOurHub ? 'background:rgba(37,99,235,.10)' : '';
+        html += '<tr style="'+rowBg+'">';
+        html += '<td style="padding:4px 10px;color:'+(isOurHub?'var(--blue-h)':'var(--t2)')+';font-weight:'+(isOurHub?'700':'500')+';font-size:10.5px">'+esc(h.hub||'—') + (isOurHub?' ◀':'') +'</td>';
+        html += '<td style="padding:4px 10px;text-align:right;color:var(--amber);font-weight:700">'+fmt$(h.p25)+'</td>';
+        html += '</tr>';
+      });
+      html += '</tbody></table>';
+      if (ourHubs.length >= 2) {
+        var prices = ourHubs.map(function(h){return h.p25||0;}).filter(function(v){return v>0;});
+        if (prices.length >= 2) {
+          var spread = Math.max.apply(null, prices) - Math.min.apply(null, prices);
+          html += '<div style="font-size:9px;color:var(--t3);margin-top:6px">💡 Hub 간 스프레드 $'+spread.toFixed(2)+' · interconnection point에 따라 실효 수익성 달라짐</div>';
+        }
+      }
+      html += '</div>';
+    }
+  }
 
+  // ══════════════════════════════════════════════════
+  //  ④ BESS Tolling (LevelTen Storage 공식 데이터)
+  // ══════════════════════════════════════════════════
   if (storageISO.length) {
+    var bessResearch = window._bessTollingData || null;
     html += '<div style="margin-bottom:14px">';
     html += '<div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:6px">';
-    html += '<div style="font-size:10px;font-weight:700;color:var(--t2)">🔋 BESS Storage Tolling Price by ISO ($/kW-month, levelized)</div>';
-    // 출처 요약 표시 (chart_read가 섞여 있으면 안내)
-    var hasChartRead = storageISO.some(function(e){return e.source==='chart_read';});
-    if (hasChartRead) {
-      html += '<div style="font-size:8.5px;color:var(--t3);font-style:italic">📊 차트 판독 · ±$0.5 오차 가능</div>';
-    }
+    html += '<div style="font-size:10px;font-weight:700;color:var(--t2)">🔋 BESS Tolling Market (LevelTen Storage Index — 공식)</div>';
+    html += '<div style="font-size:8.5px;color:var(--green);background:rgba(16,185,129,.1);padding:1px 6px;border-radius:8px;font-weight:700">📋 LEVELTEN OFFICIAL</div>';
     html += '</div>';
     html += '<table style="width:100%;border-collapse:collapse;font-size:11px;font-variant-numeric:tabular-nums">';
     html += '<thead><tr style="border-bottom:1px solid var(--border);background:var(--surface2)">' +
       '<th style="padding:6px 10px;text-align:left;font-size:9px;color:var(--t3);font-weight:700">ISO</th>' +
       '<th style="padding:6px 10px;text-align:right;font-size:9px;color:var(--t3);font-weight:700">P25</th>' +
-      '<th style="padding:6px 10px;text-align:right;font-size:9px;color:var(--t3);font-weight:700">P50</th>' +
+      '<th style="padding:6px 10px;text-align:right;font-size:9px;color:var(--t3);font-weight:700">Median</th>' +
       '<th style="padding:6px 10px;text-align:right;font-size:9px;color:var(--t3);font-weight:700">P75</th>' +
-      '<th style="padding:6px 10px;text-align:center;font-size:9px;color:var(--t3);font-weight:700">출처</th>' +
+      '<th style="padding:6px 10px;text-align:right;font-size:9px;color:var(--t3);font-weight:700">Range</th>' +
+      '<th style="padding:6px 10px;text-align:right;font-size:9px;color:var(--t3);font-weight:700">우리 Toll</th>' +
       '</tr></thead><tbody>';
-    storageISO.forEach(function(e){
+    storageISO.slice().sort(function(a,b){return (a.median||a.p25||999)-(b.median||b.p25||999);}).forEach(function(e){
       var isOurISO = e.region && ourISO && e.region.toUpperCase() === ourISO;
       var rowBg = isOurISO ? 'background:rgba(37,99,235,.08)' : '';
-      var srcBadge = e.source === 'chart_read'
-        ? '<span title="차트에서 판독" style="font-size:9px;padding:1px 5px;background:rgba(217,119,6,.12);color:var(--amber);border-radius:8px;font-weight:700">📊 chart</span>'
-        : e.source === 'table'
-        ? '<span title="테이블 정확값" style="font-size:9px;padding:1px 5px;background:rgba(16,185,129,.12);color:var(--green);border-radius:8px;font-weight:700">📋 table</span>'
-        : '<span style="color:var(--t3)">—</span>';
+      var med = e.median || e.p50;
+      var rangeTxt = (e.min!=null && e.max!=null) ? ('$'+Number(e.min).toFixed(0)+'-$'+Number(e.max).toFixed(0)) : '—';
       html += '<tr style="border-bottom:1px solid rgba(255,255,255,.04);'+rowBg+'">';
       html += '<td style="padding:6px 10px;color:'+(isOurISO?'var(--blue-h)':'var(--t1)')+';font-weight:'+(isOurISO?'800':'600')+'">'+
-              esc(e.region||'—') + (isOurISO ? ' <span style="font-size:8px;color:var(--blue-h);font-weight:700;margin-left:4px;padding:1px 5px;border:1px solid var(--blue-h);border-radius:8px">OUR ISO</span>' : '') + '</td>';
-      html += '<td style="padding:6px 10px;text-align:right;color:var(--amber);font-weight:700">'+fmt$(e.p25)+'</td>';
-      html += '<td style="padding:6px 10px;text-align:right;color:var(--t2)">'+fmt$(e.p50)+'</td>';
-      html += '<td style="padding:6px 10px;text-align:right;color:var(--t2)">'+fmt$(e.p75)+'</td>';
-      html += '<td style="padding:6px 10px;text-align:center">'+srcBadge+'</td>';
+              esc(e.region||'—') + (isOurISO ? ' <span style="font-size:8px;color:var(--blue-h);font-weight:700;margin-left:4px;padding:1px 5px;border:1px solid var(--blue-h);border-radius:8px">OUR</span>' : '') + '</td>';
+      html += '<td style="padding:6px 10px;text-align:right;color:var(--t2)">'+fmt$(e.p25,1)+'</td>';
+      html += '<td style="padding:6px 10px;text-align:right;color:var(--amber);font-weight:700">'+fmt$(med,1)+'</td>';
+      html += '<td style="padding:6px 10px;text-align:right;color:var(--t2)">'+fmt$(e.p75,1)+'</td>';
+      html += '<td style="padding:6px 10px;text-align:right;color:var(--t3);font-size:10px">'+rangeTxt+'</td>';
+      var tollTxt = '—', tollCol = 'var(--t3)';
+      if (isOurISO && ourBessToll && med) {
+        var tollDiff = ourBessToll - med;
+        var tollPct = (tollDiff / med) * 100;
+        var overP75 = e.p75 && ourBessToll > e.p75;
+        tollCol = overP75 ? 'var(--red)' : (ourBessToll < e.p25 ? 'var(--green)' : 'var(--amber)');
+        var flag = overP75 ? ' ⚠️' : (ourBessToll < e.p25 ? ' ✓' : '');
+        tollTxt = '$'+ourBessToll.toFixed(2)+flag;
+      }
+      html += '<td style="padding:6px 10px;text-align:right;color:'+tollCol+';font-weight:'+(isOurISO?'700':'400')+'">'+tollTxt+'</td>';
       html += '</tr>';
     });
     html += '</tbody></table>';
-    if (storageNote) {
-      html += '<div style="font-size:9px;color:var(--t3);margin-top:4px;font-style:italic">※ '+esc(storageNote)+'</div>';
+
+    // Duration mix (프로젝트 ISO만)
+    var ourDurMix = durationMix.find(function(d){return d.region && ourISO && d.region.toUpperCase()===ourISO;});
+    if (ourDurMix) {
+      var durations = [];
+      ['2h','3h','4h','6h','8h','10h'].forEach(function(h){
+        if (ourDurMix[h]) durations.push(h+': '+Math.round(ourDurMix[h])+'%');
+      });
+      if (durations.length) {
+        html += '<div style="font-size:9.5px;color:var(--t3);margin-top:6px">💡 '+esc(ourISO)+' Duration Mix (2025 전체 offer): '+durations.join(' · ')+'</div>';
+      }
     }
+
+    // AI Research 보완 버튼 (LevelTen 커버 ISO일 경우 duration 세부, 아닐 경우 fallback)
+    var ourISOInLevelTen = storageISO.some(function(e){return e.region && ourISO && e.region.toUpperCase() === ourISO;});
+    if (!ourISOInLevelTen && ourISO) {
+      html += '<div style="padding:8px 10px;background:var(--surface2);border:1px dashed var(--border2);border-radius:4px;margin-top:8px;font-size:10px;color:var(--t2)">';
+      html += '<b style="color:var(--amber)">⚠️ '+esc(ourISO)+'</b>는 LevelTen Storage Index 미커버. ';
+      if (bessResearch && bessResearch.iso_data) {
+        var aiIso = (bessResearch.iso_data||[]).find(function(e){return e.region && e.region.toUpperCase()===ourISO;});
+        if (aiIso) {
+          html += 'AI Research 추정치: ';
+          var dur = (aiIso.durations||[]).find(function(d){return d.hours===4;});
+          if (dur) html += '4h P25-P75 $'+Number(dur.p25).toFixed(1)+'-$'+Number(dur.p75).toFixed(1)+'/kW-mo';
+        } else {
+          html += '아래 AI 리서치 버튼으로 보완 데이터 조회 가능.';
+        }
+      } else {
+        html += '아래 AI 리서치 버튼으로 보완 데이터 조회 가능.';
+      }
+      html += '</div>';
+    }
+
+    html += '<div style="font-size:8.5px;color:var(--t3);margin-top:4px;font-style:italic">※ LevelTen Storage Index: RFP/RFI tolling agreement offers, 2025 연간 집계 ($/kW-month levelized)</div>';
     html += '</div>';
-  } else if (storageAvailable === false) {
-    // 리포트에 BESS 데이터 없음 — 명시적 안내
-    html += '<div style="padding:14px 16px;background:var(--surface2);border:1px dashed var(--border2);border-radius:6px;margin-bottom:14px">';
-    html += '<div style="font-size:10px;font-weight:700;color:var(--t2);margin-bottom:4px">🔋 BESS Storage</div>';
-    html += '<div style="font-size:10.5px;color:var(--t3);line-height:1.6">';
-    html += '본 리포트에 BESS tolling 가격 데이터가 포함되지 않았습니다.';
-    if (storageNote) html += '<br><span style="font-size:9.5px;color:var(--t3);font-style:italic">'+esc(storageNote)+'</span>';
-    html += '</div></div>';
   }
 
-  // ── D. Key Insights (AI 추출) ──
+  // ══════════════════════════════════════════════════
+  //  ⑤ Solar PSV (Projected Settlement Value) — 구매자 관점
+  // ══════════════════════════════════════════════════
+  if (solarPSV.length) {
+    html += '<div style="margin-bottom:14px">';
+    html += '<div style="font-size:10px;font-weight:700;color:var(--t2);margin-bottom:6px">💵 Solar Projected Settlement Value (PSV) by ISO — 구매자 관점 현재가치</div>';
+    html += '<table style="width:100%;border-collapse:collapse;font-size:11px;font-variant-numeric:tabular-nums">';
+    html += '<thead><tr style="border-bottom:1px solid var(--border);background:var(--surface2)">' +
+      '<th style="padding:6px 10px;text-align:left;font-size:9px;color:var(--t3);font-weight:700">ISO</th>' +
+      '<th style="padding:6px 10px;text-align:right;font-size:9px;color:var(--t3);font-weight:700">Median PSV</th>' +
+      '<th style="padding:6px 10px;text-align:right;font-size:9px;color:var(--t3);font-weight:700">Range</th>' +
+      '<th style="padding:6px 10px;text-align:left;font-size:9px;color:var(--t3);font-weight:700">구매자 입장</th>' +
+      '</tr></thead><tbody>';
+    solarPSV.slice().sort(function(a,b){return (b.psv_median||-999)-(a.psv_median||-999);}).forEach(function(e){
+      var isOurISO = e.region && ourISO && e.region.toUpperCase() === ourISO;
+      var rowBg = isOurISO ? 'background:rgba(37,99,235,.08)' : '';
+      var med = e.psv_median;
+      var medCol = med > 0 ? 'var(--green)' : med < -15 ? 'var(--red)' : 'var(--amber)';
+      var interpret = med > 0 ? '✅ 순수익 (positive)' : med < -15 ? '❌ 큰 순손실' : '⚠️ 순손실';
+      var rng = (e.psv_min!=null && e.psv_max!=null) ? ('$'+Number(e.psv_min).toFixed(0)+' ~ $'+Number(e.psv_max).toFixed(0)) : '—';
+      html += '<tr style="border-bottom:1px solid rgba(255,255,255,.04);'+rowBg+'">';
+      html += '<td style="padding:6px 10px;color:'+(isOurISO?'var(--blue-h)':'var(--t1)')+';font-weight:'+(isOurISO?'800':'600')+'">'+esc(e.region||'—')+(isOurISO?' <span style="font-size:8px;color:var(--blue-h);font-weight:700;margin-left:4px;padding:1px 5px;border:1px solid var(--blue-h);border-radius:8px">OUR</span>':'')+'</td>';
+      html += '<td style="padding:6px 10px;text-align:right;font-weight:700;color:'+medCol+'">'+(med>=0?'+':'')+'$'+Number(med||0).toFixed(0)+'</td>';
+      html += '<td style="padding:6px 10px;text-align:right;color:var(--t3);font-size:10px">'+rng+'</td>';
+      html += '<td style="padding:6px 10px;color:'+medCol+';font-size:10px">'+interpret+'</td>';
+      html += '</tr>';
+    });
+    html += '</tbody></table>';
+    html += '<div style="font-size:8.5px;color:var(--t3);margin-top:4px;font-style:italic">※ PSV = 시장가 vs 계약가의 NPV (Hitachi Energy 기준). 양수 = 구매자 수익, 음수 = 구매자 손실. 장기 offtake 안정성 지표.</div>';
+    html += '</div>';
+  }
+
+  // ══════════════════════════════════════════════════
+  //  ⑥ Pipeline Trend — HEUH 사업 정체성 (Solar + Storage + Hybrid)
+  // ══════════════════════════════════════════════════
+  if (pipeline.length) {
+    html += '<div style="margin-bottom:14px">';
+    html += '<div style="font-size:10px;font-weight:700;color:var(--t2);margin-bottom:6px">📈 US Clean Energy Pipeline Trend (COD Year, MW)</div>';
+    html += '<div style="padding:10px;background:var(--surface2);border:1px solid var(--border);border-radius:6px">';
+    // Simple stacked bar chart (SVG)
+    var maxTotal = 0;
+    pipeline.forEach(function(p){
+      var t = (p.solar_mw||0) + (p.standalone_storage_mw||0) + (p.hybrid_mw||0);
+      if (t > maxTotal) maxTotal = t;
+    });
+    if (maxTotal > 0) {
+      var barW = 80, gap = 16;
+      var svgW = pipeline.length * (barW + gap);
+      var svgH = 180;
+      html += '<svg width="100%" height="'+svgH+'" viewBox="0 0 '+svgW+' '+svgH+'" style="max-width:700px;display:block;margin:0 auto">';
+      pipeline.forEach(function(p, idx){
+        var x = idx * (barW + gap) + gap/2;
+        var sol = p.solar_mw || 0;
+        var sto = p.standalone_storage_mw || 0;
+        var hyb = p.hybrid_mw || 0;
+        var total = sol + sto + hyb;
+        var scale = (svgH - 40) / maxTotal;
+        var yBase = svgH - 25;
+        var hSol = sol * scale;
+        var hSto = sto * scale;
+        var hHyb = hyb * scale;
+        // Hybrid (top)
+        html += '<rect x="'+x+'" y="'+(yBase - hHyb - hSto - hSol)+'" width="'+barW+'" height="'+hHyb+'" fill="#ec4899" opacity="0.9"><title>Hybrid '+hyb.toLocaleString()+' MW</title></rect>';
+        // Standalone Storage
+        html += '<rect x="'+x+'" y="'+(yBase - hSto - hSol)+'" width="'+barW+'" height="'+hSto+'" fill="#dc2626" opacity="0.9"><title>Standalone '+sto.toLocaleString()+' MW</title></rect>';
+        // Solar (bottom)
+        html += '<rect x="'+x+'" y="'+(yBase - hSol)+'" width="'+barW+'" height="'+hSol+'" fill="#f59e0b" opacity="0.9"><title>Solar '+sol.toLocaleString()+' MW</title></rect>';
+        // Year label
+        html += '<text x="'+(x + barW/2)+'" y="'+(svgH-8)+'" text-anchor="middle" fill="#9AA8C8" font-size="11" font-weight="700">'+esc(p.cod_year||'')+'</text>';
+        // Total label
+        html += '<text x="'+(x + barW/2)+'" y="'+(yBase - hHyb - hSto - hSol - 6)+'" text-anchor="middle" fill="#DCE8FF" font-size="9.5" font-weight="700">'+(total/1000).toFixed(1)+'GW</text>';
+      });
+      html += '</svg>';
+      // Legend
+      html += '<div style="display:flex;justify-content:center;gap:16px;margin-top:8px;font-size:10px">';
+      html += '<div><span style="display:inline-block;width:10px;height:10px;background:#f59e0b;margin-right:4px;vertical-align:middle"></span>Solar</div>';
+      html += '<div><span style="display:inline-block;width:10px;height:10px;background:#dc2626;margin-right:4px;vertical-align:middle"></span>Standalone Storage</div>';
+      html += '<div><span style="display:inline-block;width:10px;height:10px;background:#ec4899;margin-right:4px;vertical-align:middle"></span>Hybrid (Solar+BESS)</div>';
+      html += '</div>';
+    }
+    html += '</div>';
+    // HEUH 해석
+    var p2025 = pipeline.find(function(p){return p.cod_year==='2025';}) || {};
+    var p2030 = pipeline.find(function(p){return p.cod_year==='2030+'||p.cod_year==='2030';}) || {};
+    if (p2025.hybrid_mw != null && p2030.hybrid_mw != null && p2025.hybrid_mw > 0) {
+      var growth = (p2030.hybrid_mw / p2025.hybrid_mw).toFixed(0);
+      html += '<div style="font-size:9.5px;color:var(--t3);margin-top:8px;text-align:center;line-height:1.5">💡 2030+ Hybrid ' + (p2030.hybrid_mw/1000).toFixed(0) + 'GW (2025 대비 <b style="color:var(--green)">'+growth+'배</b> 성장) · <b>HEUH Solar+BESS 사업 모델이 시장 흐름과 일치</b></div>';
+    }
+    html += '</div>';
+  }
+
+  // ══════════════════════════════════════════════════
+  //  Key Insights + Notes
+  // ══════════════════════════════════════════════════
   if (insights.length) {
     html += '<div style="padding:10px 12px;background:var(--surface2);border:1px solid var(--border);border-left:3px solid var(--amber);border-radius:6px;margin-bottom:10px">';
     html += '<div style="font-size:9px;font-weight:700;color:var(--amber);letter-spacing:.06em;text-transform:uppercase;margin-bottom:6px">💡 Key Insights</div>';
-    insights.forEach(function(i){
+    insights.slice(0, 3).forEach(function(i){  // 최대 3개로 제한 (피로도)
       html += '<div style="font-size:10.5px;color:var(--t2);line-height:1.6;margin-bottom:3px">• '+esc(i)+'</div>';
     });
     html += '</div>';
   }
 
-  // ── E. Notes ──
   if (notes) {
     html += '<div style="padding:8px 10px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;font-size:10px;color:var(--t3);line-height:1.6">'+esc(notes)+'</div>';
   }
@@ -9494,10 +9832,15 @@ function valRecalcScenariosFromSens() {
 // ═══ Break-Even Analysis ═══
 // Target Sponsor IRR 달성을 위해 필요한 PPA 가격을 역산
 // 방법: PPA를 여러 수치로 움직이며 calculate 돌리고, IRR 곡선에서 target 교차점 찾기
+// ═══════════════════════════════════════════════════════════════
+// 🎯 Break-Even Analysis (Newton-Raphson 정밀 역산)
+// Phase 1: 민감도 스캔 (±25% 11점)
+// Phase 2: Newton-Raphson (tolerance 0.01%)
+// ═══════════════════════════════════════════════════════════════
 async function valRunBreakEven() {
   var btn = document.getElementById('be-run-btn');
-  var emptyEl = document.getElementById('be-empty');
   var resultEl = document.getElementById('be-result');
+  var emptyEl = document.getElementById('be-empty');
   var baseInputs = window._valBaseInputs || {};
 
   if (!baseInputs.ppa_price) {
@@ -9508,129 +9851,158 @@ async function valRunBreakEven() {
   var targetIrr = parseFloat((document.getElementById('be-target-irr')||{}).value) || 11.0;
   if (targetIrr <= 0 || targetIrr > 30) { alert('Target IRR은 0~30% 범위여야 합니다.'); return; }
 
-  if (btn) { btn.textContent = '⏳ 분석 중...'; btn.style.opacity='.6'; btn.style.pointerEvents='none'; }
-
-  var basePPA = baseInputs.ppa_price;
-  // PPA 민감도 레인지 확장: ±25%, 11개 점 (더 정밀)
-  var ppaSteps = [-25, -20, -15, -10, -5, 0, 5, 10, 15, 20, 25];
-  var token = window._authToken || localStorage.getItem('hwr_token');
-  var apiBase = (typeof API_URL !== 'undefined' ? API_URL : (window.API_URL || ''));
+  if (btn) { btn.textContent = '⏳ Newton-Raphson 역산 중... (최대 15초)'; btn.style.opacity='.6'; btn.style.pointerEvents='none'; }
+  if (emptyEl) emptyEl.style.display = 'none';
 
   try {
-    // 11개 PPA 값으로 병렬 calculate
-    var promises = ppaSteps.map(function(pct) {
-      var newPPA = basePPA * (1 + pct/100);
-      var inputs = Object.assign({}, baseInputs, { ppa_price: newPPA });
-      return fetch(apiBase + '/valuation/calculate', {
-        method: 'POST',
-        headers: { 'Authorization': 'Bearer '+token, 'Content-Type':'application/json' },
-        body: JSON.stringify(inputs)
-      }).then(function(r){ return r.json(); }).then(function(j){
-        return { pct: pct, ppa: newPPA, resp: j };
-      });
+    var projectIdBE = (document.getElementById('val-proj-select')||{}).value || '';
+    var data = await apiCall('POST', '/valuation/breakeven', {
+      project_id: projectIdBE,
+      inputs: baseInputs,
+      target_irr_pct: targetIrr,
+      target_var: 'ppa_price'
     });
 
-    var results = await Promise.all(promises);
+    if (!data || !data.ok) throw new Error('API 오류 또는 응답 없음');
+    console.log('[BreakEven] Response:', data);
 
-    // ⚠️ 버그 수정: 백엔드 응답은 { assumptions, outputs } 구조
-    // 이전 버전은 r.out에서 직접 찾아서 0 리턴 → 보간 실패
-    var rows = results.map(function(r) {
-      var resp = r.resp || {};
-      var o = resp.outputs || {};  // ← 핵심 수정
-      var irrVal = o.sponsor_irr_levered_pretax || o.sponsor_irr || 0;
-      return {
-        pct: r.pct,
-        ppa: r.ppa,
-        irr: irrVal * 100,  // %
-        dev_margin: o.dev_margin || 0,  // $k
-        margin_cwp: o.margin_cwp || 0
-      };
-    });
-
-    // IRR이 모두 0이면 백엔드 응답 파싱 실패
-    var hasValidData = rows.some(function(r) { return r.irr > 0; });
-    if (!hasValidData) {
-      throw new Error('백엔드 응답 파싱 실패 — 콘솔 확인 필요');
-    }
-
-    // Target IRR 교차점 선형 보간으로 찾기
-    var crossPPA = null, crossMargin = null;
-    for (var i = 0; i < rows.length - 1; i++) {
-      var a = rows[i], b = rows[i+1];
-      var diffA = a.irr - targetIrr;
-      var diffB = b.irr - targetIrr;
-      // 두 점 사이에서 부호가 바뀌면 교차
-      if (diffA * diffB <= 0 && Math.abs(a.irr - b.irr) > 0.001) {
-        var t = (targetIrr - a.irr) / (b.irr - a.irr);
-        crossPPA = a.ppa + t * (b.ppa - a.ppa);
-        crossMargin = a.margin_cwp + t * (b.margin_cwp - a.margin_cwp);
-        break;
-      }
-    }
-
-    // 현재 상태
-    var currentRow = rows.find(function(r){return r.pct===0;}) || rows[Math.floor(rows.length/2)];
-
-    // 결과 UI 렌더링
-    if (emptyEl) emptyEl.style.display = 'none';
-    if (resultEl) resultEl.style.display = 'block';
-
-    var cards = document.getElementById('be-cards');
-    if (cards) {
-      var sign = function(v) { return v>=0 ? '+' : ''; };
-      var ppaDelta = crossPPA != null ? (crossPPA - basePPA) : null;
-      var ppaColor = crossPPA == null ? 'var(--red)' : (ppaDelta >= 0 ? 'var(--red)' : 'var(--green)');
-      var ppaMsg = crossPPA == null
-        ? 'Target 불가능 (범위 내)'
-        : (ppaDelta >= 0 ? 'PPA 추가 필요' : 'PPA 여유 확보');
-
-      cards.innerHTML =
-        // 1. Target 달성 PPA
-        '<div style="padding:12px 14px;background:var(--surface2);border:1px solid var(--border);border-left:3px solid '+(crossPPA?'var(--blue-h)':'var(--red)')+';border-radius:6px">' +
-          '<div style="font-size:9px;color:var(--t3);font-weight:700;letter-spacing:.06em;text-transform:uppercase;margin-bottom:4px">Target ' + targetIrr.toFixed(1) + '% IRR 달성 PPA</div>' +
-          '<div style="font-size:18px;font-weight:800;color:var(--t1);font-variant-numeric:tabular-nums">' + (crossPPA ? '$'+crossPPA.toFixed(2) : '—') + '</div>' +
-          '<div style="font-size:9px;color:var(--t3);margin-top:2px">$/MWh</div>' +
-        '</div>' +
-        // 2. 현재 대비
-        '<div style="padding:12px 14px;background:var(--surface2);border:1px solid var(--border);border-left:3px solid '+ppaColor+';border-radius:6px">' +
-          '<div style="font-size:9px;color:var(--t3);font-weight:700;letter-spacing:.06em;text-transform:uppercase;margin-bottom:4px">현재 PPA 대비</div>' +
-          '<div style="font-size:18px;font-weight:800;color:'+ppaColor+';font-variant-numeric:tabular-nums">' +
-            (ppaDelta != null ? sign(ppaDelta)+'$'+ppaDelta.toFixed(2) : '—') +
-          '</div>' +
-          '<div style="font-size:9px;color:var(--t3);margin-top:2px">현재 $' + basePPA.toFixed(2) + ' · ' + ppaMsg + '</div>' +
-        '</div>' +
-        // 3. Target 시점 Dev Margin
-        '<div style="padding:12px 14px;background:var(--surface2);border:1px solid var(--border);border-left:3px solid var(--amber);border-radius:6px">' +
-          '<div style="font-size:9px;color:var(--t3);font-weight:700;letter-spacing:.06em;text-transform:uppercase;margin-bottom:4px">Target 시점 Dev Margin</div>' +
-          '<div style="font-size:18px;font-weight:800;color:var(--t1);font-variant-numeric:tabular-nums">' + (crossMargin ? crossMargin.toFixed(2) : '—') + '</div>' +
-          '<div style="font-size:9px;color:var(--t3);margin-top:2px">c/Wp</div>' +
-        '</div>';
-    }
-
-    // 테이블 채우기
-    var tbody = document.getElementById('be-table-body');
-    if (tbody) {
-      tbody.innerHTML = rows.map(function(r, i) {
-        var isBase = r.pct === 0;
-        var diff = r.irr - targetIrr;
-        var diffColor = diff >= 0 ? 'var(--green)' : 'var(--red)';
-        var diffStr = (diff>=0?'+':'') + diff.toFixed(2) + '%p';
-        var rowBg = isBase ? 'background:rgba(37,99,235,.08)' : '';
-        return '<tr style="border-bottom:1px solid rgba(255,255,255,.05);'+rowBg+'">' +
-          '<td style="padding:8px 12px;color:'+(isBase?'var(--blue-h)':'var(--t2)')+';font-weight:'+(isBase?'700':'500')+'">$'+r.ppa.toFixed(2)+(isBase?' <span style="font-size:8px;color:var(--t3);font-weight:600;margin-left:4px">(현재)</span>':'')+'</td>' +
-          '<td style="padding:8px 12px;text-align:right;color:var(--t1);font-weight:700">'+r.irr.toFixed(2)+'%</td>' +
-          '<td style="padding:8px 12px;text-align:right;color:var(--t2)">'+r.margin_cwp.toFixed(2)+' c/Wp</td>' +
-          '<td style="padding:8px 12px;text-align:center;color:'+diffColor+';font-weight:700">'+diffStr+'</td>' +
-          '</tr>';
-      }).join('');
-    }
+    valRenderBreakEven(data, targetIrr);
 
   } catch(e) {
-    alert('Break-Even 분석 실패: ' + e.message);
+    console.error('[BreakEven] Error:', e);
+    if (resultEl) {
+      resultEl.style.display = 'block';
+      resultEl.innerHTML = '<div style="padding:16px;background:rgba(239,68,68,.1);border:1px solid var(--red);border-radius:8px;color:var(--red);font-size:11px">⚠️ 분석 실패: ' + (e.message || e) + '</div>';
+    }
   } finally {
     if (btn) { btn.textContent = '▶ 분석 실행'; btn.style.opacity='1'; btn.style.pointerEvents='auto'; }
   }
 }
+
+function valRenderBreakEven(data, targetIrr) {
+  var resultEl = document.getElementById('be-result');
+  if (!resultEl) return;
+  resultEl.style.display = 'block';
+
+  var sens = data.sensitivity || [];
+  var iters = data.iterations || [];
+  var sol = data.solution || {};
+  var basePPA = data.base_ppa;
+  var status = data.status;
+  var converged = sol.converged;
+
+  // 상태 → 색상/아이콘
+  var statusMap = {
+    'converged': {color:'var(--green)', icon:'✓', label:'수렴'},
+    'max_iter_reached': {color:'var(--amber)', icon:'⚠', label:'최대 반복 도달'},
+    'target_below_range': {color:'var(--amber)', icon:'⚠', label:'Target이 ±25% 범위 하단'},
+    'target_above_range': {color:'var(--amber)', icon:'⚠', label:'Target이 ±25% 범위 상단'},
+    'flat_derivative': {color:'var(--red)', icon:'⚠', label:'기울기 평탄 — 해 없음'},
+    'iterating': {color:'var(--blue-h)', icon:'…', label:'진행중'}
+  };
+  var sInfo = statusMap[status] || {color:'var(--t3)', icon:'?', label:status};
+
+  var html = '';
+
+  // ═══ 솔루션 카드 (맨 위, 가장 중요) ═══
+  html += '<div style="padding:16px 18px;background:linear-gradient(135deg,rgba(37,99,235,.08) 0%,rgba(139,92,246,.05) 100%);border:2px solid var(--blue-h);border-radius:12px;margin-bottom:14px">';
+  html += '<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px">';
+  html += '<div><div style="font-size:9px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:var(--blue-h);margin-bottom:4px">🎯 Newton-Raphson 정밀 역산 결과</div>';
+  html += '<div style="font-size:9.5px;color:var(--t2)">Target IRR <strong style="color:var(--t1)">' + targetIrr.toFixed(2) + '%</strong> 달성 PPA</div></div>';
+  html += '<div style="padding:3px 10px;background:' + sInfo.color + ';color:#fff;border-radius:10px;font-size:9px;font-weight:800;letter-spacing:.04em">' + sInfo.icon + ' ' + sInfo.label.toUpperCase() + '</div>';
+  html += '</div>';
+
+  if (sol.ppa) {
+    var diffVsBase = sol.ppa - basePPA;
+    var diffPct = (diffVsBase / basePPA) * 100;
+    var diffColor = diffVsBase >= 0 ? 'var(--red)' : 'var(--green)';
+
+    html += '<div style="display:grid;grid-template-columns:1.6fr 1fr 1fr 1fr;gap:10px">';
+    html += '<div style="padding:10px;background:var(--surface);border-radius:6px">';
+    html += '<div style="font-size:8.5px;color:var(--t3);letter-spacing:.08em;font-weight:700;text-transform:uppercase">Target 달성 PPA</div>';
+    html += '<div style="font-size:22px;font-weight:900;color:var(--blue-h);font-variant-numeric:tabular-nums;margin-top:2px">$' + sol.ppa.toFixed(2) + '</div>';
+    html += '<div style="font-size:9px;color:var(--t3);margin-top:1px">/MWh</div></div>';
+
+    html += '<div style="padding:10px;background:var(--surface);border-radius:6px">';
+    html += '<div style="font-size:8.5px;color:var(--t3);letter-spacing:.08em;font-weight:700;text-transform:uppercase">현재 대비</div>';
+    html += '<div style="font-size:16px;font-weight:800;color:' + diffColor + ';font-variant-numeric:tabular-nums;margin-top:2px">' + (diffVsBase >= 0 ? '+' : '') + '$' + diffVsBase.toFixed(2) + '</div>';
+    html += '<div style="font-size:9px;color:' + diffColor + ';margin-top:1px">' + (diffPct >= 0 ? '+' : '') + diffPct.toFixed(2) + '%</div></div>';
+
+    html += '<div style="padding:10px;background:var(--surface);border-radius:6px">';
+    html += '<div style="font-size:8.5px;color:var(--t3);letter-spacing:.08em;font-weight:700;text-transform:uppercase">최종 IRR</div>';
+    html += '<div style="font-size:16px;font-weight:800;color:var(--green);font-variant-numeric:tabular-nums;margin-top:2px">' + sol.irr_pct.toFixed(4) + '%</div>';
+    html += '<div style="font-size:9px;color:var(--t3);margin-top:1px">오차 ±' + Math.abs(sol.error_pct).toFixed(4) + '%</div></div>';
+
+    html += '<div style="padding:10px;background:var(--surface);border-radius:6px">';
+    html += '<div style="font-size:8.5px;color:var(--t3);letter-spacing:.08em;font-weight:700;text-transform:uppercase">수렴</div>';
+    html += '<div style="font-size:16px;font-weight:800;color:var(--t1);font-variant-numeric:tabular-nums;margin-top:2px">' + sol.iterations + '회</div>';
+    html += '<div style="font-size:9px;color:var(--t3);margin-top:1px">반복</div></div>';
+
+    html += '</div>';
+
+    if (status === 'target_above_range' || status === 'target_below_range') {
+      html += '<div style="margin-top:10px;padding:8px 12px;background:rgba(245,158,11,.1);border-left:3px solid var(--amber);border-radius:4px;font-size:10px;color:var(--t2)">⚠️ Target IRR이 ±25% PPA 범위를 벗어났습니다. Newton-Raphson이 해를 찾았지만 현실성을 확인하세요.</div>';
+    } else if (!converged) {
+      html += '<div style="margin-top:10px;padding:8px 12px;background:rgba(239,68,68,.1);border-left:3px solid var(--red);border-radius:4px;font-size:10px;color:var(--t2)">⚠️ 수렴 실패 — 마지막 iteration 값 표시. IRR 곡선이 비선형이거나 해가 존재하지 않을 수 있습니다.</div>';
+    }
+  }
+  html += '</div>';
+
+  // ═══ Phase 2: Newton-Raphson 수렴 과정 ═══
+  html += '<div style="padding:14px 16px;background:var(--surface);border:1px solid var(--border);border-radius:10px;margin-bottom:14px">';
+  html += '<div style="font-size:10px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:var(--t2);margin-bottom:10px">📐 Phase 2 — Newton-Raphson 수렴 과정</div>';
+  html += '<table style="width:100%;border-collapse:collapse;font-size:11px;font-variant-numeric:tabular-nums">';
+  html += '<thead><tr style="background:var(--surface2);border-bottom:1px solid var(--border)">';
+  html += '<th style="padding:6px 10px;text-align:left;font-size:9px;color:var(--t3);font-weight:700;letter-spacing:.06em">Iter</th>';
+  html += '<th style="padding:6px 10px;text-align:right;font-size:9px;color:var(--t3);font-weight:700">PPA ($/MWh)</th>';
+  html += '<th style="padding:6px 10px;text-align:right;font-size:9px;color:var(--t3);font-weight:700">Sponsor IRR</th>';
+  html += '<th style="padding:6px 10px;text-align:right;font-size:9px;color:var(--t3);font-weight:700">오차 (vs Target)</th>';
+  html += '<th style="padding:6px 10px;text-align:center;font-size:9px;color:var(--t3);font-weight:700">상태</th>';
+  html += '</tr></thead><tbody>';
+
+  iters.forEach(function(it) {
+    var isConverged = it.status === 'converged';
+    var rowBg = isConverged ? 'background:rgba(16,185,129,.08)' : '';
+    var errColor = Math.abs(it.error_pct) < 0.1 ? 'var(--green)' :
+                   Math.abs(it.error_pct) < 0.5 ? 'var(--amber)' : 'var(--red)';
+    html += '<tr style="border-bottom:1px solid rgba(255,255,255,.04);' + rowBg + '">';
+    html += '<td style="padding:6px 10px;color:var(--t2);font-weight:700">' + it.iter + '</td>';
+    html += '<td style="padding:6px 10px;text-align:right;color:' + (isConverged?'var(--green)':'var(--t1)') + ';font-weight:' + (isConverged?'800':'600') + '">$' + it.ppa.toFixed(4) + '</td>';
+    html += '<td style="padding:6px 10px;text-align:right;color:var(--t2)">' + it.irr_pct.toFixed(4) + '%</td>';
+    html += '<td style="padding:6px 10px;text-align:right;color:' + errColor + ';font-weight:600">' + (it.error_pct >= 0 ? '+' : '') + it.error_pct.toFixed(4) + '%</td>';
+    html += '<td style="padding:6px 10px;text-align:center">' + (isConverged ? '<span style="color:var(--green);font-weight:800">✓ 수렴</span>' : '<span style="color:var(--t3)">진행</span>') + '</td>';
+    html += '</tr>';
+  });
+  html += '</tbody></table>';
+  html += '<div style="margin-top:8px;font-size:9px;color:var(--t3);font-style:italic">Tolerance ' + (data.tolerance_pct || 0.01).toFixed(4) + '% · 최대 반복 10회 · 미분 step $0.50/MWh (central difference)</div>';
+  html += '</div>';
+
+  // ═══ Phase 1: 민감도 스캔 (접기) ═══
+  html += '<details style="padding:10px 14px;background:var(--surface);border:1px solid var(--border);border-radius:10px"><summary style="cursor:pointer;font-size:10px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:var(--t2)">📊 Phase 1 — 민감도 스캔 (±25% 11개 점)</summary>';
+  html += '<table style="width:100%;border-collapse:collapse;font-size:11px;font-variant-numeric:tabular-nums;margin-top:10px">';
+  html += '<thead><tr style="background:var(--surface2);border-bottom:1px solid var(--border)">';
+  html += '<th style="padding:6px 10px;text-align:left;font-size:9px;color:var(--t3);font-weight:700">PPA 변동</th>';
+  html += '<th style="padding:6px 10px;text-align:right;font-size:9px;color:var(--t3);font-weight:700">PPA ($/MWh)</th>';
+  html += '<th style="padding:6px 10px;text-align:right;font-size:9px;color:var(--t3);font-weight:700">Sponsor IRR</th>';
+  html += '<th style="padding:6px 10px;text-align:right;font-size:9px;color:var(--t3);font-weight:700">vs Target</th>';
+  html += '</tr></thead><tbody>';
+  sens.forEach(function(s) {
+    var isBase = s.pct === 0;
+    var diff = s.irr_pct - targetIrr;
+    var diffColor = Math.abs(diff) < 0.5 ? 'var(--green)' : (diff > 0 ? 'var(--blue-h)' : 'var(--amber)');
+    html += '<tr style="border-bottom:1px solid rgba(255,255,255,.04);' + (isBase?'background:rgba(37,99,235,.08)':'') + '">';
+    html += '<td style="padding:5px 10px;color:' + (isBase?'var(--blue-h)':'var(--t2)') + ';font-weight:' + (isBase?'800':'600') + '">' + (s.pct>=0?'+':'') + s.pct + '%' + (isBase?' (현재)':'') + '</td>';
+    html += '<td style="padding:5px 10px;text-align:right;color:var(--t1);font-weight:600">$' + s.ppa.toFixed(2) + '</td>';
+    html += '<td style="padding:5px 10px;text-align:right;color:var(--amber);font-weight:700">' + s.irr_pct.toFixed(2) + '%</td>';
+    html += '<td style="padding:5px 10px;text-align:right;color:' + diffColor + ';font-weight:600">' + (diff>=0?'+':'') + diff.toFixed(2) + '%</td>';
+    html += '</tr>';
+  });
+  html += '</tbody></table>';
+  html += '</details>';
+
+  resultEl.innerHTML = html;
+}
+
 
 async function valRunScenarios() {
   var btn = document.getElementById('val-run-scenarios-btn');
@@ -9667,10 +10039,12 @@ async function valRunScenarios() {
     if (!el) return;
     var sirr = (r.sponsor_irr_contract||r.sponsor_irr||0)*100;
     var sirrColor = sirr>=10?'var(--green)':sirr>=7?'var(--amber)':'var(--red)';
+    var mwac = (window._valBaseInputs||{}).pv_mwac || 199;
+    var cwp = mwac > 0 ? ((r.dev_margin||0)*1000) / (mwac*1000) * 100 : 0;
     el.style.display = 'block';
     el.innerHTML =
       '<div class="val-sc-kpi-row"><span class="val-sc-kpi-lbl">Sponsor IRR</span><span class="val-sc-kpi-val" style="color:'+sirrColor+'">'+sirr.toFixed(2)+'%</span></div>'+
-      '<div class="val-sc-kpi-row"><span class="val-sc-kpi-lbl">Dev Margin</span><span class="val-sc-kpi-val" style="color:var(--amber)">$'+(r.dev_margin/1000).toFixed(1)+'M</span></div>'+
+      '<div class="val-sc-kpi-row"><span class="val-sc-kpi-lbl">Total CAPEX</span><span class="val-sc-kpi-val" style="color:var(--amber)">$'+(r.capex_total/1000).toFixed(1)+'M</span></div>'+
       '<div class="val-sc-kpi-row"><span class="val-sc-kpi-lbl">EBITDA Yield</span><span class="val-sc-kpi-val">'+r.ebitda_yield.toFixed(1)+'%</span></div>'+
       '<div class="val-sc-kpi-row"><span class="val-sc-kpi-lbl">Sponsor Equity</span><span class="val-sc-kpi-val">$'+(r.sponsor_equity/1000).toFixed(1)+'M</span></div>';
   });
@@ -9682,8 +10056,14 @@ async function valRunScenarios() {
     var metrics = [
       {lbl:'Sponsor IRR', fn:function(r){ var v=(r.sponsor_irr_contract||r.sponsor_irr||0)*100; return {txt:v.toFixed(2)+'%', val:v, color:v>=10?'var(--green)':v>=7?'var(--amber)':'var(--red)'}; }},
       {lbl:'Levered IRR',  fn:function(r){ var v=(r.levered_irr||0)*100; return {txt:v.toFixed(2)+'%',val:v}; }},
+      {lbl:'Unlevered IRR',fn:function(r){ var v=(r.unlevered_irr||0)*100; return {txt:v.toFixed(2)+'%',val:v}; }},
       {lbl:'EBITDA Yield', fn:function(r){ return {txt:r.ebitda_yield.toFixed(1)+'%',val:r.ebitda_yield}; }},
-      {lbl:'Dev Margin',   fn:function(r){ return {txt:'$'+(r.dev_margin/1000).toFixed(1)+'M',val:r.dev_margin}; }},
+      {lbl:'Margin c/Wp',  fn:function(r){
+        // Dev Margin을 프로젝트 규모(MWac)로 나눈 정규화 지표
+        var mwac = (window._valBaseInputs||{}).pv_mwac || 199;
+        var cwp = mwac > 0 ? ((r.dev_margin||0)*1000) / (mwac*1000) * 100 : 0;
+        return {txt: cwp.toFixed(2)+' c/Wp', val: cwp};
+      }},
       {lbl:'Total CAPEX',  fn:function(r){ return {txt:'$'+(r.capex_total/1000).toFixed(1)+'M',val:r.capex_total}; }},
       {lbl:'Debt',         fn:function(r){ return {txt:'$'+(r.debt/1000).toFixed(1)+'M',val:r.debt}; }},
       {lbl:'Tax Equity',   fn:function(r){ return {txt:'$'+((r.te_invest||0)/1000).toFixed(1)+'M',val:r.te_invest||0}; }},
@@ -9691,10 +10071,9 @@ async function valRunScenarios() {
     ];
     tbody.innerHTML = metrics.map(function(m) {
       var cells = rObjs.map(function(r){ return r ? m.fn(r) : {txt:'—',val:0}; });
-      // Highlight best/worst
       var vals = cells.map(function(c){return c.val||0;});
       var maxV = Math.max.apply(null,vals); var minV = Math.min.apply(null,vals);
-      var isHigherBetter = ['Sponsor IRR','Levered IRR','EBITDA Yield','Dev Margin'].indexOf(m.lbl)>=0;
+      var isHigherBetter = ['Sponsor IRR','Levered IRR','Unlevered IRR','EBITDA Yield','Margin c/Wp'].indexOf(m.lbl)>=0;
       return '<tr style="border-bottom:1px solid rgba(255,255,255,.04)">' +
         '<td style="padding:8px 14px;font-size:10px;color:var(--t3);font-weight:600">'+m.lbl+'</td>' +
         cells.map(function(cell,i){
@@ -10160,6 +10539,365 @@ function valCFLang(lang) {
   }
 }
 
+// ═══════════════════════════════════════════════════════════
+// 프로젝트 지역 해석 helper
+// 미국 주 → WECC sub-region / SERC / 등 매핑
+// LevelTen 직접 커버 여부 판정
+// ═══════════════════════════════════════════════════════════
+function valResolveProjectRegion(projMeta) {
+  if (!projMeta) return { levelten_covered: false, levelten_region: null, sub_region: null, display: '—' };
+  var iso = (projMeta.iso||'').toUpperCase();
+  var state = (projMeta.state||'').toUpperCase();
+
+  // LevelTen 직접 커버 ISO (6개)
+  var LT_COVERED = ['ERCOT','CAISO','PJM','MISO','SPP','AESO'];
+  if (LT_COVERED.indexOf(iso) >= 0) {
+    return { levelten_covered: true, levelten_region: iso, sub_region: iso, display: iso, state: state };
+  }
+
+  // WECC: state → sub-region 매핑
+  if (iso === 'WECC') {
+    var wecc_sub = {
+      // Desert Southwest
+      'AZ':'WECC_DSW', 'NM':'WECC_DSW', 'NV':'WECC_DSW',
+      // Rocky Mountain
+      'UT':'WECC_RM', 'CO':'WECC_RM', 'WY':'WECC_RM', 'ID':'WECC_RM',
+      // Northwest
+      'OR':'WECC_NW', 'WA':'WECC_NW', 'MT':'WECC_NW',
+    };
+    var sub = wecc_sub[state] || 'WECC_OTHER';
+    var subLabels = {
+      'WECC_DSW': 'WECC Desert Southwest',
+      'WECC_RM':  'WECC Rocky Mountain',
+      'WECC_NW':  'WECC Northwest',
+      'WECC_OTHER': 'WECC'
+    };
+    return {
+      levelten_covered: false,
+      levelten_region: null,
+      sub_region: sub,
+      display: subLabels[sub] + (state ? ' (' + state + ')' : ''),
+      state: state
+    };
+  }
+
+  // 기타: ISO-NE, NYISO, SERC, Non-ISO, Others
+  return {
+    levelten_covered: false,
+    levelten_region: null,
+    sub_region: iso,
+    display: iso + (state ? ' (' + state + ')' : ''),
+    state: state
+  };
+}
+
+// ═══════════════════════════════════════════════════════════
+// IC Opinion에 들어가는 "시장 포지셔닝" 카드 (LevelTen 기반)
+// 옵션 B: 경제성(thesis) 다음, 리스크(Section B) 전 위치
+// 4개 섹션 고정 (PPA / PSV / BESS / 트렌드), 데이터 없으면 자동 숨김
+// ═══════════════════════════════════════════════════════════
+function valBuildMarketContextCard(isEn) {
+  var ltAll = window._levelTenData || {};
+  var quarters = Object.keys(ltAll).sort().reverse();
+  if (!quarters.length) return '';
+  var q = quarters[0];
+  var d = ltAll[q] || {};
+
+  // 우리 프로젝트 컨텍스트
+  var ourData = window._lastValData || {};
+  var ourOut = ourData.outputs || {};
+  var ourAssum = ourData.assumptions || {};
+  var ourPPA = ourOut.ppa_price || ourAssum.ppa_price;
+  var ourBessToll = ourOut.bess_toll || ourAssum.bess_toll;
+  var projId = (document.getElementById('val-proj-select')||{}).value || '';
+  var projMeta = (window.PROJECTS||[]).find(function(p){return p.id===projId;}) || {};
+  var ourISO = (projMeta.iso||'').toUpperCase();
+  var ourHub = (projMeta.hub||'').toUpperCase();
+
+  if (!ourPPA || !ourISO) return '';
+
+  // 지역 해석 (WECC → sub-region, LevelTen 커버 여부)
+  var region = valResolveProjectRegion(projMeta);
+  var ourMarket = region.levelten_region;  // CAISO/ERCOT/... 또는 null
+  var isLTCovered = region.levelten_covered;
+  var subRegion = region.sub_region;       // WECC_RM, WECC_DSW, WECC_NW, ISO-NE, NYISO, SERC 등
+  var regionDisplay = region.display;       // "WECC Rocky Mountain (UT)" 등 표시용
+
+  // LevelTen 데이터 추출
+  var solarISO = d.solar_iso || [];
+  var solarHub = d.solar_hub || [];
+  var storageISO = d.storage_iso || [];
+  var solarPSV = d.solar_psv || [];
+  var pipeline = d.pipeline_breakdown || [];
+  var cont = d.solar_continental || {};
+  var contAvg = d.solar_continental_avg || {};  // Market-Averaged Continental Index (ISO 평균)
+
+  // AI Research 데이터 (LevelTen 미커버 지역용)
+  var bessResearch = window._bessTollingData || {};
+  var aiRegionData = null;
+  if (!isLTCovered && bessResearch.iso_data) {
+    aiRegionData = (bessResearch.iso_data||[]).find(function(e){
+      var eReg = (e.region||'').toUpperCase();
+      return eReg === ourISO || eReg === subRegion;
+    });
+  }
+
+  // LevelTen 커버면 직접, 아니면 null
+  var ourSolarISO = isLTCovered ? (solarISO.find(function(e){return (e.region||'').toUpperCase() === ourMarket;}) || {}) : {};
+  var ourHubData = (isLTCovered && ourHub) ? solarHub.find(function(h){
+    return (h.region||'').toUpperCase() === ourMarket &&
+           (h.hub||'').toUpperCase().replace(/[_\s]/g,'') === ourHub.replace(/[_\s]/g,'');
+  }) : null;
+  var ourStorageISO = isLTCovered ? (storageISO.find(function(e){return (e.region||'').toUpperCase() === ourMarket;}) || {}) : {};
+  var ourPSV = isLTCovered ? (solarPSV.find(function(e){return (e.region||'').toUpperCase() === ourMarket;}) || {}) : {};
+
+  var sections = [];
+
+  // ───────── ① PPA 경쟁력 ─────────
+  if (isLTCovered && ourSolarISO.p25) {
+    // [Case 1] LevelTen 커버 ISO — 직접 비교
+    var iosP25 = ourSolarISO.p25;
+    var diff = ourPPA - iosP25;
+    var diffPct = (diff / iosP25) * 100;
+    var diffCol = diff >= 0 ? 'var(--green)' : 'var(--red)';
+    var percentileDesc = '';
+    if (cont.p10 && cont.p90) {
+      var ourPos = ((ourPPA - cont.p10) / (cont.p90 - cont.p10)) * 100;
+      if (ourPos <= 25) percentileDesc = '시장 하위 25%ile';
+      else if (ourPos <= 50) percentileDesc = '시장 중간 하위';
+      else if (ourPos <= 75) percentileDesc = '시장 중간 상위';
+      else percentileDesc = '시장 상위 25%ile';
+    }
+    var line1 = '<b style="color:var(--blue-h)">$'+ourPPA.toFixed(2)+'/MWh</b> · '+ourISO+' P25 $'+iosP25.toFixed(2)+' 대비 <span style="color:'+diffCol+';font-weight:700">'+(diff>=0?'+':'')+'$'+diff.toFixed(2)+' ('+(diffPct>=0?'+':'')+diffPct.toFixed(1)+'%)</span>' + (percentileDesc ? ' · 전 대륙 분포 기준 '+percentileDesc : '');
+    var line2 = '';
+    if (ourHubData && ourHubData.p25) {
+      var hubDiff = ourPPA - ourHubData.p25;
+      var hubDiffCol = hubDiff >= 0 ? 'var(--green)' : 'var(--red)';
+      line2 = 'Hub <b>'+ourHubData.hub+'</b> P25 $'+ourHubData.p25.toFixed(2)+' 기준 <span style="color:'+hubDiffCol+';font-weight:700">'+(hubDiff>=0?'+':'')+'$'+hubDiff.toFixed(2)+'</span>';
+    }
+    sections.push({
+      icon: '💰',
+      title: 'PPA 경쟁력',
+      lines: [line1, line2].filter(Boolean)
+    });
+  }
+  // [Case 2] LevelTen 미커버 지역 — Continental Index 대용 + AI Research 둘 다 표시
+  else if (!isLTCovered && cont.p10 && cont.p90) {
+    var fallbackLines = [];
+    // 1차: LevelTen Continental Index (공식, 전 대륙 P10-P90)
+    var ourPos = ((ourPPA - cont.p10) / (cont.p90 - cont.p10)) * 100;
+    var percDesc = ourPos <= 25 ? '하위 25%ile' : ourPos <= 50 ? '중간 하위' : ourPos <= 75 ? '중간 상위' : '상위 25%ile';
+    var contMid = cont.p50 || (cont.p25+cont.p75)/2;
+    var diffVsCont = ourPPA - contMid;
+    var diffPctVsCont = (diffVsCont / contMid) * 100;
+    var diffContCol = diffVsCont >= 0 ? 'var(--green)' : 'var(--red)';
+    fallbackLines.push('<b style="color:var(--blue-h)">$'+ourPPA.toFixed(2)+'/MWh</b> · 전 대륙 P50 $'+contMid.toFixed(2)+' 대비 <span style="color:'+diffContCol+';font-weight:700">'+(diffVsCont>=0?'+':'')+'$'+diffVsCont.toFixed(2)+' ('+(diffPctVsCont>=0?'+':'')+diffPctVsCont.toFixed(1)+'%)</span> · '+percDesc);
+
+    // Market-Averaged Continental (ISO 평균) — 더 높은 대용치
+    if (contAvg.p25) {
+      var avgDiff = ourPPA - contAvg.p25;
+      var avgDiffPct = (avgDiff / contAvg.p25) * 100;
+      var avgCol = avgDiff >= 0 ? 'var(--green)' : 'var(--red)';
+      fallbackLines.push('Market-Averaged P25 $'+contAvg.p25.toFixed(2)+' (ISO 평균) 대비 <span style="color:'+avgCol+';font-weight:700">'+(avgDiff>=0?'+':'')+'$'+avgDiff.toFixed(2)+' ('+(avgDiffPct>=0?'+':'')+avgDiffPct.toFixed(1)+'%)</span>');
+    }
+
+    // 2차: AI Research (WECC sub-region / ISO-NE / NYISO 등)
+    if (aiRegionData && aiRegionData.durations && aiRegionData.durations.length) {
+      var dur4h = aiRegionData.durations.find(function(d){return d.hours === 4;}) || aiRegionData.durations[0];
+      if (dur4h && dur4h.p25) {
+        // AI Research는 BESS 가격 위주라 PPA는 market_note 활용
+        if (aiRegionData.market_note) {
+          fallbackLines.push('🤖 AI 분석: '+aiRegionData.market_note);
+        }
+      }
+    }
+
+    // 경고 명시 — 대용치 성격
+    fallbackLines.push('<span style="color:var(--amber);font-size:9.5px">⚠️ '+regionDisplay+'는 LevelTen ISO 직접 매칭 불가 — 대륙 평균 대용 비교</span>');
+
+    sections.push({
+      icon: '💰',
+      title: 'PPA 경쟁력 (대용 비교)',
+      lines: fallbackLines
+    });
+  }
+
+  // ───────── ② 구매자 경제성 (PSV) ─────────
+  if (isLTCovered && ourPSV.psv_median != null) {
+    // [Case 1] LevelTen 커버 ISO — 직접 PSV
+    var med = ourPSV.psv_median;
+    var medCol = med > 0 ? 'var(--green)' : med < -15 ? 'var(--red)' : 'var(--amber)';
+    var interpretation = '';
+    if (med > 0) interpretation = '구매자 순수익 시장 → 장기 offtake 안정성 <b style="color:var(--green)">높음</b>';
+    else if (med < -15) interpretation = '구매자 큰 순손실 → 장기 offtake 재협상 리스크 <b style="color:var(--red)">큼</b>';
+    else interpretation = '구매자 순손실 → 장기 offtake 안정성 <b style="color:var(--amber)">보통</b>';
+    // Cross-ISO 맥락
+    var positiveIsos = solarPSV.filter(function(e){return e.psv_median > 0;}).map(function(e){return e.region;});
+    var crossLine = '';
+    if (positiveIsos.length === 1 && positiveIsos[0].toUpperCase() === ourMarket) {
+      crossLine = '✓ 6개 ISO 중 <b>유일한 양수 시장</b>';
+    } else if (positiveIsos.length > 1) {
+      crossLine = positiveIsos.length+'개 ISO가 양수 (우리 '+ourMarket+' 포함)';
+    } else {
+      crossLine = '모든 ISO 음수 시장';
+    }
+    sections.push({
+      icon: '💵',
+      title: '구매자 경제성 (Solar PSV)',
+      lines: [
+        '<b style="color:'+medCol+'">'+(med>=0?'+':'')+'$'+med.toFixed(0)+'/MWh</b> Median · '+interpretation,
+        crossLine
+      ]
+    });
+  }
+  // [Case 2] LevelTen 미커버 — Cross-ISO 참고값 제공
+  else if (!isLTCovered && solarPSV.length) {
+    var psvSorted = solarPSV.slice().sort(function(a,b){return (b.psv_median||-999)-(a.psv_median||-999);});
+    var psvLines = [];
+    psvLines.push('⚠️ '+regionDisplay+' 직접 PSV 데이터 없음 — 인접 ISO 참고');
+    // 상위 2개 + 하위 1개만 보여줌
+    var topPSV = psvSorted.filter(function(e){return e.psv_median != null;}).slice(0, 3);
+    if (topPSV.length) {
+      var refs = topPSV.map(function(e){
+        var c = e.psv_median > 0 ? 'var(--green)' : e.psv_median < -15 ? 'var(--red)' : 'var(--amber)';
+        return e.region+': <span style="color:'+c+';font-weight:700">'+(e.psv_median>=0?'+':'')+'$'+Number(e.psv_median).toFixed(0)+'</span>';
+      });
+      psvLines.push('참고 PSV: '+refs.join(' · '));
+    }
+    sections.push({
+      icon: '💵',
+      title: '구매자 경제성 (Solar PSV — 참고)',
+      lines: psvLines
+    });
+  }
+
+  // ───────── ③ BESS Tolling ─────────
+  var bessLines = [];
+  if (isLTCovered && (ourStorageISO.median != null || ourStorageISO.p25 != null)) {
+    // [Case 1] LevelTen 커버 ISO — 공식 Storage Index
+    var bessMed = ourStorageISO.median || ourStorageISO.p50;
+    if (ourBessToll && bessMed) {
+      var bessDiff = ourBessToll - bessMed;
+      var bessDiffPct = (bessDiff / bessMed) * 100;
+      var overP75 = ourStorageISO.p75 && ourBessToll > ourStorageISO.p75;
+      var underP25 = ourStorageISO.p25 && ourBessToll < ourStorageISO.p25;
+      var bessCol = overP75 ? 'var(--red)' : (underP25 ? 'var(--green)' : 'var(--amber)');
+      var bessFlag = overP75 ? ' ⚠️ 시장 상단 초과 (재협상 여지)' : (underP25 ? ' ✓ 보수적' : '');
+      bessLines.push('우리 <b style="color:var(--blue-h)">$'+ourBessToll.toFixed(2)+'/kW-mo</b> · '+ourMarket+' Median $'+bessMed.toFixed(1)+' 대비 <span style="color:'+bessCol+';font-weight:700">'+(bessDiffPct>=0?'+':'')+bessDiffPct.toFixed(0)+'%</span>'+bessFlag);
+      bessLines.push('LevelTen 공식 Storage Index 기준 (2025 tolling offers)');
+    } else if (bessMed) {
+      bessLines.push(ourMarket+' Median $'+bessMed.toFixed(1)+'/kW-mo · LevelTen 공식');
+    }
+  }
+  // [Case 2] LevelTen 미커버 (WECC_*, ISO-NE, NYISO 등) — AI Research fallback
+  else if (!isLTCovered && aiRegionData && aiRegionData.durations && aiRegionData.durations.length) {
+    var dur4h = aiRegionData.durations.find(function(d){return d.hours === 4;}) || aiRegionData.durations[0];
+    if (dur4h && dur4h.p25 && ourBessToll) {
+      var aiMid = (dur4h.p25 + dur4h.p75) / 2;
+      var aiDiff = ourBessToll - aiMid;
+      var aiDiffPct = (aiDiff / aiMid) * 100;
+      var aiCol = ourBessToll > dur4h.p75 ? 'var(--red)' : (ourBessToll < dur4h.p25 ? 'var(--green)' : 'var(--amber)');
+      var aiFlag = ourBessToll > dur4h.p75 ? ' ⚠️ 추정치 상단 초과' : '';
+      bessLines.push('우리 <b style="color:var(--blue-h)">$'+ourBessToll.toFixed(2)+'/kW-mo</b> · AI 추정 '+dur4h.hours+'h 중앙값 $'+aiMid.toFixed(1)+' 대비 <span style="color:'+aiCol+';font-weight:700">'+(aiDiffPct>=0?'+':'')+aiDiffPct.toFixed(0)+'%</span>'+aiFlag);
+      bessLines.push('⚠️ AI Research 추정 ('+regionDisplay+') — 공식 index 아님');
+    } else if (dur4h && dur4h.p25) {
+      bessLines.push('AI 추정 '+dur4h.hours+'h P25-P75: $'+Number(dur4h.p25).toFixed(1)+'~$'+Number(dur4h.p75).toFixed(1)+'/kW-mo ('+regionDisplay+')');
+    }
+  }
+  // [Case 3] 둘 다 없음 — 안내만
+  else if (!isLTCovered && ourBessToll) {
+    bessLines.push('우리 $'+ourBessToll.toFixed(2)+'/kW-mo');
+    bessLines.push('⚠️ '+regionDisplay+' Storage 벤치마크 데이터 없음 — External 탭에서 AI 리서치 실행 권장');
+  }
+  if (bessLines.length) {
+    sections.push({
+      icon: '🔋',
+      title: 'BESS Tolling',
+      lines: bessLines
+    });
+  }
+
+  // ───────── ④ 시장 동향 ─────────
+  var trendLines = [];
+  if (isLTCovered && (ourSolarISO.qoq_pct != null || ourSolarISO.yoy_pct != null)) {
+    var parts = [];
+    if (ourSolarISO.qoq_pct != null) {
+      var qCol = ourSolarISO.qoq_pct > 0 ? 'var(--green)' : 'var(--red)';
+      parts.push('QoQ <b style="color:'+qCol+'">'+(ourSolarISO.qoq_pct>=0?'+':'')+ourSolarISO.qoq_pct.toFixed(1)+'%</b>');
+    }
+    if (ourSolarISO.yoy_pct != null) {
+      var yCol = ourSolarISO.yoy_pct > 0 ? 'var(--green)' : 'var(--red)';
+      parts.push('YoY <b style="color:'+yCol+'">'+(ourSolarISO.yoy_pct>=0?'+':'')+ourSolarISO.yoy_pct.toFixed(1)+'%</b>');
+    }
+    if (parts.length) {
+      var trendDir = (ourSolarISO.qoq_pct > 0 && ourSolarISO.yoy_pct > 0) ? '상승세' : (ourSolarISO.qoq_pct < 0 && ourSolarISO.yoy_pct < 0) ? '하락세' : '혼조';
+      trendLines.push(ourMarket+' Solar P25 '+parts.join(' · ')+' ('+trendDir+')');
+    }
+  } else if (!isLTCovered && (contAvg.qoq_pct != null || contAvg.yoy_pct != null)) {
+    // LevelTen 미커버 — Market-Averaged Continental 추세 대용
+    var cParts = [];
+    if (contAvg.qoq_pct != null) {
+      var cqCol = contAvg.qoq_pct > 0 ? 'var(--green)' : 'var(--red)';
+      cParts.push('QoQ <b style="color:'+cqCol+'">'+(contAvg.qoq_pct>=0?'+':'')+contAvg.qoq_pct.toFixed(1)+'%</b>');
+    }
+    if (contAvg.yoy_pct != null) {
+      var cyCol = contAvg.yoy_pct > 0 ? 'var(--green)' : 'var(--red)';
+      cParts.push('YoY <b style="color:'+cyCol+'">'+(contAvg.yoy_pct>=0?'+':'')+contAvg.yoy_pct.toFixed(1)+'%</b>');
+    }
+    if (cParts.length) {
+      trendLines.push('Market-Averaged Solar P25 '+cParts.join(' · ')+' (전 대륙 평균 대용)');
+    }
+  }
+  // Hybrid 성장 (전 대륙 — 지역 무관)
+  var p2025 = pipeline.find(function(p){return p.cod_year === '2025';}) || {};
+  var p2030 = pipeline.find(function(p){return p.cod_year === '2030+' || p.cod_year === '2030';}) || {};
+  if (p2025.hybrid_mw && p2030.hybrid_mw) {
+    var growth = (p2030.hybrid_mw / p2025.hybrid_mw).toFixed(0);
+    trendLines.push('2030+ Hybrid <b style="color:var(--green)">'+(p2030.hybrid_mw/1000).toFixed(0)+'GW</b> (2025 대비 '+growth+'배) · HEUH Solar+BESS 모델 시장 부합');
+  }
+  if (trendLines.length) {
+    sections.push({
+      icon: '📈',
+      title: '시장 동향',
+      lines: trendLines
+    });
+  }
+
+  // 빈 카드면 숨김
+  if (!sections.length) return '';
+
+  // HTML 렌더
+  var html = '<div style="padding:14px 16px;background:linear-gradient(135deg,rgba(139,92,246,.05) 0%,rgba(37,99,235,.04) 100%);border:1px solid rgba(139,92,246,.2);border-radius:8px">';
+
+  // 지역 라벨 + LevelTen 커버 여부 뱃지
+  var coverBadge = isLTCovered
+    ? '<span style="font-size:8.5px;padding:2px 7px;background:rgba(16,185,129,.15);color:var(--green);border:1px solid rgba(16,185,129,.3);border-radius:10px;font-weight:700">📋 LevelTen 직접 커버</span>'
+    : '<span style="font-size:8.5px;padding:2px 7px;background:rgba(245,158,11,.15);color:var(--amber);border:1px solid rgba(245,158,11,.3);border-radius:10px;font-weight:700">⚠️ LevelTen 미커버 · 대용 비교</span>';
+  html += '<div style="display:flex;justify-content:space-between;align-items:center;padding-bottom:10px;margin-bottom:10px;border-bottom:1px solid rgba(255,255,255,.08)">';
+  html += '<div style="font-size:10.5px;color:var(--t1);font-weight:700">📍 '+regionDisplay+'</div>';
+  html += '<div>'+coverBadge+'</div>';
+  html += '</div>';
+
+  sections.forEach(function(s, idx) {
+    html += '<div style="margin-bottom:'+(idx === sections.length-1 ? '0' : '12px')+';padding-bottom:'+(idx === sections.length-1 ? '0' : '12px')+';'+(idx === sections.length-1 ? '' : 'border-bottom:1px solid rgba(255,255,255,.06)')+'">';
+    html += '<div style="display:flex;align-items:center;gap:6px;margin-bottom:6px;font-size:9px;font-weight:800;color:var(--t2);letter-spacing:.08em;text-transform:uppercase">';
+    html += '<span style="font-size:12px">'+s.icon+'</span>'+s.title;
+    html += '</div>';
+    s.lines.forEach(function(line){
+      html += '<div style="font-size:11px;color:var(--t1);line-height:1.7;padding-left:20px">'+line+'</div>';
+    });
+    html += '</div>';
+  });
+  // "전체 분석 보기" 링크
+  html += '<div style="margin-top:12px;padding-top:10px;border-top:1px solid rgba(255,255,255,.06);text-align:right">';
+  html += '<a onclick="valSwitchTab(\'benchmark\', this); var ext=document.querySelector(\'.val-bm-tab[data-sub=external]\'); if(ext) ext.click();" style="font-size:10px;color:var(--blue-h);cursor:pointer;font-weight:600">External 탭에서 전체 분석 보기 →</a>';
+  html += '<span style="font-size:9px;color:var(--t3);margin-left:8px">('+q+')</span>';
+  html += '</div>';
+  html += '</div>';
+
+  return html;
+}
+
 function valRenderCFAnalysis(p, lang) {
   var res = document.getElementById('cf-ai-result');
   if (!res) return;
@@ -10270,6 +11008,16 @@ function valRenderCFAnalysis(p, lang) {
     '<div style="font-size:11.5px;color:var(--t1);line-height:1.85">'+thesis+'</div>'
   );
 
+  // ④-B Market Context Card (LevelTen 기반 시장 포지셔닝)
+  //     옵션 B: 경제성 다음, 리스크 전 → 판정 근거의 자연스러운 흐름
+  try {
+    var mcHtml = valBuildMarketContextCard(isEn);
+    if (mcHtml) {
+      html += section(isEn ? 'MARKET CONTEXT (LEVELTEN)' : '시장 포지셔닝 (LevelTen 기반)', mcHtml,
+        isEn ? 'Positioning vs LevelTen quarterly benchmark' : 'LevelTen 분기별 벤치마크 기반 우리 프로젝트 위치 해석');
+    }
+  } catch(e) { console.warn('[MarketContext] render failed', e); }
+
   html += '</div>';  // SECTION A 닫기
 
   // ══════════════════════════════════════════════
@@ -10284,11 +11032,12 @@ function valRenderCFAnalysis(p, lang) {
     var compHtml = '';
     complianceItems.forEach(function(r) {
       compHtml += '<div style="display:flex;gap:10px;padding:10px 12px;background:var(--surface2);border:1px solid rgba(255,255,255,.05);border-radius:var(--r-md);margin-bottom:6px">'
-        + '<div style="flex-shrink:0;width:16px;height:16px;border:1.5px solid var(--t3);border-radius:3px;margin-top:2px"></div>'
+        + '<div style="flex-shrink:0;width:22px;height:22px;display:flex;align-items:center;justify-content:center;background:rgba(245,158,11,.12);border:1px solid rgba(245,158,11,.35);border-radius:50%;margin-top:1px;font-size:11px">🔍</div>'
         + '<div style="flex:1">'
         +   '<div style="display:flex;align-items:center;gap:8px;margin-bottom:3px">'
         +     '<span style="font-size:11px;font-weight:700;color:var(--t1)">'+(r.title||'')+'</span>'
         +     '<span style="font-size:8px;font-weight:700;color:var(--amber);letter-spacing:.06em;padding:1px 6px;border:1px solid var(--amber);border-radius:10px">'+(r.severity||'WATCH').toUpperCase()+'</span>'
+        +     '<span style="font-size:8px;color:var(--t3);margin-left:auto">컴플라이언스팀 관리</span>'
         +   '</div>'
         +   '<div style="font-size:10.5px;color:var(--t3);line-height:1.65">'+(r.detail||'')+'</div>'
         + '</div></div>';
@@ -10442,6 +11191,16 @@ async function valRunCFAnalysis(lang) {
       var projMetaLt = (window.PROJECTS||[]).find(function(p){return p.id===projIdLt;}) || {};
       var projISO = (projMetaLt.iso||'').toUpperCase();
 
+      // 지역 해석 (WECC sub-region, SERC, LevelTen 커버 여부)
+      var regionInfo = (typeof valResolveProjectRegion === 'function')
+        ? valResolveProjectRegion(projMetaLt)
+        : { levelten_covered: true, levelten_region: projISO, sub_region: projISO, display: projISO };
+      marketContext.levelten_covered = regionInfo.levelten_covered;
+      marketContext.region_display = regionInfo.display;
+      marketContext.sub_region = regionInfo.sub_region || '';
+      // LevelTen 매칭용 ISO (CAISO/ERCOT/... 또는 null for WECC/SERC)
+      var ltMatchISO = regionInfo.levelten_region;
+
       // 새 스키마 우선, legacy fallback
       var solarISOArr = ltData.solar_iso || [];
       var storageISOArr = ltData.storage_iso || [];
@@ -10453,30 +11212,45 @@ async function valRunCFAnalysis(lang) {
       }
 
       var parts = [];
-      // 우리 ISO의 Solar P25 (가장 중요)
-      var ourISORow = solarISOArr.find(function(e){return (e.region||'').toUpperCase()===projISO;});
+      // 우리 ISO의 Solar P25 (LevelTen 커버일 때만 직접 매칭)
+      var ourISORow = ltMatchISO ? solarISOArr.find(function(e){return (e.region||'').toUpperCase()===ltMatchISO;}) : null;
       if (ourISORow && ourISORow.p25) {
         var qoqTxt = ourISORow.qoq_pct!=null ? ' (QoQ '+(ourISORow.qoq_pct>=0?'+':'')+ourISORow.qoq_pct.toFixed(1)+'%)' : '';
-        parts.push('Our ISO ('+projISO+') Solar P25: $'+Number(ourISORow.p25).toFixed(2)+'/MWh'+qoqTxt);
+        parts.push('Our ISO ('+ltMatchISO+') Solar P25: $'+Number(ourISORow.p25).toFixed(2)+'/MWh'+qoqTxt);
       }
       // 전 대륙 Solar Continental (참고)
       var cont = ltData.solar_continental || {};
       if (cont.p25) {
         parts.push('Solar Continental P25: $'+Number(cont.p25).toFixed(2)+'/MWh');
       }
-      // 우리 ISO의 BESS Storage (있으면 출처 명시)
-      var ourISOStorage = storageISOArr.find(function(e){return (e.region||'').toUpperCase()===projISO;});
-      if (ourISOStorage && ourISOStorage.p25) {
-        var srcTxt = ourISOStorage.source === 'chart_read' ? ' [chart-read, ±$0.5]'
-                   : ourISOStorage.source === 'table' ? ' [table]'
-                   : '';
-        parts.push(projISO+' BESS Tolling P25: $'+Number(ourISOStorage.p25).toFixed(2)+'/kW-mo'+srcTxt);
+      // Market-Averaged Continental (대용 비교용 — 특히 LevelTen 미커버 지역에 중요)
+      var contAvg = ltData.solar_continental_avg || {};
+      if (contAvg.p25) {
+        var avgParts = ['Market-Avg Continental P25: $'+Number(contAvg.p25).toFixed(2)+'/MWh'];
+        if (contAvg.qoq_pct != null) avgParts.push('QoQ '+(contAvg.qoq_pct>=0?'+':'')+contAvg.qoq_pct.toFixed(1)+'%');
+        if (contAvg.yoy_pct != null) avgParts.push('YoY '+(contAvg.yoy_pct>=0?'+':'')+contAvg.yoy_pct.toFixed(1)+'%');
+        marketContext.continental_avg_summary = avgParts.join(' · ');
+      }
+      // 우리 ISO의 BESS Storage (LevelTen Storage Index - 공식 데이터, 커버 ISO만)
+      var ourISOStorage = ltMatchISO ? storageISOArr.find(function(e){return (e.region||'').toUpperCase()===ltMatchISO;}) : null;
+      if (ourISOStorage) {
+        // 새 스키마: median/min/max 활용
+        var medVal = ourISOStorage.median != null ? ourISOStorage.median : ourISOStorage.p50;
+        var rangeTxt = '';
+        if (ourISOStorage.min != null && ourISOStorage.max != null) {
+          rangeTxt = ' range $'+Number(ourISOStorage.min).toFixed(1)+'-$'+Number(ourISOStorage.max).toFixed(1);
+        }
+        // 별도 키로 주입: levelten_storage_summary (공식 데이터 강조)
+        var stParts = [ltMatchISO+' Storage Index ($/kW-mo):'];
+        if (ourISOStorage.p25 != null) stParts.push('P25 $'+Number(ourISOStorage.p25).toFixed(1));
+        if (medVal != null) stParts.push('Median $'+Number(medVal).toFixed(1));
+        if (ourISOStorage.p75 != null) stParts.push('P75 $'+Number(ourISOStorage.p75).toFixed(1));
+        marketContext.levelten_storage_summary = stParts.join(' ') + rangeTxt;
       } else if (ltData.storage_available === false) {
-        // 명시적으로 BESS 데이터가 리포트에 없음 → AI에게 알림
-        parts.push('BESS 가격 데이터 미제공 (본 리포트에 포함되지 않음 · AI 추정 금지)');
+        parts.push('BESS 가격 데이터 미제공 (본 리포트에 포함되지 않음)');
       }
       // 다른 주요 ISO Solar P25 (비교용)
-      var otherSolar = solarISOArr.filter(function(e){return (e.region||'').toUpperCase()!==projISO;})
+      var otherSolar = solarISOArr.filter(function(e){return (e.region||'').toUpperCase()!==(ltMatchISO||'');})
                                    .slice(0,3).map(function(e){return e.region+' $'+Number(e.p25).toFixed(0);});
       if (otherSolar.length) {
         parts.push('Other ISO Solar P25: '+otherSolar.join(', '));
@@ -10495,6 +11269,12 @@ async function valRunCFAnalysis(lang) {
       var projMetaBess = (window.PROJECTS||[]).find(function(p){return p.id===projIdBess;}) || {};
       var projISOBess = (projMetaBess.iso||'').toUpperCase();
 
+      // 지역 해석으로 sub_region 계산 (WECC_RM 등)
+      var regionInfoBess = (typeof valResolveProjectRegion === 'function')
+        ? valResolveProjectRegion(projMetaBess)
+        : { levelten_region: projISOBess, sub_region: projISOBess };
+      var bessMatchKey = (regionInfoBess.levelten_region || regionInfoBess.sub_region || projISOBess).toUpperCase();
+
       // 우리 BESS duration 추정 (시간 단위; bess_mw·h / bess_mw)
       var ourLastData = window._lastValData || {};
       var ourAssum = ourLastData.assumptions || {};
@@ -10504,7 +11284,8 @@ async function valRunCFAnalysis(lang) {
       if (ourDuration < 2) ourDuration = 2;
       if (ourDuration > 8) ourDuration = 8;
 
-      var ourIsoBess = bessR.iso_data.find(function(i){return (i.region||'').toUpperCase()===projISOBess;});
+      // 매칭: ISO 우선 (CAISO/ERCOT 등), 실패 시 sub_region (WECC_RM 등)
+      var ourIsoBess = bessR.iso_data.find(function(i){return (i.region||'').toUpperCase()===bessMatchKey;});
       var bessBits = [];
       if (ourIsoBess) {
         // 우리 duration과 가장 가까운 것 선택
@@ -10513,20 +11294,20 @@ async function valRunCFAnalysis(lang) {
           return Math.abs(cur.hours - ourDuration) < Math.abs(best.hours - ourDuration) ? cur : best;
         }, null);
         if (ourDurData) {
-          bessBits.push(projISOBess+' BESS '+ourDurData.hours+'h market: $'+ourDurData.p25+'-$'+ourDurData.p75+'/kW-mo (AI research, '+ourDurData.confidence+' confidence)');
+          bessBits.push(bessMatchKey+' BESS '+ourDurData.hours+'h market: $'+ourDurData.p25+'-$'+ourDurData.p75+'/kW-mo (AI research, '+ourDurData.confidence+' confidence)');
         }
         if (ourIsoBess.market_note) {
           bessBits.push('Market note: '+ourIsoBess.market_note);
         }
       }
-      // 다른 ISO 2-3개 (비교용, 4h 기준)
-      var otherISOBess = bessR.iso_data.filter(function(i){return (i.region||'').toUpperCase()!==projISOBess;}).slice(0,3);
+      // 다른 지역 2-3개 (비교용, 4h 기준)
+      var otherISOBess = bessR.iso_data.filter(function(i){return (i.region||'').toUpperCase()!==bessMatchKey;}).slice(0,3);
       if (otherISOBess.length) {
         var other4h = otherISOBess.map(function(i){
           var d4 = (i.durations||[]).find(function(x){return x.hours===4;}) || (i.durations||[])[0];
           return d4 ? i.region+' '+d4.hours+'h $'+d4.p25+'-$'+d4.p75 : null;
         }).filter(Boolean);
-        if (other4h.length) bessBits.push('Other ISOs: '+other4h.join(', '));
+        if (other4h.length) bessBits.push('Other regions: '+other4h.join(', '));
       }
       if (bessBits.length) {
         marketContext.bess_tolling_summary = bessBits.join(' | ');
@@ -10584,10 +11365,10 @@ async function valRunCFAnalysis(lang) {
     window._cfLang = lang;
 
     valRenderCFAnalysis(parsed, lang);
-    if (btn) { btn.textContent = 'Refresh'; btn.style.opacity = '.6'; }
+    if (btn) { btn.textContent = '↻ Refresh'; btn.disabled = false; btn.style.opacity = '1'; btn.style.cursor = 'pointer'; }
   } catch(e) {
     if (res) res.innerHTML = '<span style="color:var(--red)">⚠️ 분석 실패: ' + e.message + '</span>';
-    if (btn) { btn.textContent = '↻ 재시도'; btn.disabled = false; btn.style.opacity = '1'; }
+    if (btn) { btn.textContent = '↻ 재시도'; btn.disabled = false; btn.style.opacity = '1'; btn.style.cursor = 'pointer'; }
   }
 }
 
@@ -11356,28 +12137,40 @@ function valSwitchTab(name, btn) {
 
     <!-- Save Version Modal -->
     <div id="val-save-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:1000;align-items:center;justify-content:center">
-      <div style="background:var(--surface);border:1px solid var(--border2);border-radius:var(--r-lg);width:420px;padding:24px;box-shadow:0 20px 60px rgba(0,0,0,.5)">
-        <div style="font-size:13px;font-weight:700;color:var(--t1);margin-bottom:4px">버전 저장</div>
-        <div style="font-size:10px;color:var(--t3);margin-bottom:20px">저장 후 승인권자 승인이 필요합니다</div>
+      <div style="background:var(--surface);border:1px solid var(--border2);border-radius:var(--r-lg);width:460px;padding:24px;box-shadow:0 20px 60px rgba(0,0,0,.5)">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">
+          <span style="font-size:16px">📤</span>
+          <div style="font-size:14px;font-weight:800;color:var(--t1)">승인 요청 (Request Approval)</div>
+        </div>
+        <div style="font-size:10px;color:var(--t3);margin-bottom:20px">승인 요청이 전송되면 지정된 승인자가 검토 후 승인 또는 반려합니다</div>
 
         <div style="display:flex;flex-direction:column;gap:12px">
+          <!-- 자동 생성 버전명 (읽기전용) -->
           <div>
-            <label style="font-size:10px;font-weight:600;color:var(--t3);display:block;margin-bottom:4px">시나리오명</label>
-            <input id="vsm-scenario" placeholder="예: Base Case Q2 2026" style="width:100%;padding:8px 10px;background:var(--surface3);border:1px solid var(--border);border-radius:var(--r-md);color:var(--t1);font-size:12px;font-family:var(--font);box-sizing:border-box">
+            <label style="font-size:10px;font-weight:600;color:var(--t2);display:block;margin-bottom:4px">버전명 <span style="font-size:9px;color:var(--t3);font-weight:400">(자동 생성)</span></label>
+            <input id="vsm-scenario" readonly style="width:100%;padding:8px 10px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--r-md);color:var(--t3);font-size:11px;font-family:var(--font);box-sizing:border-box;cursor:not-allowed">
           </div>
+
+          <!-- 변경 요약 (필수) -->
           <div>
-            <label style="font-size:10px;font-weight:600;color:var(--t3);display:block;margin-bottom:4px">변경 근거 <span style="color:var(--red)">*</span></label>
-            <textarea id="vsm-reason" placeholder="예: TE 시장 경색 반영하여 Flip yield 9.0%로 상향" rows="2" style="width:100%;padding:8px 10px;background:var(--surface3);border:1px solid var(--border);border-radius:var(--r-md);color:var(--t1);font-size:12px;font-family:var(--font);resize:none;box-sizing:border-box"></textarea>
+            <label style="font-size:10px;font-weight:600;color:var(--t2);display:block;margin-bottom:4px">변경 요약 <span style="color:var(--red)">*</span></label>
+            <textarea id="vsm-reason" placeholder="예: TE 시장 경색 반영하여 Flip yield 9.0%로 상향 조정" rows="3" style="width:100%;padding:8px 10px;background:var(--surface3);border:1px solid var(--border);border-radius:var(--r-md);color:var(--t1);font-size:12px;font-family:var(--font);resize:vertical;box-sizing:border-box"></textarea>
+            <div style="font-size:9px;color:var(--t3);margin-top:3px">간결하게 핵심만 (예: "PPA 재협상 반영", "CAPEX 3% 절감 안")</div>
           </div>
+
+          <!-- 승인자 드롭다운 -->
           <div>
-            <label style="font-size:10px;font-weight:600;color:var(--t3);display:block;margin-bottom:4px">승인 요청자 <span style="color:var(--red)">*</span></label>
-            <input id="vsm-approver" placeholder="예: 이상우 팀장" style="width:100%;padding:8px 10px;background:var(--surface3);border:1px solid var(--border);border-radius:var(--r-md);color:var(--t1);font-size:12px;font-family:var(--font);box-sizing:border-box">
+            <label style="font-size:10px;font-weight:600;color:var(--t2);display:block;margin-bottom:4px">승인자 <span style="color:var(--red)">*</span></label>
+            <select id="vsm-approver" style="width:100%;padding:8px 10px;background:var(--surface3);border:1px solid var(--border);border-radius:var(--r-md);color:var(--t1);font-size:12px;font-family:var(--font);box-sizing:border-box;cursor:pointer">
+              <option value="">— 승인자 선택 —</option>
+            </select>
+            <div style="font-size:9px;color:var(--t3);margin-top:3px">Admin 권한 보유자만 승인 가능</div>
           </div>
         </div>
 
         <div style="display:flex;gap:8px;margin-top:20px">
-          <button onclick="valCloseSaveModal()" style="flex:1;padding:9px;background:var(--surface3);border:1px solid var(--border);border-radius:var(--r-md);color:var(--t2);font-size:12px;font-weight:600;cursor:pointer;font-family:var(--font)">취소</button>
-          <button onclick="valSaveVersion()" style="flex:2;padding:9px;background:var(--green);border:none;border-radius:var(--r-md);color:#fff;font-size:12px;font-weight:700;cursor:pointer;font-family:var(--font)">승인 요청 및 저장</button>
+          <button onclick="valCloseSaveModal()" style="flex:1;padding:10px;background:var(--surface3);border:1px solid var(--border);border-radius:var(--r-md);color:var(--t2);font-size:12px;font-weight:600;cursor:pointer;font-family:var(--font)">취소</button>
+          <button onclick="valSaveVersion()" style="flex:2;padding:10px;background:linear-gradient(135deg,var(--green) 0%,#0C9669 100%);border:none;border-radius:var(--r-md);color:#fff;font-size:12px;font-weight:800;cursor:pointer;font-family:var(--font);letter-spacing:.02em">📤 승인 요청 전송</button>
         </div>
       </div>
     </div>
@@ -11847,7 +12640,7 @@ function valSwitchTab(name, btn) {
             </div>
           </div>
           <div style="display:flex;gap:6px" onclick="event.stopPropagation()">
-            <button id="bm-lt-upload-btn" onclick="document.getElementById('bm-lt-modal').style.display='flex'" style="padding:4px 10px;background:var(--blue-d);border:none;border-radius:var(--r-md);font-size:10px;color:#fff;cursor:pointer;font-family:var(--font);font-weight:700">📤 업로드</button>
+            <button id="bm-lt-upload-btn" onclick="valOpenLevelTenModal()" style="padding:4px 10px;background:var(--blue-d);border:none;border-radius:var(--r-md);font-size:10px;color:#fff;cursor:pointer;font-family:var(--font);font-weight:700">📤 업로드</button>
             <button onclick="valLoadLevelTen()" style="padding:4px 10px;background:var(--surface3);border:1px solid var(--border2);border-radius:var(--r-md);font-size:10px;color:var(--t2);cursor:pointer;font-family:var(--font)">↻</button>
           </div>
         </div>
@@ -11898,7 +12691,9 @@ function valSwitchTab(name, btn) {
 
           <div style="margin-bottom:12px">
             <label style="font-size:10px;color:var(--t3);font-weight:600;display:block;margin-bottom:4px">분기 (Quarter)</label>
-            <input id="bm-lt-quarter" type="text" placeholder="2026-Q1" style="width:100%;padding:8px 10px;background:var(--surface3);border:1px solid var(--border2);border-radius:var(--r-md);color:var(--t1);font-size:12px;font-family:var(--font)">
+            <select id="bm-lt-quarter" style="width:100%;padding:8px 10px;background:var(--surface3);border:1px solid var(--border2);border-radius:var(--r-md);color:var(--t1);font-size:12px;font-family:var(--font);cursor:pointer">
+              <option value="">— 분기 선택 —</option>
+            </select>
           </div>
 
           <div style="margin-bottom:16px">
