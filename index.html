@@ -7987,23 +7987,24 @@ async function valShowSaveModal() {
   var vsmSc = document.getElementById('vsm-scenario');
   if (vsmSc) vsmSc.value = versionName;
 
-  // Admin 목록 로드 → 드롭다운 채우기
+  // 공유 대상 드롭다운 — 전체 사용자 목록 (admin 엔드포인트 재활용, 본인 제외)
   var approverSel = document.getElementById('vsm-approver');
   if (approverSel) {
     approverSel.innerHTML = '<option value="">— 로드 중... —</option>';
+    var myEmail = (window.HWR_AUTH||{}).email || '';
     try {
       var admins = await apiCall('GET', '/auth/admins');
       if (admins && admins.admins && admins.admins.length) {
-        approverSel.innerHTML = '<option value="">— 승인자 선택 —</option>' +
-          admins.admins.map(function(a){
+        var others = admins.admins.filter(function(a){return a !== myEmail;});
+        approverSel.innerHTML = '<option value="">— 공유 대상 없음 —</option>' +
+          others.map(function(a){
             return '<option value="'+a+'">'+a+'</option>';
           }).join('');
       } else {
-        approverSel.innerHTML = '<option value="">— 등록된 Admin 없음 —</option>';
+        approverSel.innerHTML = '<option value="">— 공유 대상 없음 —</option>';
       }
     } catch(e) {
-      // Fallback: 수동 입력 허용
-      approverSel.outerHTML = '<input id="vsm-approver" placeholder="예: admin@hwr.com" style="width:100%;padding:8px 10px;background:var(--surface3);border:1px solid var(--border);border-radius:var(--r-md);color:var(--t1);font-size:12px;font-family:var(--font);box-sizing:border-box">';
+      approverSel.innerHTML = '<option value="">— 공유 대상 없음 —</option>';
     }
   }
 
@@ -8019,10 +8020,10 @@ function valCloseSaveModal() {
 }
 async function valSaveVersion() {
   var reason = (document.getElementById('vsm-reason')||{}).value||'';
-  var approver = (document.getElementById('vsm-approver')||{}).value||'';
+  var approver = (document.getElementById('vsm-approver')||{}).value||'';  // 이제는 "공유 대상" (선택)
   var scenario = (document.getElementById('vsm-scenario')||{}).value||'';
   if (!reason.trim()) { alert('변경 요약을 입력하세요.'); return; }
-  if (!approver.trim()) { alert('승인자를 선택하세요.'); return; }
+  // approver는 선택 필드 — 검증 제거
 
   var calc = window._lastCalcResult;
   if (!calc) { alert('먼저 Calculate를 실행하세요.'); return; }
@@ -8032,7 +8033,8 @@ async function valSaveVersion() {
     filename: scenario || 'Calculated',
     scenario: scenario,
     reason: reason,
-    approver: approver,
+    shared_with: approver,  // 재해석된 필드명
+    approver: approver,     // 레거시 호환 (백엔드에서 둘 다 처리)
     assumptions: calc.inputs,
     outputs: calc.outputs
   };
@@ -8045,7 +8047,7 @@ async function valSaveVersion() {
 
     valCloseSaveModal();
     var saveBtn = document.getElementById('val-save-version-btn');
-    if (saveBtn) { saveBtn.textContent = '⏳ 승인 대기 중'; saveBtn.style.borderColor='var(--t3)'; saveBtn.style.color='var(--t3)'; saveBtn.style.background='var(--surface2)'; saveBtn.style.pointerEvents='none'; }
+    if (saveBtn) { saveBtn.textContent = '✓ 저장됨'; saveBtn.style.borderColor='var(--green)'; saveBtn.style.color='var(--green)'; saveBtn.style.background='rgba(16,185,129,.08)'; saveBtn.style.pointerEvents='none'; }
 
     // History 탭 갱신
     var histEl = document.getElementById('vo-history-list');
@@ -8060,7 +8062,7 @@ async function valSaveVersion() {
   } catch(e) {
     alert('저장 실패: '+e.message);
     var btn2 = document.querySelector('#val-save-modal button:last-child');
-    if (btn2) { btn2.textContent='승인 요청 및 저장'; btn2.disabled=false; }
+    if (btn2) { btn2.textContent='💾 저장'; btn2.disabled=false; }
   }
 }
 
@@ -8085,10 +8087,8 @@ async function valApproveVersion(pid, ts, action) {
   } catch(e) { alert('처리 실패: '+e.message); }
 }
 
-// ── History 로드 (갱신용)
+// ── History 로드 (재설계: 승인 flow 제거, 깔끔한 타임라인)
 function valLoadHistory(safeId) {
-  // Admin role 재확인 — localStorage 정보 stale 대비 /auth/me 호출
-  // (sync 경로: 캐시된 값 사용 / async 경로: 서버 확인 후 재렌더)
   apiCall('GET', '/valuation/'+safeId+'/versions').then(function(vers) {
     if (!vers) return;
     var keys = Object.keys(vers).sort().reverse();
@@ -8096,128 +8096,75 @@ function valLoadHistory(safeId) {
     var lst = document.getElementById('vo-history-list');
     var emp = document.getElementById('val-empty-hist');
     if (emp) emp.style.display = 'none';
-    if (lst) {
-      lst.style.display = 'block';
-      // ✅ admin 체크: localStorage → /auth/me 응답 → legacy email
-      var isAdmin = (window.HWR_AUTH && window.HWR_AUTH.role === 'admin')
-                 || ((window._authUser||{}).role === 'admin')
-                 || ((window._authUser||{}).email === 'admin@hwr.com');  // 레거시 fallback
+    if (!lst) return;
+    lst.style.display = 'block';
 
-      // 디버그: admin 체크 결과 콘솔 출력 (프로덕션 디버깅용)
-      if (window.HWR_DEBUG) {
-        console.log('[History] admin 체크:', {
-          isAdmin: isAdmin,
-          HWR_AUTH_role: (window.HWR_AUTH||{}).role,
-          _authUser: window._authUser
-        });
+    // 현재 사용자 이메일 (공유받은 것 하이라이트용)
+    var myEmail = (window.HWR_AUTH||{}).email || '';
+
+    lst.innerHTML = keys.slice(0,100).map(function(k) {
+      var v = vers[k];
+      var irr = v.outputs && v.outputs.sponsor_irr ? (v.outputs.sponsor_irr*100).toFixed(2)+'%' : '—';
+      var margin = v.outputs && v.outputs.dev_margin ? '$'+(v.outputs.dev_margin/1000).toFixed(1)+'M' : '—';
+      var name = v.filename || k;
+      var scenario = v.scenario && v.scenario!==name ? ' · '+v.scenario : '';
+      var reason = v.reason || '';
+
+      // 저장 정보
+      var savedAt = (v.uploaded_at||k).substring(0,16).replace('T',' ');
+      var savedBy = v.requested_by || v.uploaded_by || '—';
+      var savedByShort = savedBy.split('@')[0];
+      // 공유 대상
+      var sharedWith = v.shared_with || v.approver || '';  // 재해석 + 레거시 호환
+      var sharedWithShort = sharedWith ? sharedWith.split('@')[0] : '';
+      // 레거시 rejected 상태 (옛날 데이터만)
+      var legacyRejected = v.status === 'rejected';
+      // 공유받은 사람인지 (나에게 검토 요청이 온 버전)
+      var isSharedToMe = sharedWith && sharedWith === myEmail && savedBy !== myEmail;
+
+      // 카드 왼쪽 border: 공유받은 버전은 blue, rejected 레거시는 red, 나머지는 default
+      var borderLeftStyle = '';
+      if (isSharedToMe) borderLeftStyle = ';border-left:3px solid var(--blue-h);background:rgba(37,99,235,.03)';
+      else if (legacyRejected) borderLeftStyle = ';border-left:3px solid var(--red);opacity:.7';
+
+      var vEnc = encodeURIComponent(JSON.stringify(v));
+      var html = '<div class="val-history-item" data-ts="'+k+'" style="flex-direction:column;align-items:stretch'+borderLeftStyle+'" onclick="valLoadVersionEncoded(this)" data-ver="'+vEnc+'" data-sid="'+safeId+'">';
+
+      // 1행: 파일명 + IRR/Margin
+      html += '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px">';
+      // 왼쪽: 파일명/시나리오
+      html += '<div style="flex:1;min-width:0">';
+      html += '<div class="val-hi-name" style="font-size:12.5px;font-weight:700;color:var(--t1)">'+name+'<span style="color:var(--t3);font-weight:400">'+scenario+'</span></div>';
+      // 메타 정보 한 줄
+      html += '<div style="display:flex;align-items:center;gap:8px;margin-top:4px;font-size:10px;color:var(--t3);font-variant-numeric:tabular-nums">';
+      html += '<span>📅 '+savedAt+'</span>';
+      html += '<span style="color:var(--t3)">·</span>';
+      html += '<span style="color:var(--t2)">👤 '+savedByShort+'</span>';
+      if (sharedWith) {
+        html += '<span style="color:var(--t3)">·</span>';
+        html += '<span style="color:'+(isSharedToMe?'var(--blue-h)':'var(--t3)')+';'+(isSharedToMe?'font-weight:700':'')+'">🔗 '+sharedWithShort+(isSharedToMe?' (나에게 공유됨)':'')+'</span>';
+      }
+      if (legacyRejected) {
+        html += '<span style="color:var(--red);font-weight:600">· 폐기</span>';
+      }
+      html += '</div>';
+      html += '</div>';
+
+      // 오른쪽: IRR / Margin
+      html += '<div style="text-align:right;flex-shrink:0">';
+      html += '<div class="val-hi-irr" style="font-size:15px;font-weight:800;color:var(--green);font-variant-numeric:tabular-nums">'+irr+'</div>';
+      html += '<div style="font-size:10px;color:var(--t3);margin-top:1px;font-variant-numeric:tabular-nums">Dev '+margin+'</div>';
+      html += '</div>';
+      html += '</div>';
+
+      // 변경 근거
+      if (reason) {
+        html += '<div style="margin-top:8px;padding:6px 10px;background:rgba(255,255,255,.03);border-left:2px solid var(--border2);border-radius:0 4px 4px 0;font-size:10.5px;color:var(--t2);line-height:1.5">💬 '+reason+'</div>';
       }
 
-      // role 값이 없으면 서버에서 재확인 후 렌더 (비동기 보강)
-      if (!isAdmin && window.HWR_AUTH && window.HWR_AUTH.token && !window.HWR_AUTH.role) {
-        apiCall('GET', '/auth/me').then(function(me) {
-          if (me && me.role) {
-            window.HWR_AUTH.role = me.role;
-            try { localStorage.setItem('hwr_role', me.role); } catch(e) {}
-            if (me.role === 'admin') {
-              valLoadHistory(safeId);  // admin 확정되면 재렌더
-            }
-          }
-        }).catch(function(){});
-      }
-
-      lst.innerHTML = keys.slice(0,100).map(function(k) {
-        var v = vers[k];
-        var irr = v.outputs && v.outputs.sponsor_irr ? (v.outputs.sponsor_irr*100).toFixed(2)+'%' : '—';
-        var margin = v.outputs && v.outputs.dev_margin ? '$'+(v.outputs.dev_margin/1000).toFixed(1)+'M' : '—';
-        var name = v.filename || k;
-        var scenario = v.scenario && v.scenario!==name ? ' · '+v.scenario : '';
-        var reason = v.reason || '';
-
-        // 요청 정보
-        var reqDate = (v.uploaded_at||k).substring(0,16).replace('T',' ');
-        var reqBy = v.requested_by || v.uploaded_by || '—';
-        // 승인/반려 정보
-        var approvedAt = v.approved_at ? v.approved_at.substring(0,16).replace('T',' ') : null;
-        var approvedBy = v.approved_by || null;
-        var rejectedAt = v.rejected_at ? v.rejected_at.substring(0,16).replace('T',' ') : null;
-        var rejectedBy = v.rejected_by || null;
-        // 요청 시점 승인자 (원래 요청 대상)
-        var requestApprover = v.approver || '';
-
-        // 상태 배지
-        var status = v.status || 'pending';
-        var statusIcon = status==='approved'?'✅ 승인 완료':status==='rejected'?'❌ 반려':'🟡 승인 대기';
-        var statusColor = status==='approved'?'var(--green)':status==='rejected'?'var(--red)':'var(--amber)';
-
-        // 요청/승인 타임라인 섹션
-        var timelineHtml = '';
-        timelineHtml += '<div style="display:flex;align-items:center;gap:8px;margin-top:6px;padding:4px 8px;background:rgba(255,255,255,.02);border-left:2px solid var(--amber);border-radius:0 4px 4px 0">' +
-          '<span style="font-size:10px;color:var(--amber)">📝</span>' +
-          '<span style="font-size:9.5px;color:var(--t3);font-weight:600;min-width:68px">Requested</span>' +
-          '<span style="font-size:10px;color:var(--t2);font-variant-numeric:tabular-nums">'+reqDate+'</span>' +
-          '<span style="font-size:10px;color:var(--t3)">·</span>' +
-          '<span style="font-size:10px;color:var(--t1)">'+reqBy+'</span>' +
-          (requestApprover ? '<span style="font-size:9px;color:var(--t3);margin-left:auto">→ '+requestApprover+' 승인 요청</span>' : '') +
-        '</div>';
-
-        if (status === 'approved' && approvedAt) {
-          timelineHtml += '<div style="display:flex;align-items:center;gap:8px;margin-top:4px;padding:4px 8px;background:rgba(16,185,129,.06);border-left:2px solid var(--green);border-radius:0 4px 4px 0">' +
-            '<span style="font-size:10px;color:var(--green)">✅</span>' +
-            '<span style="font-size:9.5px;color:var(--t3);font-weight:600;min-width:68px">Approved</span>' +
-            '<span style="font-size:10px;color:var(--t2);font-variant-numeric:tabular-nums">'+approvedAt+'</span>' +
-            '<span style="font-size:10px;color:var(--t3)">·</span>' +
-            '<span style="font-size:10px;color:var(--green);font-weight:600">'+(approvedBy||'—')+'</span>' +
-          '</div>';
-        } else if (status === 'rejected' && rejectedAt) {
-          timelineHtml += '<div style="display:flex;align-items:center;gap:8px;margin-top:4px;padding:4px 8px;background:rgba(239,68,68,.06);border-left:2px solid var(--red);border-radius:0 4px 4px 0">' +
-            '<span style="font-size:10px;color:var(--red)">❌</span>' +
-            '<span style="font-size:9.5px;color:var(--t3);font-weight:600;min-width:68px">Rejected</span>' +
-            '<span style="font-size:10px;color:var(--t2);font-variant-numeric:tabular-nums">'+rejectedAt+'</span>' +
-            '<span style="font-size:10px;color:var(--t3)">·</span>' +
-            '<span style="font-size:10px;color:var(--red);font-weight:600">'+(rejectedBy||'—')+'</span>' +
-            (v.reject_reason ? '<span style="font-size:9px;color:var(--t3);margin-left:auto;font-style:italic">"'+v.reject_reason+'"</span>' : '') +
-          '</div>';
-        }
-
-        // 변경 근거 (reason)
-        var reasonHtml = reason
-          ? '<div style="margin-top:4px;padding:4px 8px;background:rgba(255,255,255,.03);border-left:2px solid var(--border2);border-radius:0 4px 4px 0;font-size:10px;color:var(--t3)">💬 '+reason+'</div>'
-          : '';
-
-        // 승인/반려 버튼 (admin + pending 상태만)
-        var actionBtns = '';
-        var pendingBorderStyle = '';
-        if (isAdmin && status === 'pending') {
-          pendingBorderStyle = ';border-left:3px solid var(--amber);background:rgba(245,158,11,.04)';
-          actionBtns = '<div class="val-hi-actions" style="display:flex;gap:6px;margin-top:8px;padding-top:8px;border-top:1px dashed var(--border2);align-items:center">'
-            + '<div style="font-size:9px;color:var(--amber);font-weight:700;padding:2px 7px;background:rgba(245,158,11,.15);border:1px solid rgba(245,158,11,.3);border-radius:10px">👑 ADMIN 승인 권한</div>'
-            + '<div style="flex:1"></div>'
-            + '<button onclick="valApproveVersion(this.dataset.p,this.dataset.t,this.dataset.a);event.stopPropagation();" data-p="'+safeId+'" data-t="'+k+'" data-a="approve" style="padding:6px 14px;background:rgba(16,185,129,.14);border:1px solid var(--green);border-radius:6px;color:var(--green);font-size:11px;font-weight:700;cursor:pointer;font-family:var(--font)">✅ 승인</button>'
-            + '<button onclick="valApproveVersion(this.dataset.p,this.dataset.t,this.dataset.a);event.stopPropagation();" data-p="'+safeId+'" data-t="'+k+'" data-a="reject" style="padding:6px 14px;background:rgba(239,68,68,.10);border:1px solid var(--red);border-radius:6px;color:var(--red);font-size:11px;font-weight:700;cursor:pointer;font-family:var(--font)">❌ 반려</button>'
-            + '</div>';
-        } else if (!isAdmin && status === 'pending') {
-          // Admin 아닌 사용자에게 pending 상태 알림
-          pendingBorderStyle = ';border-left:3px solid var(--amber)';
-        }
-
-        var vEnc = encodeURIComponent(JSON.stringify(v));
-        return '<div class="val-history-item" data-ts="'+k+'" style="flex-direction:column;align-items:stretch'+pendingBorderStyle+'">'
-          + '<div style="display:flex;justify-content:space-between;align-items:flex-start;cursor:pointer" onclick="valLoadVersionEncoded(this.parentElement)" data-ver="'+vEnc+'" data-sid="'+safeId+'">'
-            + '<div style="flex:1;min-width:0">'
-              + '<div class="val-hi-name">'+name+scenario+'</div>'
-              + timelineHtml
-              + reasonHtml
-            + '</div>'
-            + '<div style="text-align:right;flex-shrink:0;margin-left:12px">'
-              + '<div class="val-hi-irr">'+irr+'</div>'
-              + '<div style="font-size:10px;color:var(--t3)">Dev '+margin+'</div>'
-              + '<div class="val-hi-status" style="font-size:9px;font-weight:700;color:'+statusColor+';margin-top:3px">'+statusIcon+'</div>'
-            + '</div>'
-          + '</div>'
-          + actionBtns
-          + '</div>';
-      }).join('');
-    }
+      html += '</div>';
+      return html;
+    }).join('');
   }).catch(function(){});
 }
 
@@ -9114,69 +9061,101 @@ async function valLoadMarketBenchmark(force) {
 
       var spark = d.spark || [];
 
-      // 1년치 구간별 대표값 (3개월/6개월/9개월 전)
-      var monthlyHtml = '';
-      if (spark.length >= 12) {
-        // 주간 샘플링 기준 — 12주(3M), 26주(6M), 39주(9M) 위치 추출
-        var idx3M = Math.max(0, spark.length - 1 - 12);
-        var idx6M = Math.max(0, spark.length - 1 - 26);
-        var idx9M = Math.max(0, spark.length - 1 - 39);
-        var v3M = spark[idx3M];
-        var v6M = spark[idx6M];
-        var v9M = spark[idx9M];
-        var fmtQ = function(v){ return unit==='%' ? v.toFixed(2) : v.toFixed(2); };
-        monthlyHtml = '<div style="display:flex;gap:4px;justify-content:space-between;margin-top:3px;font-size:8.5px;color:var(--t3);font-variant-numeric:tabular-nums">';
-        monthlyHtml += '<span>9M전: <strong style="color:var(--t2);font-weight:600">'+fmtQ(v9M)+'</strong></span>';
-        monthlyHtml += '<span>6M전: <strong style="color:var(--t2);font-weight:600">'+fmtQ(v6M)+'</strong></span>';
-        monthlyHtml += '<span>3M전: <strong style="color:var(--t2);font-weight:600">'+fmtQ(v3M)+'</strong></span>';
-        monthlyHtml += '</div>';
-      }
-
-      // 스파크라인 — 1년치, 정원 hover, 실제 날짜 정렬
-      // viewBox 대신 실제 SVG 픽셀 좌표 사용해서 circle 왜곡 방지
+      // 스파크라인 — 1년치, 정원 hover, 값/날짜 SVG 내부에 직접 표시 (완벽 정렬)
       var sparkSvg = '';
       if (spark.length > 1) {
         var sparkDates = d.spark_dates || [];  // 백엔드에서 실제 날짜 전달
         var mn = Math.min.apply(null, spark), mx = Math.max.apply(null, spark);
         var range = mx - mn || 1;
-        // 실제 픽셀 단위로 좌표 계산 (viewBox 왜곡 배제)
-        var svgW = 220, svgH = 28;  // 카드 너비에 맞춰 조정
-        var padX = 2, padY = 4;
+        // 카드 폭을 꽉 채우되 위아래 여유 남김: 위쪽 값 표시 공간 + 아래쪽 날짜 공간
+        var svgW = 280, svgH = 60;  // 높이 확대: 값(상단 14px) + 그래프(중단 30px) + 날짜(하단 16px)
+        var padX = 22, padY_top = 14, padY_bot = 18;  // x축: 값/날짜 글자 폭 고려해 좌우 22px 여유
+        var plotTop = padY_top, plotBot = svgH - padY_bot;
+        var plotH = plotBot - plotTop;
+
         var pts = spark.map(function(v, i) {
           var x = padX + (i / (spark.length - 1)) * (svgW - 2*padX);
-          var y = padY + (1 - (v - mn) / range) * (svgH - 2*padY);
+          var y = plotTop + (1 - (v - mn) / range) * plotH;
           return { x: x, y: y, v: v, idx: i };
         });
         var polyPts = pts.map(function(p){ return p.x.toFixed(1)+','+p.y.toFixed(1); }).join(' ');
         var lineColor = d1m > 0 ? 'var(--green)' : d1m < 0 ? 'var(--red)' : 'var(--t3)';
 
-        // hover hit circles — viewBox 왜곡 없어서 정원으로 렌더됨
+        // 날짜 포맷: 'YY.MM 또는 'YYYY-MM
         var pad = function(n){return n<10?'0'+n:n;};
+        var fmtDate = function(dateStr) {
+          if (!dateStr) return '';
+          // "2025-07-15" → "'25.07"
+          var parts = dateStr.split('-');
+          if (parts.length < 2) return dateStr;
+          return "'" + parts[0].slice(2) + '.' + parts[1];
+        };
+        var fmtVal = function(v) {
+          return unit==='%' ? v.toFixed(2)
+               : unit==='$' ? '$'+v.toFixed(2)
+               : unit==='$/MMBtu' ? '$'+v.toFixed(2)
+               : v.toFixed(2);
+        };
+
+        // 3개 마커 포인트 선택: 9M전/6M전/3M전 (주간 샘플링 기준)
+        // spark.length = 약 52포인트 (1년치 주간)
+        var markerIdxs = [];
+        if (spark.length >= 40) {
+          // 대략 9M=12, 6M=26, 3M=39 (마지막이 최신이면 역순 기준)
+          markerIdxs = [
+            Math.max(0, spark.length - 1 - 39),  // 9M전
+            Math.max(0, spark.length - 1 - 26),  // 6M전
+            Math.max(0, spark.length - 1 - 13),  // 3M전
+          ];
+        } else if (spark.length >= 12) {
+          // 짧으면 비례로
+          markerIdxs = [
+            Math.floor(spark.length * 0.25),
+            Math.floor(spark.length * 0.5),
+            Math.floor(spark.length * 0.75),
+          ];
+        }
+        // 중복 제거
+        markerIdxs = markerIdxs.filter(function(v,i,a){return a.indexOf(v)===i;});
+
+        // SVG 내부 마커: 값(위) + 날짜(아래) 텍스트 + 수직선
+        var markerSvg = markerIdxs.map(function(idx) {
+          var p = pts[idx];
+          if (!p) return '';
+          var dateLbl = fmtDate(sparkDates[idx] || '');
+          var valLbl = fmtVal(p.v);
+          var textX = p.x;
+          // 양끝 근처면 텍스트 anchor 조정
+          var anchor = 'middle';
+          if (p.x < padX + 20) anchor = 'start';
+          else if (p.x > svgW - padX - 20) anchor = 'end';
+
+          return '<line x1="'+p.x.toFixed(1)+'" y1="'+plotTop.toFixed(1)+'" x2="'+p.x.toFixed(1)+'" y2="'+plotBot.toFixed(1)+'" stroke="var(--t3)" stroke-width="0.5" stroke-dasharray="1.5,1.5" opacity="0.3"/>' +
+                 '<circle cx="'+p.x.toFixed(1)+'" cy="'+p.y.toFixed(1)+'" r="2.8" fill="'+lineColor+'" stroke="var(--surface)" stroke-width="1"/>' +
+                 '<text x="'+textX.toFixed(1)+'" y="10" text-anchor="'+anchor+'" font-size="9" font-weight="700" font-family="var(--font)" fill="var(--t2)" font-variant-numeric="tabular-nums">'+valLbl+'</text>' +
+                 '<text x="'+textX.toFixed(1)+'" y="'+(svgH-4)+'" text-anchor="'+anchor+'" font-size="8.5" font-family="var(--font)" fill="var(--t3)" font-variant-numeric="tabular-nums">'+dateLbl+'</text>';
+        }).join('');
+
+        // 전체 hover 포인트 (작은 투명 circle)
         var hitDots = pts.map(function(p) {
-          // 실제 백엔드 날짜 사용 (있으면), 없으면 fallback
           var dateStr = sparkDates[p.idx] || '';
           if (!dateStr) {
-            // fallback: 오늘부터 영업일 역산
             var totalPts = pts.length;
-            var daysAgo = (totalPts - 1 - p.idx) * 5;  // 주간 샘플링이므로 5일 간격
+            var daysAgo = (totalPts - 1 - p.idx) * 5;
             var dt = new Date();
             dt.setDate(dt.getDate() - daysAgo);
             dateStr = dt.getFullYear() + '-' + pad(dt.getMonth()+1) + '-' + pad(dt.getDate());
           }
-          var fmtv = unit==='%' ? p.v.toFixed(2)+'%'
-                   : unit==='$' ? '$'+p.v.toFixed(2)
-                   : unit==='$/MMBtu' ? '$'+p.v.toFixed(2)
-                   : p.v.toFixed(2);
-          // r=2.2, stroke-width=1.2 — viewBox 없으므로 픽셀 그대로
-          return '<circle cx="'+p.x.toFixed(1)+'" cy="'+p.y.toFixed(1)+'" r="2.2" fill="'+lineColor+'" fill-opacity="0" stroke="'+lineColor+'" stroke-width="0" class="spark-dot" '+
+          var fmtv = fmtVal(p.v);
+          return '<circle cx="'+p.x.toFixed(1)+'" cy="'+p.y.toFixed(1)+'" r="3" fill="'+lineColor+'" fill-opacity="0" stroke="'+lineColor+'" stroke-width="0" class="spark-dot" '+
             'data-label="'+dateStr+'" data-value="'+fmtv+'" '+
             'onmouseover="valShowSparkTip(event, this)" onmouseout="valHideSparkTip()"/>';
         }).join('');
 
-        // width/height 픽셀 지정 → preserveAspectRatio 불필요, 왜곡 없음
-        sparkSvg = '<svg width="100%" height="'+svgH+'" viewBox="0 0 '+svgW+' '+svgH+'" style="margin-top:3px;display:block;overflow:visible">' +
-          '<polyline points="'+polyPts+'" fill="none" stroke="'+lineColor+'" stroke-width="1.2" opacity="0.7"/>' +
-          hitDots +
+        sparkSvg = '<svg width="100%" height="'+svgH+'" viewBox="0 0 '+svgW+' '+svgH+'" preserveAspectRatio="xMidYMid meet" style="margin-top:4px;display:block;overflow:visible">' +
+          '<polyline points="'+polyPts+'" fill="none" stroke="'+lineColor+'" stroke-width="1.5" opacity="0.75" vector-effect="non-scaling-stroke"/>' +
+          markerSvg +  // 값 + 날짜 + 수직 가이드선 + 강조 circle
+          hitDots +    // 전체 포인트 hover area
         '</svg>';
       }
 
@@ -9187,7 +9166,6 @@ async function valLoadMarketBenchmark(force) {
         '</div>' +
         '<div style="font-size:14px;font-weight:800;color:var(--t1);font-variant-numeric:tabular-nums;line-height:1.1">'+disp+'</div>' +
         sparkSvg +
-        monthlyHtml +
       '</div>';
     }
 
@@ -10371,7 +10349,15 @@ document.addEventListener('DOMContentLoaded', function() {
         // 계산 결과 임시 보관 (Save Version 버튼 클릭 시 저장)
         window._lastCalcResult = { inputs: inputs, outputs: r, projectId: projectId };
         var saveBtn = document.getElementById('val-save-version-btn');
-        if (saveBtn) saveBtn.style.display = 'inline-flex';
+        if (saveBtn) {
+          saveBtn.style.display = 'inline-flex';
+          // 이전 저장 상태에서 돌아올 때 원복
+          saveBtn.textContent = '💾 버전 저장';
+          saveBtn.style.borderColor = 'var(--blue-h)';
+          saveBtn.style.color = 'var(--blue-h)';
+          saveBtn.style.background = 'rgba(37,99,235,.08)';
+          saveBtn.style.pointerEvents = 'auto';
+        }
 
         // Update output cards
         function fmtM(v) { return v ? '$'+(v/1000).toFixed(1)+'M' : '—'; }
@@ -12143,7 +12129,7 @@ function valSwitchTab(name, btn) {
   <span id="val-upload-status" style="font-size:10px;color:var(--t3)"></span>
   <input id="val-scenario-name" placeholder="시나리오명" style="padding:5px 10px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:5px;color:var(--t2);font-size:11px;font-family:var(--font);width:100px;height:32px;box-sizing:border-box">
   <input id="val-change-reason" placeholder="변경 근거 (예: TE 시장 경색 반영)" style="padding:5px 10px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:5px;color:var(--t2);font-size:11px;font-family:var(--font);width:200px;height:32px;box-sizing:border-box">
-  <input id="val-approver" placeholder="승인자" style="padding:5px 10px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:5px;color:var(--t2);font-size:11px;font-family:var(--font);width:80px;height:32px;box-sizing:border-box">
+  <input id="val-approver" placeholder="공유 대상 (선택)" style="padding:5px 10px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:5px;color:var(--t2);font-size:11px;font-family:var(--font);width:120px;height:32px;box-sizing:border-box">
 
   <div class="val-status-badge" style="margin-left:auto;height:32px">
     <div class="val-status-dot" id="val-status-dot"></div>
@@ -12239,19 +12225,19 @@ function valSwitchTab(name, btn) {
     <div class="val-calc-wrap">
       <button id="val-calc-btn" class="val-calc-btn">Calculate IRR / Margin</button>
       <div id="val-calc-msg" class="val-calc-msg"></div>
-      <button id="val-save-version-btn" onclick="valShowSaveModal()" style="display:none;margin-top:8px;width:100%;padding:8px;border:1px solid var(--amber);border-radius:8px;background:rgba(217,119,6,.08);color:var(--amber);font-size:11px;font-weight:700;cursor:pointer;font-family:var(--font);align-items:center;justify-content:center;gap:6px">
-        📤 승인 요청 (Request Approval)
+      <button id="val-save-version-btn" onclick="valShowSaveModal()" style="display:none;margin-top:8px;width:100%;padding:8px;border:1px solid var(--blue-h);border-radius:8px;background:rgba(37,99,235,.08);color:var(--blue-h);font-size:11px;font-weight:700;cursor:pointer;font-family:var(--font);align-items:center;justify-content:center;gap:6px">
+        💾 버전 저장
       </button>
     </div>
 
-    <!-- Save Version Modal -->
+    <!-- Save Version Modal (승인 flow 제거 · 공유 대상 재해석) -->
     <div id="val-save-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:1000;align-items:center;justify-content:center">
       <div style="background:var(--surface);border:1px solid var(--border2);border-radius:var(--r-lg);width:460px;padding:24px;box-shadow:0 20px 60px rgba(0,0,0,.5)">
         <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">
-          <span style="font-size:16px">📤</span>
-          <div style="font-size:14px;font-weight:800;color:var(--t1)">승인 요청 (Request Approval)</div>
+          <span style="font-size:16px">💾</span>
+          <div style="font-size:14px;font-weight:800;color:var(--t1)">버전 저장</div>
         </div>
-        <div style="font-size:10px;color:var(--t3);margin-bottom:20px">승인 요청이 전송되면 지정된 승인자가 검토 후 승인 또는 반려합니다</div>
+        <div style="font-size:10px;color:var(--t3);margin-bottom:20px">현재 계산 결과를 이력으로 저장합니다. 공유 대상을 지정하면 해당 팀원에게 검토 요청 알림이 전달됩니다 (선택).</div>
 
         <div style="display:flex;flex-direction:column;gap:12px">
           <!-- 자동 생성 버전명 (읽기전용) -->
@@ -12267,19 +12253,19 @@ function valSwitchTab(name, btn) {
             <div style="font-size:9px;color:var(--t3);margin-top:3px">간결하게 핵심만 (예: "PPA 재협상 반영", "CAPEX 3% 절감 안")</div>
           </div>
 
-          <!-- 승인자 드롭다운 -->
+          <!-- 공유 대상 (선택) -->
           <div>
-            <label style="font-size:10px;font-weight:600;color:var(--t2);display:block;margin-bottom:4px">승인자 <span style="color:var(--red)">*</span></label>
+            <label style="font-size:10px;font-weight:600;color:var(--t2);display:block;margin-bottom:4px">공유 대상 <span style="font-size:9px;color:var(--t3);font-weight:400">(선택)</span></label>
             <select id="vsm-approver" style="width:100%;padding:8px 10px;background:var(--surface3);border:1px solid var(--border);border-radius:var(--r-md);color:var(--t1);font-size:12px;font-family:var(--font);box-sizing:border-box;cursor:pointer">
-              <option value="">— 승인자 선택 —</option>
+              <option value="">— 공유 대상 없음 —</option>
             </select>
-            <div style="font-size:9px;color:var(--t3);margin-top:3px">Admin 권한 보유자만 승인 가능</div>
+            <div style="font-size:9px;color:var(--t3);margin-top:3px">검토 요청할 팀원 선택 (향후 알림/코멘트 기능과 연동)</div>
           </div>
         </div>
 
         <div style="display:flex;gap:8px;margin-top:20px">
           <button onclick="valCloseSaveModal()" style="flex:1;padding:10px;background:var(--surface3);border:1px solid var(--border);border-radius:var(--r-md);color:var(--t2);font-size:12px;font-weight:600;cursor:pointer;font-family:var(--font)">취소</button>
-          <button onclick="valSaveVersion()" style="flex:2;padding:10px;background:linear-gradient(135deg,var(--green) 0%,#0C9669 100%);border:none;border-radius:var(--r-md);color:#fff;font-size:12px;font-weight:800;cursor:pointer;font-family:var(--font);letter-spacing:.02em">📤 승인 요청 전송</button>
+          <button onclick="valSaveVersion()" style="flex:2;padding:10px;background:linear-gradient(135deg,var(--blue-h) 0%,#1D4ED8 100%);border:none;border-radius:var(--r-md);color:#fff;font-size:12px;font-weight:800;cursor:pointer;font-family:var(--font);letter-spacing:.02em">💾 저장</button>
         </div>
       </div>
     </div>
