@@ -8192,9 +8192,9 @@ function valApplyLanguage() {
   // ─── Onboarding 카드 ───
   var onb = document.getElementById('val-onboarding');
   if (onb) {
-    var onbTitle = onb.querySelector('div > div:nth-child(1) > div:nth-child(2)');
+    var onbTitle = document.getElementById('val-onb-title');
     if (onbTitle) onbTitle.textContent = L.valOnbTitle;
-    var onbSub = onb.querySelector('div > div:nth-child(1) > div:nth-child(3)');
+    var onbSub = document.getElementById('val-onb-sub');
     if (onbSub) onbSub.textContent = L.valOnbSub;
     
     var onbCalib = document.getElementById('val-onb-calib');
@@ -8225,14 +8225,14 @@ function valApplyLanguage() {
           L.valOnbPredictBtn + '</div>';
     }
     
-    var onbFooter = onb.querySelector('div > div:last-child');
+    var onbFooter = document.getElementById('val-onb-footer');
     if (onbFooter) onbFooter.textContent = L.valOnbFooter;
   }
   
   // ─── Mode Info 모달 ───
   var infoModal = document.getElementById('val-mode-info-modal');
   if (infoModal) {
-    var infoTitle = infoModal.querySelector('div > div:first-child > div:first-child');
+    var infoTitle = document.getElementById('val-mode-info-title');
     if (infoTitle) infoTitle.textContent = L.valModeInfoTitle;
     
     var infoGrid = infoModal.querySelector('div[style*="grid-template-columns:1fr 1fr"]');
@@ -13187,8 +13187,8 @@ function valSwitchTab(name, btn) {
   <div style="max-width:780px;width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:16px;padding:32px;box-shadow:0 30px 60px rgba(0,0,0,0.5)">
     <div style="text-align:center;margin-bottom:28px">
       <div style="font-size:28px;margin-bottom:8px">✨</div>
-      <div style="font-size:18px;font-weight:700;color:var(--t1);margin-bottom:6px">어떤 작업을 하시나요?</div>
-      <div style="font-size:12px;color:var(--t3)">목적에 맞는 계산 모드를 선택해주세요. 언제든 좌측 사이드바에서 변경 가능합니다.</div>
+      <div id="val-onb-title" style="font-size:18px;font-weight:700;color:var(--t1);margin-bottom:6px">어떤 작업을 하시나요?</div>
+      <div id="val-onb-sub" style="font-size:12px;color:var(--t3)">목적에 맞는 계산 모드를 선택해주세요. 언제든 좌측 사이드바에서 변경 가능합니다.</div>
     </div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
       <!-- Calibration 카드 -->
@@ -13229,7 +13229,7 @@ function valSwitchTab(name, btn) {
         </div>
       </button>
     </div>
-    <div style="text-align:center;margin-top:20px;font-size:10px;color:var(--t3)">
+    <div id="val-onb-footer" style="text-align:center;margin-top:20px;font-size:10px;color:var(--t3)">
       ℹ️ 선택값은 브라우저에 저장됩니다. 좌측 사이드바에서 언제든 변경 가능합니다.
     </div>
   </div>
@@ -13239,7 +13239,7 @@ function valSwitchTab(name, btn) {
 <div id="val-mode-info-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.7);backdrop-filter:blur(8px);z-index:200;align-items:center;justify-content:center;padding:24px">
   <div style="max-width:600px;width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:14px;padding:28px;box-shadow:0 20px 50px rgba(0,0,0,0.5);max-height:90vh;overflow-y:auto">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
-      <div style="font-size:15px;font-weight:800;color:var(--t1)">⚙️ 계산 모드 비교</div>
+      <div id="val-mode-info-title" style="font-size:15px;font-weight:800;color:var(--t1)">⚙️ 계산 모드 비교</div>
       <button onclick="document.getElementById('val-mode-info-modal').style.display='none'" style="background:transparent;border:none;color:var(--t3);font-size:20px;cursor:pointer">✕</button>
     </div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px">
