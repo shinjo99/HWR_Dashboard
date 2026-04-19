@@ -7796,7 +7796,7 @@ function valDisplayData(data, safeId) {
   // IRRs
   el = document.getElementById('vo-lirr'); if(el) el.textContent = fmtPct(o.levered_irr);
   el = document.getElementById('vo-uirr'); if(el) el.textContent = fmtPct(o.unlevered_irr);
-  el = document.getElementById('vo-sirr'); if(el) el.textContent = fmtPct(o.sponsor_irr_contract);
+  el = document.getElementById('vo-sirr'); if(el) el.textContent = fmtPct(o.sponsor_irr || o.sponsor_irr_contract);
 
   // ── Returns Detail 5 카드 (Levered Pre-Tax / AT Before NOL / AT After NOL / Unlevered / WACC)
   var irrPct = function(v) { return (v != null && !isNaN(v)) ? (v * 100).toFixed(2) + '%' : '—'; };
@@ -7960,6 +7960,123 @@ function valLoadVersion(v, safeId) {
 }
 
 // ── Cash Flow 탭 활성화 (Calculate 완료 후)
+// ── Hurdle Check UI 업데이트 (계산 결과 + 임계값 기반)
+function valUpdateHurdleCheck(r, inputs) {
+  if (!r) return;
+
+  // Hurdle 값 (Settings 입력 필드에서)
+  var irrHurdle = parseFloat((document.getElementById('thr-sponsor-irr')||{}).value) || 9.0;   // %
+  var marginHurdle = parseFloat((document.getElementById('thr-dev-margin')||{}).value) || 10.0; // c/Wp
+
+  // 현재 값
+  var sponsorIrrPct = r.sponsor_irr != null ? r.sponsor_irr * 100 : null;   // Full Life 기준
+  var pvMwac = parseFloat(inputs.pv_mwac) || 199;
+  var pvMwdc = pvMwac * 1.33;  // 표준 DC/AC ratio (가변)
+  var devMarginCwp = r.dev_margin ? (r.dev_margin / (pvMwdc * 1000) * 100) : null;  // $M → c/Wp
+
+  // IRR 4단계 평가 (9/10/11%)
+  function irrTier(v) {
+    if (v == null) return { emoji: '—', txt: '계산 필요', col: 'var(--t3)', bg: 'var(--surface2)' };
+    if (v >= 11.0) return { emoji: '✅', txt: 'EXCELLENT', col: '#10B981', bg: 'rgba(16,185,129,.15)' };
+    if (v >= 10.0) return { emoji: '🟢', txt: 'STRONG', col: '#10B981', bg: 'rgba(16,185,129,.10)' };
+    if (v >= irrHurdle) return { emoji: '🟡', txt: 'MARGINAL', col: 'var(--amber)', bg: 'rgba(245,158,11,.12)' };
+    return { emoji: '🔴', txt: 'BELOW THRESHOLD', col: 'var(--red)', bg: 'rgba(239,68,68,.12)' };
+  }
+  function marginTier(v) {
+    if (v == null) return { emoji: '—', txt: '계산 필요', col: 'var(--t3)', bg: 'var(--surface2)' };
+    if (v >= marginHurdle * 1.2) return { emoji: '✅', txt: 'EXCELLENT', col: '#10B981', bg: 'rgba(16,185,129,.15)' };
+    if (v >= marginHurdle) return { emoji: '🟢', txt: 'PASS', col: '#10B981', bg: 'rgba(16,185,129,.10)' };
+    if (v >= marginHurdle * 0.9) return { emoji: '🟡', txt: 'MARGINAL', col: 'var(--amber)', bg: 'rgba(245,158,11,.12)' };
+    return { emoji: '🔴', txt: 'BELOW THRESHOLD', col: 'var(--red)', bg: 'rgba(239,68,68,.12)' };
+  }
+
+  var irrT = irrTier(sponsorIrrPct);
+  var marT = marginTier(devMarginCwp);
+
+  // Primary (IRR) 카드
+  var irrCard = document.getElementById('vo-hurdle-irr');
+  var irrCur = document.getElementById('vo-hurdle-irr-current');
+  var irrTgt = document.getElementById('vo-hurdle-irr-target');
+  var irrSt  = document.getElementById('vo-hurdle-irr-status');
+  if (irrCur) irrCur.textContent = sponsorIrrPct != null ? sponsorIrrPct.toFixed(2) + '%' : '—';
+  if (irrTgt) irrTgt.textContent = '≥ ' + irrHurdle.toFixed(1) + '%';
+  if (irrSt)  { irrSt.textContent = irrT.emoji + ' ' + irrT.txt; irrSt.style.color = irrT.col; irrSt.style.background = irrT.bg; }
+  if (irrCard) irrCard.style.borderLeftColor = irrT.col;
+
+  // Secondary (Margin) 카드
+  var marCard = document.getElementById('vo-hurdle-margin');
+  var marCur = document.getElementById('vo-hurdle-margin-current');
+  var marTgt = document.getElementById('vo-hurdle-margin-target');
+  var marSt  = document.getElementById('vo-hurdle-margin-status');
+  if (marCur) marCur.textContent = devMarginCwp != null ? devMarginCwp.toFixed(2) + ' c/Wp' : '—';
+  if (marTgt) marTgt.textContent = '≥ ' + marginHurdle.toFixed(1);
+  if (marSt)  { marSt.textContent = marT.emoji + ' ' + marT.txt; marSt.style.color = marT.col; marSt.style.background = marT.bg; }
+  if (marCard) marCard.style.borderLeftColor = marT.col;
+
+  // Overall Verdict
+  var vCard = document.getElementById('vo-hurdle-verdict');
+  var vIcon = document.getElementById('vo-hurdle-verdict-icon');
+  var vText = document.getElementById('vo-hurdle-verdict-text');
+  if (sponsorIrrPct != null && devMarginCwp != null) {
+    var bothPass = sponsorIrrPct >= irrHurdle && devMarginCwp >= marginHurdle;
+    var bothExcel = sponsorIrrPct >= 11 && devMarginCwp >= marginHurdle * 1.2;
+    var col, emoji, txt;
+    if (bothExcel) { col = '#10B981'; emoji = '🏆'; txt = 'EXCELLENT — STRONG BUY'; }
+    else if (bothPass) { col = '#10B981'; emoji = '✅'; txt = 'PASS — IC APPROVED'; }
+    else if (sponsorIrrPct >= irrHurdle || devMarginCwp >= marginHurdle) { col = 'var(--amber)'; emoji = '⚠️'; txt = 'PARTIAL — CONDITIONAL'; }
+    else { col = 'var(--red)'; emoji = '❌'; txt = 'FAIL — NEEDS REWORK'; }
+    if (vIcon) vIcon.textContent = emoji;
+    if (vText) { vText.textContent = txt; vText.style.color = col; }
+    if (vCard) vCard.style.borderLeftColor = col;
+  }
+
+  // NPV 섹션 업데이트 (있을 때만)
+  valUpdateNPV(r, inputs);
+}
+
+// ── NPV UI 업데이트
+function valUpdateNPV(r, inputs) {
+  if (!r) return;
+  var section = document.getElementById('vo-npv-section');
+  if (!section) return;
+
+  var hurdlePct = parseFloat((document.getElementById('thr-sponsor-irr')||{}).value) || 10.0;
+
+  var spNpv = r.sponsor_npv;  // $K
+  var prNpv = r.project_npv;  // $K
+  var wacc = r.wacc;  // 0.072
+
+  var spEl = document.getElementById('vo-sponsor-npv');
+  var prEl = document.getElementById('vo-project-npv');
+  var hrEl = document.getElementById('vo-npv-hurdle-rate');
+  var wcEl = document.getElementById('vo-npv-wacc-rate');
+
+  function fmtNpv(v) {
+    if (v == null) return '—';
+    var m = v / 1000;  // $K → $M
+    var sign = m >= 0 ? '' : '-';
+    var abs = Math.abs(m);
+    var col = v >= 0 ? 'var(--green)' : 'var(--red)';
+    return { text: sign + '$' + abs.toFixed(1) + 'M', color: col };
+  }
+
+  var spF = fmtNpv(spNpv);
+  var prF = fmtNpv(prNpv);
+  if (spEl) {
+    if (typeof spF === 'object') { spEl.textContent = spF.text; spEl.style.color = spF.color; }
+    else spEl.textContent = spF;
+  }
+  if (prEl) {
+    if (typeof prF === 'object') { prEl.textContent = prF.text; prEl.style.color = prF.color; }
+    else prEl.textContent = prF;
+  }
+  if (hrEl) hrEl.textContent = hurdlePct.toFixed(1) + '%';
+  if (wcEl) wcEl.textContent = wacc != null ? (wacc * 100).toFixed(2) + '%' : '—';
+
+  // 값 있으면 섹션 표시
+  if (spNpv != null || prNpv != null) section.style.display = 'block';
+}
+
 function valActivateCFTab() {
   function activateTab(tabId, label) {
     var tab = document.getElementById(tabId);
@@ -10114,7 +10231,7 @@ async function valRunScenarios() {
     var r = rObjs[i]; if (!r) return;
     var el = document.getElementById('val-sc-result-'+sc);
     if (!el) return;
-    var sirr = (r.sponsor_irr_contract||r.sponsor_irr||0)*100;
+    var sirr = (r.sponsor_irr||r.sponsor_irr_contract||0)*100;
     var sirrColor = sirr>=10?'var(--green)':sirr>=7?'var(--amber)':'var(--red)';
     var mwac = (window._valBaseInputs||{}).pv_mwac || 199;
     var cwp = mwac > 0 ? ((r.dev_margin||0)*1000) / (mwac*1000) * 100 : 0;
@@ -10131,7 +10248,7 @@ async function valRunScenarios() {
   var compareDiv = document.getElementById('val-sc-compare');
   if (tbody && rObjs.some(Boolean)) {
     var metrics = [
-      {lbl:'Sponsor IRR', fn:function(r){ var v=(r.sponsor_irr_contract||r.sponsor_irr||0)*100; return {txt:v.toFixed(2)+'%', val:v, color:v>=10?'var(--green)':v>=7?'var(--amber)':'var(--red)'}; }},
+      {lbl:'Sponsor IRR', fn:function(r){ var v=(r.sponsor_irr||r.sponsor_irr_contract||0)*100; return {txt:v.toFixed(2)+'%', val:v, color:v>=10?'var(--green)':v>=7?'var(--amber)':'var(--red)'}; }},
       {lbl:'Levered IRR',  fn:function(r){ var v=(r.levered_irr||0)*100; return {txt:v.toFixed(2)+'%',val:v}; }},
       {lbl:'Unlevered IRR',fn:function(r){ var v=(r.unlevered_irr||0)*100; return {txt:v.toFixed(2)+'%',val:v}; }},
       {lbl:'EBITDA Yield', fn:function(r){ return {txt:r.ebitda_yield.toFixed(1)+'%',val:r.ebitda_yield}; }},
@@ -10295,6 +10412,8 @@ document.addEventListener('DOMContentLoaded', function() {
         te_fee:     gv('vi-te-fee', 2),
         itc_elig:   gv('vi-itc-elig', 97),
         credit_val: gv('vi-credit-val', 30),
+        // Hurdle IRR (NPV 할인율로 사용)
+        hurdle_sponsor_irr: parseFloat((document.getElementById('thr-sponsor-irr')||{}).value) || 10.0,
       };
 
       // Inject project specs from PROJECTS array
@@ -10370,7 +10489,11 @@ document.addEventListener('DOMContentLoaded', function() {
         }
         setIRR('vo-lirr',null,r.levered_irr,8,5);
         setIRR('vo-uirr',null,r.unlevered_irr,7,4);
-        setIRR('vo-sirr','vo-sirr-bar',r.sponsor_irr_contract||r.sponsor_irr,10,7);
+        // ✅ Sponsor IRR 메인 표시 = Full Life (sponsor_irr), contract term 값은 보조
+        setIRR('vo-sirr','vo-sirr-bar',r.sponsor_irr||r.sponsor_irr_contract,10,7);
+
+        // ── Hurdle Check UI 업데이트
+        valUpdateHurdleCheck(r, inputs);
         // EBITDA Yield bar
         var yb=document.getElementById('vo-yield-bar');
         if(yb&&r.ebitda_yield) setTimeout(function(){ yb.style.width=Math.min(100,r.ebitda_yield/10*100)+'%'; },200);
@@ -10525,7 +10648,7 @@ async function valRunSensitivity(projectId, baseInputs, baseResult) {
 
       html += '<tr style="border-bottom:1px solid var(--border);'+bg+'">';
       html += '<td style="padding:6px 8px;font-weight:'+(isBase?'700':'400')+';color:var(--t1)">$'+ppa.toFixed(2)+(isBase?' ← base':'')+'</td>';
-      var sirr = r.sponsor_irr_contract||r.sponsor_irr||0;
+      var sirr = r.sponsor_irr||r.sponsor_irr_contract||0;
       var sirrColor = sirr>=0.10?'var(--green)':sirr>=0.07?'var(--amber)':'var(--red)';
       html += '<td style="text-align:right;padding:6px 8px;font-weight:700;color:'+deltaColor+'">$'+(r.dev_margin/1000).toFixed(1)+'M <span style="font-size:10px">'+deltaStr+'</span></td>';
       html += '<td style="text-align:right;padding:6px 8px;font-weight:700;color:'+sirrColor+'">'+(sirr*100).toFixed(2)+'%</td>';
@@ -11424,6 +11547,7 @@ async function valRunCFAnalysis(lang) {
       current_metrics: {
         dev_margin_cwp: devM_cwp,
         sponsor_irr_pct: tv('vo-sirr').replace('%','').trim(),
+        sponsor_irr_basis: 'After-TE-Flip, Full Life (useful life)',  // IC가 오해 없이 인용하도록
         unlevered_irr_pct: (function(){
           // Unlevered Pre-Tax IRR 추출 — outputs에서 직접
           var d = window._lastValData||{}, o = d.outputs||{};
@@ -11433,6 +11557,14 @@ async function valRunCFAnalysis(lang) {
         wacc_pct: (function(){
           var d = window._lastValData||{}, o = d.outputs||{};
           return (o.wacc!=null) ? (o.wacc*100).toFixed(2) : null;
+        })(),
+        sponsor_npv_m: (function(){
+          var d = window._lastValData||{}, o = d.outputs||{};
+          return (o.sponsor_npv!=null) ? (o.sponsor_npv/1000).toFixed(1) : null;  // $K → $M
+        })(),
+        project_npv_m: (function(){
+          var d = window._lastValData||{}, o = d.outputs||{};
+          return (o.project_npv!=null) ? (o.project_npv/1000).toFixed(1) : null;
         })(),
         itc_rate_pct: (document.getElementById('vi-credit-val')||{}).value||'30',
         ppa_term: (document.getElementById('vi-ppa-t')||{}).value||'25',
@@ -11506,7 +11638,7 @@ function valUpdateGauges(r) {
   setTimeout(function() {
     valDrawIRRGauge('gauge-lirr',  r.levered_irr||0,  'Levered IRR',    -0.05, 0.15, 0.09, 0.06);
     valDrawIRRGauge('gauge-uirr',  r.unlevered_irr||0,'Unlevered IRR',  -0.05, 0.12, 0.07, 0.04);
-    valDrawIRRGauge('gauge-sirr',  r.sponsor_irr_contract||r.sponsor_irr||0, 'Sponsor IRR', -0.05, 0.18, 0.10, 0.07);
+    valDrawIRRGauge('gauge-sirr',  r.sponsor_irr||r.sponsor_irr_contract||0, 'Sponsor IRR', -0.05, 0.18, 0.10, 0.07);
   }, 50);
 }
 
@@ -11642,7 +11774,7 @@ async function valRunHeatmap(projectId, baseInputs) {
       caps.forEach(function(cap) {
         var r = grid[ppa+'_'+cap];
         var margin = r ? r.total_margin/1000 : null;
-        var sirr = r ? (r.sponsor_irr_contract || r.sponsor_irr) : null;
+        var sirr = r ? (r.sponsor_irr || r.sponsor_irr_contract) : null;
         var isBase = Math.abs(ppa - basePPA) < 0.01 && Math.abs(cap - baseCAP) < 0.1;
 
         var bg = 'var(--surface3)';
@@ -12321,6 +12453,46 @@ function valSwitchTab(name, btn) {
           </div>
         </div>
 
+        <!-- HURDLE CHECK — 투자 기준 달성 여부 (HEUH 의사결정 핵심) -->
+        <div id="vo-hurdle-check" style="background:linear-gradient(180deg,var(--surface) 0%,var(--surface2) 100%);border:1px solid var(--border);border-radius:var(--r-lg);padding:14px 16px;margin-bottom:16px;display:none">
+          <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:10px">
+            <div style="font-size:9px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--t3)">🎯 Hurdle Check</div>
+            <div style="font-size:9px;color:var(--t3)">IC 의사결정 기준 · Settings 탭에서 수정 가능</div>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px">
+
+            <!-- Primary: Sponsor IRR vs Hurdle -->
+            <div id="vo-hurdle-irr" style="padding:10px 12px;background:var(--surface);border:1px solid var(--border2);border-radius:8px;border-left:3px solid var(--t3)">
+              <div style="font-size:8.5px;font-weight:700;color:var(--t3);letter-spacing:.06em;text-transform:uppercase;margin-bottom:4px">Primary · 매수자 Hurdle</div>
+              <div style="display:flex;align-items:baseline;gap:8px;margin-bottom:4px">
+                <div id="vo-hurdle-irr-current" style="font-size:22px;font-weight:800;color:var(--t1);font-variant-numeric:tabular-nums;line-height:1">—</div>
+                <div style="font-size:10px;color:var(--t3)">vs <span id="vo-hurdle-irr-target" style="color:var(--t2);font-weight:700">—</span></div>
+              </div>
+              <div style="font-size:9px;color:var(--t3);margin-bottom:6px">Sponsor IRR · After TE Flip · Full Life</div>
+              <div id="vo-hurdle-irr-status" style="font-size:10px;font-weight:700;padding:3px 8px;display:inline-block;border-radius:4px;background:var(--surface2);color:var(--t3)">Calculate 필요</div>
+            </div>
+
+            <!-- Secondary: Dev Margin vs Hurdle -->
+            <div id="vo-hurdle-margin" style="padding:10px 12px;background:var(--surface);border:1px solid var(--border2);border-radius:8px;border-left:3px solid var(--t3)">
+              <div style="font-size:8.5px;font-weight:700;color:var(--t3);letter-spacing:.06em;text-transform:uppercase;margin-bottom:4px">Secondary · HEUH 내부</div>
+              <div style="display:flex;align-items:baseline;gap:8px;margin-bottom:4px">
+                <div id="vo-hurdle-margin-current" style="font-size:22px;font-weight:800;color:var(--t1);font-variant-numeric:tabular-nums;line-height:1">—</div>
+                <div style="font-size:10px;color:var(--t3)">vs <span id="vo-hurdle-margin-target" style="color:var(--t2);font-weight:700">—</span></div>
+              </div>
+              <div style="font-size:9px;color:var(--t3);margin-bottom:6px">Dev Margin · c/Wp</div>
+              <div id="vo-hurdle-margin-status" style="font-size:10px;font-weight:700;padding:3px 8px;display:inline-block;border-radius:4px;background:var(--surface2);color:var(--t3)">Calculate 필요</div>
+            </div>
+
+            <!-- Overall Verdict -->
+            <div id="vo-hurdle-verdict" style="padding:10px 12px;background:var(--surface);border:1px solid var(--border2);border-radius:8px;border-left:3px solid var(--t3)">
+              <div style="font-size:8.5px;font-weight:700;color:var(--t3);letter-spacing:.06em;text-transform:uppercase;margin-bottom:4px">Overall Verdict</div>
+              <div id="vo-hurdle-verdict-icon" style="font-size:26px;line-height:1;margin-bottom:2px">—</div>
+              <div id="vo-hurdle-verdict-text" style="font-size:11px;font-weight:700;color:var(--t2);margin-bottom:4px">PENDING</div>
+              <div style="font-size:9px;color:var(--t3);line-height:1.3">Both must pass for IC approval</div>
+            </div>
+          </div>
+        </div>
+
         <!-- Returns Detail — 5개 IRR/WACC 통합 패널 -->
         <div style="background:linear-gradient(180deg,var(--surface) 0%,var(--surface2) 100%);border:1px solid var(--border);border-radius:var(--r-lg);padding:14px 16px;margin-bottom:16px">
           <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:10px">
@@ -12373,6 +12545,29 @@ function valSwitchTab(name, btn) {
           <!-- 숨은 레거시 ID (기존 JS 호환용) -->
           <span id="vo-lirr" style="display:none"></span>
           <span id="vo-uirr" style="display:none"></span>
+        </div>
+
+        <!-- NPV (순현재가치) — 규모 비교 지표 -->
+        <div id="vo-npv-section" style="background:linear-gradient(180deg,var(--surface) 0%,var(--surface2) 100%);border:1px solid var(--border);border-radius:var(--r-lg);padding:14px 16px;margin-bottom:16px;display:none">
+          <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:10px">
+            <div style="font-size:9px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--t3)">💰 NPV (Net Present Value)</div>
+            <div style="font-size:9px;color:var(--t3)">규모 비교용 · IRR 보완 지표</div>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+            <div style="padding:10px 12px;background:var(--surface);border:1px solid var(--border2);border-radius:8px;border-left:3px solid var(--green)">
+              <div style="font-size:8.5px;font-weight:700;color:var(--green);letter-spacing:.06em;text-transform:uppercase;margin-bottom:4px">Sponsor NPV</div>
+              <div id="vo-sponsor-npv" style="font-size:20px;font-weight:800;color:var(--t1);font-variant-numeric:tabular-nums;line-height:1.1">—</div>
+              <div style="font-size:9px;color:var(--t3);margin-top:3px">@ Hurdle <span id="vo-npv-hurdle-rate" style="color:var(--t2);font-weight:700">—</span> · Full Life Sponsor CF</div>
+            </div>
+            <div style="padding:10px 12px;background:var(--surface);border:1px solid var(--border2);border-radius:8px;border-left:3px solid var(--blue-h)">
+              <div style="font-size:8.5px;font-weight:700;color:var(--blue-h);letter-spacing:.06em;text-transform:uppercase;margin-bottom:4px">Project NPV</div>
+              <div id="vo-project-npv" style="font-size:20px;font-weight:800;color:var(--t1);font-variant-numeric:tabular-nums;line-height:1.1">—</div>
+              <div style="font-size:9px;color:var(--t3);margin-top:3px">@ WACC <span id="vo-npv-wacc-rate" style="color:var(--t2);font-weight:700">—</span> · Unlevered Project CF</div>
+            </div>
+          </div>
+          <div style="font-size:9px;color:var(--t3);margin-top:8px;padding:6px 10px;background:rgba(37,99,235,.05);border-left:2px solid var(--blue-h);border-radius:0 4px 4px 0;line-height:1.5">
+            💡 <b style="color:var(--t2)">IRR vs NPV</b>: IRR은 <b>수익률</b> (%, 비율), NPV는 <b>금액 규모</b>. 작은 프로젝트 IRR 15%보다 큰 프로젝트 IRR 12%가 절대가치 클 수 있음. IC 의사결정은 <b>둘 다 고려</b>.
+          </div>
         </div>
 
         <!-- Capital Structure -->
