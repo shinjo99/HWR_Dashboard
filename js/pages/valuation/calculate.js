@@ -195,7 +195,7 @@ async function valRunScenarios() {
     });
     var inputs = Object.assign({}, baseInputs, override);
     inputs.calibration_mode = window._calibrationMode || 'calibration';
-    return fetch('https://hwr-api-production.up.railway.app/valuation/calculate', {
+    return fetch(window.API_URL + '/valuation/calculate', {
       method:'POST',
       headers:{'Authorization':'Bearer '+token,'Content-Type':'application/json'},
       body: JSON.stringify({project_id: projectId, inputs: inputs})
@@ -283,7 +283,7 @@ async function valRunSensitivity(projectId, baseInputs, baseResult) {
     var inp = Object.assign({}, baseInputs, { ppa_price: ppa });
     inp.calibration_mode = window._calibrationMode || 'calibration';
     promises.push(
-      fetch('https://hwr-api-production.up.railway.app/valuation/calculate', {
+      fetch(window.API_URL + '/valuation/calculate', {
         method: 'POST',
         headers: { 'Authorization': 'Bearer '+token, 'Content-Type': 'application/json' },
         body: JSON.stringify({ project_id: projectId, inputs: inp })

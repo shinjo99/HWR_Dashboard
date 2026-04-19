@@ -303,7 +303,7 @@ function valLoadProject(projectId) {
     try {
       var token = window._authToken || localStorage.getItem('hwr_token');
       var form = new FormData(); form.append('file', file);
-      var res = await fetch('https://hwr-api-production.up.railway.app/valuation/integrity-check?lang=' + (currentLang || 'ko'), {
+      var res = await fetch(window.API_URL + '/valuation/integrity-check?lang=' + (currentLang || 'ko'), {
         method: 'POST', headers: {'Authorization': 'Bearer '+token}, body: form
       });
       var data = await res.json();
@@ -471,7 +471,7 @@ function valLoadProject(projectId) {
         if (runTxt) runTxt.textContent = currentLang === 'en' ? 'Run Analysis' : 'Run Analysis';
         return;
       }
-      var res = await fetch('https://hwr-api-production.up.railway.app/valuation/decompose-irr', {
+      var res = await fetch(window.API_URL + '/valuation/decompose-irr', {
         method: 'POST',
         headers: { 'Authorization': 'Bearer '+token, 'Content-Type': 'application/json' },
         body: JSON.stringify({ project_id: projectId, inputs: inputs })
@@ -544,7 +544,7 @@ function valLoadProject(projectId) {
     this.disabled = true;
     try {
       var token = window._authToken || localStorage.getItem('hwr_token');
-      var res = await fetch('https://hwr-api-production.up.railway.app/valuation/explain-diff', {
+      var res = await fetch(window.API_URL + '/valuation/explain-diff', {
         method: 'POST',
         headers: { 'Authorization': 'Bearer '+token, 'Content-Type': 'application/json' },
         body: JSON.stringify({
