@@ -9076,22 +9076,22 @@ async function valLoadMarketBenchmark(force) {
         chgTxt = Math.abs(d1m) >= 0.01 ? chgSign + ' ' + Math.abs(d1m).toFixed(2) : '±0.00';
       }
 
-      // 스파크라인 — 그래프 왼쪽 끝 = 1년전, 오른쪽 끝 = 현재
-      // SVG 내부에 값(상단)/날짜(하단) 텍스트 직접 배치
+      // 스파크라인 — 블룸버그 스타일 (오른쪽 y축 / 최고·최저 annotation / crosshair hover)
       var sparkSvg = '';
       if (spark.length > 1) {
         var sparkDates = d.spark_dates || [];
         var mn = Math.min.apply(null, spark), mx = Math.max.apply(null, spark);
         var range = mx - mn || 1;
 
-        // 카드 폭 꽉 활용: 그래프는 0~svgW, 텍스트는 양끝에서 넘치지 않게 anchor 처리
-        var svgW = 280, svgH = 60;
-        var plotTop = 14, plotBot = svgH - 18;  // 위 값 14px, 아래 날짜 18px
-        var plotH = plotBot - plotTop;
+        // SVG 영역: 아래 날짜축 공간만 남김, 오른쪽은 y축 라벨 공간
+        var svgW = 280, svgH = 56;
+        var plotL = 2, plotR = svgW - 38;   // 오른쪽 38px는 y축 라벨 공간
+        var plotT = 6, plotB = svgH - 14;   // 아래 14px는 x축 날짜
+        var plotW = plotR - plotL, plotH = plotB - plotT;
 
         var pts = spark.map(function(v, i) {
-          var x = (i / (spark.length - 1)) * svgW;  // 0 ~ svgW (가장자리 맞춤)
-          var y = plotTop + (1 - (v - mn) / range) * plotH;
+          var x = plotL + (i / (spark.length - 1)) * plotW;
+          var y = plotT + (1 - (v - mn) / range) * plotH;
           return { x: x, y: y, v: v, idx: i };
         });
         var polyPts = pts.map(function(p){ return p.x.toFixed(1)+','+p.y.toFixed(1); }).join(' ');
@@ -9104,53 +9104,83 @@ async function valLoadMarketBenchmark(force) {
           if (parts.length < 2) return dateStr;
           return "'" + parts[0].slice(2) + '.' + parts[1];
         };
+        // 블룸버그 스타일 fmt: 금리/% 2자리, 달러 2자리, KRW 정수, 기본 1자리
         var fmtVal = function(v) {
-          return unit==='%' ? v.toFixed(2)
-               : unit==='$' ? '$'+v.toFixed(2)
-               : unit==='$/MMBtu' ? '$'+v.toFixed(2)
-               : v.toFixed(2);
+          if (unit==='%') return v.toFixed(2);
+          if (unit==='$') return '$'+v.toFixed(2);
+          if (unit==='$/MMBtu') return v.toFixed(2);
+          if (unit==='KRW') return Math.round(v).toString();
+          return v.toFixed(2);
+        };
+        // Y축 라벨용 짧은 fmt (오른쪽 축)
+        var fmtAxis = function(v) {
+          if (unit==='%') return v.toFixed(2);
+          if (unit==='KRW') return Math.round(v).toString();
+          return v.toFixed(2);
         };
 
-        // 5개 마커: 1년전 / 9M전 / 6M전 / 3M전 / 현재 (양끝 포함)
-        var n = spark.length;
-        var markerIdxs = [];
-        markerIdxs.push(0);                            // 1년 전
-        if (n >= 40) markerIdxs.push(Math.floor(n * 0.25));   // 9M전
-        if (n >= 20) markerIdxs.push(Math.floor(n * 0.5));    // 6M전
-        if (n >= 10) markerIdxs.push(Math.floor(n * 0.75));   // 3M전
-        markerIdxs.push(n - 1);                        // 현재
-        markerIdxs = markerIdxs.filter(function(v,i,a){return a.indexOf(v)===i;});
+        // 최고/최저 인덱스 찾기
+        var maxIdx = 0, minIdx = 0;
+        for (var i = 1; i < spark.length; i++) {
+          if (spark[i] > spark[maxIdx]) maxIdx = i;
+          if (spark[i] < spark[minIdx]) minIdx = i;
+        }
+        var lastIdx = spark.length - 1;
+        var firstIdx = 0;
 
-        // SVG 내부 마커
-        var markerSvg = markerIdxs.map(function(idx, mIdx) {
-          var p = pts[idx];
-          if (!p) return '';
-          var isFirst = idx === 0;
-          var isLast = idx === n - 1;
-          var dateLbl = fmtDate(sparkDates[idx] || '');
-          var valLbl = fmtVal(p.v);
-
-          // 양끝은 anchor 조정으로 텍스트가 잘리지 않게
-          var textAnchor = 'middle';
-          if (isFirst) textAnchor = 'start';
-          else if (isLast) textAnchor = 'end';
-
-          // 마커 circle — 현재/시작은 더 크게
-          var radius = (isFirst || isLast) ? 3.2 : 2.5;
-
-          // 텍스트 값 — 현재는 bold+컬러
-          var valColor = isLast ? lineColor : 'var(--t2)';
-          var valWeight = isLast ? '800' : '700';
-
-          // 숫자 y 위치: 포인트 바로 위 (6px 오프셋). 단 너무 위로 가면 잘리므로 최소 8px 보장
-          var labelY = Math.max(8, p.y - 6);
-
-          return '<circle cx="'+p.x.toFixed(1)+'" cy="'+p.y.toFixed(1)+'" r="'+radius+'" fill="'+lineColor+'" stroke="var(--surface)" stroke-width="1.2"/>' +
-                 '<text x="'+p.x.toFixed(1)+'" y="'+labelY.toFixed(1)+'" text-anchor="'+textAnchor+'" font-size="8.5" font-weight="'+valWeight+'" font-family="var(--font)" fill="'+valColor+'" font-variant-numeric="tabular-nums">'+valLbl+'</text>' +
-                 '<text x="'+p.x.toFixed(1)+'" y="'+(svgH-4)+'" text-anchor="'+textAnchor+'" font-size="8" font-family="var(--font)" fill="var(--t3)" font-variant-numeric="tabular-nums">'+dateLbl+'</text>';
+        // 1) Y축 (오른쪽): 최고/중간/최저/현재 눈금 표시
+        var midV = (mn + mx) / 2;
+        var yAxis = '';
+        var yLabels = [
+          { v: mx, y: plotT },
+          { v: midV, y: plotT + plotH/2 },
+          { v: mn, y: plotB }
+        ];
+        yAxis += yLabels.map(function(lbl) {
+          // 배경 가로줄 (약하게)
+          return '<line x1="'+plotL+'" y1="'+lbl.y.toFixed(1)+'" x2="'+plotR+'" y2="'+lbl.y.toFixed(1)+'" stroke="var(--border)" stroke-width="0.3" opacity="0.4" stroke-dasharray="1,2"/>' +
+                 '<text x="'+(plotR+3)+'" y="'+(lbl.y+2.5).toFixed(1)+'" font-size="7.5" font-family="var(--font)" fill="var(--t3)" font-variant-numeric="tabular-nums">'+fmtAxis(lbl.v)+'</text>';
         }).join('');
 
-        // 전체 hover 포인트 (모든 데이터)
+        // 2) 현재값 마커 + 라벨 (오른쪽 축 강조)
+        var lastP = pts[lastIdx];
+        var currentMarker = '<circle cx="'+lastP.x.toFixed(1)+'" cy="'+lastP.y.toFixed(1)+'" r="3" fill="'+lineColor+'" stroke="var(--surface)" stroke-width="1.5"/>' +
+          // 현재값을 오른쪽 축 위치에 bold 표시
+          '<rect x="'+(plotR+1)+'" y="'+(lastP.y-5).toFixed(1)+'" width="36" height="10" fill="'+lineColor+'" opacity="0.15" rx="2"/>' +
+          '<text x="'+(plotR+3)+'" y="'+(lastP.y+2.5).toFixed(1)+'" font-size="8" font-weight="800" font-family="var(--font)" fill="'+lineColor+'" font-variant-numeric="tabular-nums">'+fmtAxis(lastP.v)+'</text>';
+
+        // 3) 최고/최저 annotation (양 끝이 아닐 때만 — 중복 방지)
+        var annotations = '';
+        if (maxIdx !== lastIdx && maxIdx !== firstIdx) {
+          var maxP = pts[maxIdx];
+          var maxLabelY = Math.max(7, maxP.y - 5);
+          var maxAnchor = maxP.x > plotL + plotW*0.7 ? 'end' : maxP.x < plotL + plotW*0.3 ? 'start' : 'middle';
+          annotations += '<circle cx="'+maxP.x.toFixed(1)+'" cy="'+maxP.y.toFixed(1)+'" r="2.5" fill="'+lineColor+'" stroke="var(--surface)" stroke-width="1"/>' +
+            '<text x="'+maxP.x.toFixed(1)+'" y="'+maxLabelY.toFixed(1)+'" text-anchor="'+maxAnchor+'" font-size="7.5" font-weight="700" font-family="var(--font)" fill="var(--t2)" font-variant-numeric="tabular-nums">'+fmtAxis(maxP.v)+'</text>';
+        }
+        if (minIdx !== lastIdx && minIdx !== firstIdx && minIdx !== maxIdx) {
+          var minP = pts[minIdx];
+          var minLabelY = Math.min(plotB - 2, minP.y + 10);
+          var minAnchor = minP.x > plotL + plotW*0.7 ? 'end' : minP.x < plotL + plotW*0.3 ? 'start' : 'middle';
+          annotations += '<circle cx="'+minP.x.toFixed(1)+'" cy="'+minP.y.toFixed(1)+'" r="2.5" fill="'+lineColor+'" stroke="var(--surface)" stroke-width="1"/>' +
+            '<text x="'+minP.x.toFixed(1)+'" y="'+minLabelY.toFixed(1)+'" text-anchor="'+minAnchor+'" font-size="7.5" font-weight="700" font-family="var(--font)" fill="var(--t2)" font-variant-numeric="tabular-nums">'+fmtAxis(minP.v)+'</text>';
+        }
+
+        // 4) 시작 포인트 (작은 회색)
+        var firstP = pts[firstIdx];
+        var startMarker = '<circle cx="'+firstP.x.toFixed(1)+'" cy="'+firstP.y.toFixed(1)+'" r="2" fill="var(--t3)" opacity="0.6"/>';
+
+        // 5) X축 날짜 (시작/중간/현재)
+        var midIdxX = Math.floor(spark.length / 2);
+        var midP_x = pts[midIdxX];
+        var xLabels = '';
+        xLabels += '<text x="'+plotL+'" y="'+(svgH-3)+'" font-size="7.5" font-family="var(--font)" fill="var(--t3)" font-variant-numeric="tabular-nums">'+fmtDate(sparkDates[firstIdx] || '')+'</text>';
+        if (midP_x) {
+          xLabels += '<text x="'+midP_x.x.toFixed(1)+'" y="'+(svgH-3)+'" text-anchor="middle" font-size="7.5" font-family="var(--font)" fill="var(--t3)" font-variant-numeric="tabular-nums">'+fmtDate(sparkDates[midIdxX] || '')+'</text>';
+        }
+        xLabels += '<text x="'+plotR+'" y="'+(svgH-3)+'" text-anchor="end" font-size="7.5" font-family="var(--font)" fill="var(--t3)" font-variant-numeric="tabular-nums">'+fmtDate(sparkDates[lastIdx] || '')+'</text>';
+
+        // 6) 전체 hover 포인트 (crosshair 효과용)
         var hitDots = pts.map(function(p) {
           var dateStr = sparkDates[p.idx] || '';
           if (!dateStr) {
@@ -9161,14 +9191,18 @@ async function valLoadMarketBenchmark(force) {
             dateStr = dt.getFullYear() + '-' + pad(dt.getMonth()+1) + '-' + pad(dt.getDate());
           }
           var fmtv = fmtVal(p.v);
-          return '<circle cx="'+p.x.toFixed(1)+'" cy="'+p.y.toFixed(1)+'" r="3" fill="'+lineColor+'" fill-opacity="0" stroke="'+lineColor+'" stroke-width="0" class="spark-dot" '+
+          return '<circle cx="'+p.x.toFixed(1)+'" cy="'+p.y.toFixed(1)+'" r="4" fill="'+lineColor+'" fill-opacity="0" stroke="'+lineColor+'" stroke-width="0" class="spark-dot" '+
             'data-label="'+dateStr+'" data-value="'+fmtv+'" '+
             'onmouseover="valShowSparkTip(event, this)" onmouseout="valHideSparkTip()"/>';
         }).join('');
 
-        sparkSvg = '<svg width="100%" height="'+svgH+'" viewBox="0 0 '+svgW+' '+svgH+'" preserveAspectRatio="none" style="margin-top:4px;display:block;overflow:visible">' +
-          '<polyline points="'+polyPts+'" fill="none" stroke="'+lineColor+'" stroke-width="1.5" opacity="0.8" vector-effect="non-scaling-stroke"/>' +
-          markerSvg +
+        sparkSvg = '<svg width="100%" height="'+svgH+'" viewBox="0 0 '+svgW+' '+svgH+'" preserveAspectRatio="none" style="margin-top:6px;display:block;overflow:visible">' +
+          yAxis +
+          '<polyline points="'+polyPts+'" fill="none" stroke="'+lineColor+'" stroke-width="1.5" opacity="0.85" vector-effect="non-scaling-stroke"/>' +
+          startMarker +
+          annotations +
+          currentMarker +
+          xLabels +
           hitDots +
         '</svg>';
       }
