@@ -12763,28 +12763,29 @@ function valSwitchTab(name, btn) {
   position:relative; min-height:0;
 }
 .val-left-scroll {
-  flex:1 1 auto; min-height:0;
+  flex:1 1 0; min-height:0; height:0;
   overflow-y:scroll !important; overflow-x:hidden;
-  scrollbar-gutter: stable;                  /* 스크롤바 자리 항상 확보 */
-  scrollbar-width: thin;                     /* Firefox */
-  scrollbar-color: rgba(255,255,255,.4) rgba(255,255,255,.06);  /* Firefox: thumb track */
+  scrollbar-gutter: stable;                     /* 스크롤바 자리 항상 확보 (레이아웃 요동 방지) */
+  scrollbar-width: thin;                        /* Firefox */
+  scrollbar-color: rgba(255,255,255,.15) transparent;
 }
 .val-left::-webkit-scrollbar,
 .val-left-scroll::-webkit-scrollbar {
-  width:12px !important;
+  width:6px;
   -webkit-appearance: auto;
 }
 .val-left::-webkit-scrollbar-thumb,
 .val-left-scroll::-webkit-scrollbar-thumb {
-  background:rgba(255,255,255,.35) !important;
-  border-radius:6px;
-  border:2px solid var(--surface);
-  min-height:40px;
+  background:rgba(255,255,255,.12);
+  border-radius:3px;
+  transition: background 0.15s;
 }
+.val-left:hover::-webkit-scrollbar-thumb,
+.val-left-scroll:hover::-webkit-scrollbar-thumb { background:rgba(255,255,255,.25); }
 .val-left::-webkit-scrollbar-thumb:hover,
-.val-left-scroll::-webkit-scrollbar-thumb:hover { background:rgba(255,255,255,.55) !important; }
+.val-left-scroll::-webkit-scrollbar-thumb:hover { background:rgba(255,255,255,.4); }
 .val-left::-webkit-scrollbar-track,
-.val-left-scroll::-webkit-scrollbar-track { background:rgba(255,255,255,.06); }
+.val-left-scroll::-webkit-scrollbar-track { background:transparent; }
 
 .val-section { border-bottom:1px solid rgba(255,255,255,.04); }
 .val-section-hd {
