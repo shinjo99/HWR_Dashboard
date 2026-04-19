@@ -4279,11 +4279,11 @@ const LANG = {
     valModeInfoNote: '※ 엑셀 업로드 후 Integrity Check를 돌리면 자동으로 권장 모드를 제안합니다.',
     
     // Integrity Check
-    valICTitle: 'Model Integrity Check',
+    valICTitle: 'Model Audit',
     valICDesc: '엑셀 모델 정합성 체크 (수식 오류, Capital Stack, IRR, Debt, Revenue).',
     valICFilePick: '.xlsb / .xlsx 파일 선택',
     valICRunBtn: '🔍 정합성 체크 실행',
-    valICBtnLabel: 'Model Integrity Check',
+    valICBtnLabel: 'Model Audit',
     valICChecking: '⏳ Checking...',
     valICReportTitle: '📋 정합성 리포트',
     valICRecommendCalib: '🎯 권장 모드:',
@@ -4411,11 +4411,11 @@ const LANG = {
     valModeInfoNote: '※ After Excel upload, run Integrity Check to get an automatic mode recommendation.',
     
     // Integrity Check
-    valICTitle: 'Model Integrity Check',
+    valICTitle: 'Model Audit',
     valICDesc: 'Excel model integrity check (formula errors, Capital Stack, IRR, Debt, Revenue).',
     valICFilePick: 'Select .xlsb / .xlsx file',
     valICRunBtn: '🔍 Run Integrity Check',
-    valICBtnLabel: 'Model Integrity Check',
+    valICBtnLabel: 'Model Audit',
     valICChecking: '⏳ Checking...',
     valICReportTitle: '📋 Integrity Report',
     valICRecommendCalib: '🎯 Recommended Mode:',
@@ -7933,7 +7933,7 @@ function valLoadProject(projectId) {
       if (icModal) icModal.style.display = 'flex';
     } finally {
       if (icIcon) icIcon.textContent = '🔍';
-      if (icBtnText) icBtnText.textContent = L.valICBtnLabel || 'Model Integrity Check';
+      if (icBtnText) icBtnText.textContent = L.valICBtnLabel || 'Model Audit';
       if (icLabel) icLabel.style.pointerEvents = 'auto';
       // 같은 파일 재선택 가능하도록 value 리셋
       this.value = '';
@@ -12751,7 +12751,7 @@ function valSwitchTab(name, btn) {
   <!-- 🔍 Integrity Check: 파일 선택 시 자동 실행 -->
   <label id="val-ic-label" title="Run integrity check before upload" style="display:flex;align-items:center;gap:6px;padding:5px 12px;background:linear-gradient(135deg,rgba(124,58,237,0.15),rgba(91,33,182,0.1));border:1px solid rgba(124,58,237,0.4);border-radius:var(--r-md);color:#c4b5fd;font-size:11px;font-weight:600;cursor:pointer;height:32px;box-sizing:border-box;white-space:nowrap">
     <span id="val-ic-icon">🔍</span>
-    <span id="val-ic-btn-text">Model Integrity Check</span>
+    <span id="val-ic-btn-text">Model Audit</span>
     <input type="file" id="vl-check-file" accept=".xlsb,.xlsx" style="display:none">
   </label>
 
@@ -12773,7 +12773,7 @@ function valSwitchTab(name, btn) {
 <div id="val-ic-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.7);backdrop-filter:blur(8px);z-index:200;align-items:center;justify-content:center;padding:24px">
   <div style="max-width:720px;width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:14px;padding:24px;box-shadow:0 20px 50px rgba(0,0,0,0.5);max-height:85vh;overflow-y:auto">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
-      <div style="font-size:14px;font-weight:800;color:var(--t1)">🔍 <span id="val-ic-modal-title">Model Integrity Check</span></div>
+      <div style="font-size:14px;font-weight:800;color:var(--t1)">🔍 <span id="val-ic-modal-title">Model Audit</span></div>
       <button onclick="document.getElementById('val-ic-modal').style.display='none'" style="background:transparent;border:none;color:var(--t3);font-size:20px;cursor:pointer">✕</button>
     </div>
     <div id="val-ic-modal-filename" style="font-size:10px;color:var(--t3);margin-bottom:12px;word-break:break-all"></div>
@@ -12816,7 +12816,7 @@ function valSwitchTab(name, btn) {
       <strong style="color:var(--t1)">💡 Which mode should I use?</strong><br>
       • <strong>Upload Excel</strong>then <strong>match the same numbers</strong> → use Calibration <strong style="color:#c4b5fd">Calibration</strong><br>
       • <strong>New project</strong> with parameters only, <strong>IRR estimation</strong>→ use Prediction <strong style="color:#6ee7b7">Prediction</strong><br><br>
-      <span style="font-size:10px;color:var(--t3)">※ After uploading the Excel, run Model Integrity Check to get an automatic mode recommendation.</span>
+      <span style="font-size:10px;color:var(--t3)">※ After uploading the Excel, run Model Audit to get an automatic mode recommendation.</span>
     </div>
   </div>
 </div>
@@ -12833,7 +12833,7 @@ function valSwitchTab(name, btn) {
     <div class="val-section" style="background:linear-gradient(135deg,rgba(124,58,237,0.05),rgba(59,130,246,0.03));border-left:3px solid rgba(124,58,237,0.5)">
       <div class="val-section-hd" style="display:flex;align-items:center;justify-content:space-between">
         <span class="val-sec-title" style="color:rgba(196,181,253,1)">⚙️ Calc Mode</span>
-        <button onclick="document.getElementById('val-mode-info-modal').style.display='flex'" title="모드 상세 설명" style="background:transparent;border:1px solid var(--border2);color:var(--t3);width:20px;height:20px;border-radius:50%;font-size:10px;cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0;font-family:var(--font)">ⓘ</button>
+        <button onclick="document.getElementById('val-mode-info-modal').style.display='flex'" title="Mode details" style="background:transparent;border:1px solid var(--border2);color:var(--t3);width:20px;height:20px;border-radius:50%;font-size:10px;cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0;font-family:var(--font)">ⓘ</button>
       </div>
       <div class="val-sec-body">
         <div style="display:flex;gap:4px;padding:3px;background:rgba(0,0,0,0.3);border-radius:6px;margin-bottom:6px">
@@ -13043,7 +13043,7 @@ function valSwitchTab(name, btn) {
           <!-- Change summary (필수) -->
           <div>
             <label style="font-size:10px;font-weight:600;color:var(--t2);display:block;margin-bottom:4px">Change summary <span style="color:var(--red)">*</span></label>
-            <textarea id="vsm-reason" placeholder="예: TE 시장 경색 반영하여 Flip yield 9.0%로 상향 조정" rows="3" style="width:100%;padding:8px 10px;background:var(--surface3);border:1px solid var(--border);border-radius:var(--r-md);color:var(--t1);font-size:12px;font-family:var(--font);resize:vertical;box-sizing:border-box"></textarea>
+            <textarea id="vsm-reason" placeholder="e.g., Adjusted Flip yield to 9.0% reflecting tight TE market" rows="3" style="width:100%;padding:8px 10px;background:var(--surface3);border:1px solid var(--border);border-radius:var(--r-md);color:var(--t1);font-size:12px;font-family:var(--font);resize:vertical;box-sizing:border-box"></textarea>
             <div style="font-size:9px;color:var(--t3);margin-top:3px">Keep it brief (e.g., "Applied PPA renegotiation", "CAPEX reduced by 3%")</div>
           </div>
 
@@ -13071,10 +13071,10 @@ function valSwitchTab(name, btn) {
     <div class="val-tabs-row">
       <button class="val-tab active" onclick="valSwitchTab('overview',this)">Overview</button>
       <button class="val-tab" onclick="valSwitchTab('sensitivity',this)">Sensitivity</button>
-      <button class="val-tab val-tab-locked" id="val-tab-cf" onclick="valSwitchTab('cashflow',this)" title="Calculate 후 활성화됩니다" style="opacity:.35;cursor:not-allowed;pointer-events:none">Cash Flow</button>
+      <button class="val-tab val-tab-locked" id="val-tab-cf" onclick="valSwitchTab('cashflow',this)" title="Enabled after Calculate" style="opacity:.35;cursor:not-allowed;pointer-events:none">Cash Flow</button>
       <button class="val-tab" onclick="valSwitchTab('history',this)">History</button>
       <button class="val-tab" onclick="valSwitchTab('benchmark',this);valOnBenchmarkOpen()">Benchmark</button>
-      <button class="val-tab val-tab-locked" id="val-tab-ic" onclick="valSwitchTab('ic',this)" title="Calculate 후 활성화됩니다" style="opacity:.35;cursor:not-allowed;pointer-events:none">IC Opinion</button>
+      <button class="val-tab val-tab-locked" id="val-tab-ic" onclick="valSwitchTab('ic',this)" title="Enabled after Calculate" style="opacity:.35;cursor:not-allowed;pointer-events:none">IC Opinion</button>
       <span id="val-calc-status" style="margin-left:auto"></span>
       <button onclick="valExportPDF()" id="val-export-btn" style="margin-left:8px;margin-right:4px;padding:5px 12px;background:transparent;border:1px solid var(--border2);border-radius:var(--r-md);font-size:10px;font-weight:600;color:var(--t3);cursor:pointer;font-family:var(--font);transition:all var(--ease);white-space:nowrap" onmouseover="this.style.color='var(--t1)';this.style.borderColor='var(--t2)'" onmouseout="this.style.color='var(--t3)';this.style.borderColor='var(--border2)'">✨ Export IC Opinion</button>
     </div>
@@ -13195,7 +13195,7 @@ function valSwitchTab(name, btn) {
             </div>
 
             <!-- Project Unlevered -->
-            <div style="padding:10px 12px;background:var(--surface);border:1px solid var(--border);border-radius:8px" title="Project IRR (Unlevered Pre-Tax) — 세전 자산 자체 수익률. ITC/Debt/Tax Equity 영향 받지 않음. 프로젝트 본연의 경제성 지표.">
+            <div style="padding:10px 12px;background:var(--surface);border:1px solid var(--border);border-radius:8px" title="Project IRR (Unlevered Pre-Tax) — asset-level return before tax. Independent of ITC/Debt/Tax Equity. Pure project economics metric.">
               <div style="font-size:8.5px;font-weight:700;color:var(--t3);letter-spacing:.06em;text-transform:uppercase;margin-bottom:4px;white-space:nowrap">Project IRR</div>
               <div id="vo-irr-unlev-pretax" style="font-size:18px;font-weight:700;color:var(--t2);font-variant-numeric:tabular-nums;line-height:1.1">—</div>
               <div style="font-size:9px;color:var(--t3);margin-top:3px;white-space:nowrap">Unlevered · Pre-Tax <span style="color:var(--t3);opacity:.6">· ITC-neutral</span></div>
