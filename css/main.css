@@ -352,27 +352,8 @@ min-width:0;overflow:hidden;}
 /* ── FINANCIAL MODEL ─────────────────────────────── */
 .fin-section{background:var(--surface2);border:1px solid var(--border);border-radius:var(--r-lg);padding:14px;margin-bottom:10px}
 .fin-section-title{font-size:9px;font-weight:700;color:var(--t3);text-transform:uppercase;letter-spacing:.07em;margin-bottom:10px}
-.fin-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
-.fin-field{display:flex;flex-direction:column;gap:3px}
-.fin-field label{font-size:9px;color:var(--t3);font-weight:700;text-transform:uppercase;letter-spacing:.04em}
-.fin-field input,.fin-field select{padding:6px 9px;background:var(--surface3);border:1px solid var(--border2);border-radius:var(--r-sm);color:var(--t1);font-size:12px;font-family:var(--font);transition:border-color var(--ease)}
-.fin-field input:focus,.fin-field select:focus{outline:none;border-color:var(--border3)}
-.fin-results{background:var(--surface3);border-radius:var(--r-lg);padding:14px;border:1px solid var(--border2)}
-.fin-results-title{font-size:9px;font-weight:700;color:var(--t3);text-transform:uppercase;letter-spacing:.07em;margin-bottom:10px}
-.fin-result-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:10px}
-.fin-result-item{text-align:center;padding:10px 6px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--r-md)}
-.fin-result-label{font-size:9px;color:var(--t3);margin-bottom:3px}
-.fin-result-val{font-size:18px;font-weight:800;font-variant-numeric:tabular-nums}
-.fin-result-val.good{color:var(--green)}
-.fin-result-val.ok{color:var(--amber)}
-.fin-result-val.bad{color:var(--red)}
-.fin-calc-btn{width:100%;padding:9px;background:var(--blue-d);color:#fff;border:none;border-radius:var(--r-md);font-size:12px;font-weight:600;font-family:var(--font);cursor:pointer;margin-top:8px;transition:opacity var(--ease)}
-.fin-calc-btn:hover{opacity:.85}
-.cashflow-table{width:100%;border-collapse:collapse;font-size:11px;margin-top:8px;font-variant-numeric:tabular-nums}
-.cashflow-table th{padding:5px 8px;background:var(--surface3);color:var(--t3);text-align:right;font-weight:600;font-size:9px;text-transform:uppercase;letter-spacing:.04em}
-.cashflow-table th:first-child{text-align:left}
-.cashflow-table td{padding:4px 8px;border-top:1px solid var(--border);color:var(--t2);text-align:right}
-.cashflow-table td:first-child{text-align:left;color:var(--t1)}
+
+
 .cf-pos{color:var(--green)!important}
 .cf-neg{color:var(--red)!important}
 
@@ -686,7 +667,6 @@ input:focus,textarea:focus,select:focus{outline:none;border-color:var(--border3)
 @keyframes slideUp{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
 @keyframes countUp{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:translateY(0)}}
 .anim-fade{animation:fadeIn .2s ease}
-
 
 @media(max-width:900px){.sidebar{width:200px}.detail-panel{width:360px}}
 
