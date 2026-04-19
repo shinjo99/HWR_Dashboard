@@ -9055,37 +9055,51 @@ async function valLoadMarketBenchmark(force) {
                : unit === 'KRW' ? val.toFixed(1)
                : val.toFixed(2);
       var d1m = d.d_1m || 0;
-      var chgColor = d1m > 0 ? 'var(--green)' : d1m < 0 ? 'var(--red)' : 'var(--t3)';
-      var chgSign = d1m > 0 ? '▲' : d1m < 0 ? '▼' : '·';
-      var chgTxt = Math.abs(d1m) >= 0.01 ? chgSign + ' ' + Math.abs(d1m).toFixed(2) : '±0.00';
+      var d1y = d.d_1y || 0;  // 1년 변화
+      var chgColor = d1y > 0 ? 'var(--green)' : d1y < 0 ? 'var(--red)' : 'var(--t3)';
+      var chgSign = d1y > 0 ? '▲' : d1y < 0 ? '▼' : '·';
+
+      // 상단 우측에 1년 변화 (절대값 + YoY %)
+      var chgTxt = '';
+      if (spark.length > 1 && d.spark) {
+        var valYAgo = d.spark[0];  // 스파크 첫 값 = 1년전
+        var valNow = d.spark[d.spark.length - 1];  // 마지막 = 현재
+        var absChg = valNow - valYAgo;
+        var pctChg = valYAgo !== 0 ? (absChg / Math.abs(valYAgo)) * 100 : 0;
+        chgSign = absChg > 0 ? '▲' : absChg < 0 ? '▼' : '·';
+        chgColor = absChg > 0 ? 'var(--green)' : absChg < 0 ? 'var(--red)' : 'var(--t3)';
+        chgTxt = chgSign + ' ' + Math.abs(absChg).toFixed(2) + ' (' + (pctChg>=0?'+':'') + pctChg.toFixed(1) + '% YoY)';
+      } else {
+        // fallback: 1년치 데이터 없으면 월간 변화
+        chgTxt = Math.abs(d1m) >= 0.01 ? chgSign + ' ' + Math.abs(d1m).toFixed(2) : '±0.00';
+      }
 
       var spark = d.spark || [];
 
-      // 스파크라인 — 1년치, 정원 hover, 값/날짜 SVG 내부에 직접 표시 (완벽 정렬)
+      // 스파크라인 — 그래프 왼쪽 끝 = 1년전, 오른쪽 끝 = 현재
+      // SVG 내부에 값(상단)/날짜(하단) 텍스트 직접 배치
       var sparkSvg = '';
       if (spark.length > 1) {
-        var sparkDates = d.spark_dates || [];  // 백엔드에서 실제 날짜 전달
+        var sparkDates = d.spark_dates || [];
         var mn = Math.min.apply(null, spark), mx = Math.max.apply(null, spark);
         var range = mx - mn || 1;
-        // 카드 폭을 꽉 채우되 위아래 여유 남김: 위쪽 값 표시 공간 + 아래쪽 날짜 공간
-        var svgW = 280, svgH = 60;  // 높이 확대: 값(상단 14px) + 그래프(중단 30px) + 날짜(하단 16px)
-        var padX = 22, padY_top = 14, padY_bot = 18;  // x축: 값/날짜 글자 폭 고려해 좌우 22px 여유
-        var plotTop = padY_top, plotBot = svgH - padY_bot;
+
+        // 카드 폭 꽉 활용: 그래프는 0~svgW, 텍스트는 양끝에서 넘치지 않게 anchor 처리
+        var svgW = 280, svgH = 60;
+        var plotTop = 14, plotBot = svgH - 18;  // 위 값 14px, 아래 날짜 18px
         var plotH = plotBot - plotTop;
 
         var pts = spark.map(function(v, i) {
-          var x = padX + (i / (spark.length - 1)) * (svgW - 2*padX);
+          var x = (i / (spark.length - 1)) * svgW;  // 0 ~ svgW (가장자리 맞춤)
           var y = plotTop + (1 - (v - mn) / range) * plotH;
           return { x: x, y: y, v: v, idx: i };
         });
         var polyPts = pts.map(function(p){ return p.x.toFixed(1)+','+p.y.toFixed(1); }).join(' ');
-        var lineColor = d1m > 0 ? 'var(--green)' : d1m < 0 ? 'var(--red)' : 'var(--t3)';
+        var lineColor = (d1y !== 0 ? d1y : d1m) > 0 ? 'var(--green)' : (d1y !== 0 ? d1y : d1m) < 0 ? 'var(--red)' : 'var(--t3)';
 
-        // 날짜 포맷: 'YY.MM 또는 'YYYY-MM
         var pad = function(n){return n<10?'0'+n:n;};
         var fmtDate = function(dateStr) {
           if (!dateStr) return '';
-          // "2025-07-15" → "'25.07"
           var parts = dateStr.split('-');
           if (parts.length < 2) return dateStr;
           return "'" + parts[0].slice(2) + '.' + parts[1];
@@ -9097,46 +9111,50 @@ async function valLoadMarketBenchmark(force) {
                : v.toFixed(2);
         };
 
-        // 3개 마커 포인트 선택: 9M전/6M전/3M전 (주간 샘플링 기준)
-        // spark.length = 약 52포인트 (1년치 주간)
+        // 5개 마커: 1년전 / 9M전 / 6M전 / 3M전 / 현재 (양끝 포함)
+        var n = spark.length;
         var markerIdxs = [];
-        if (spark.length >= 40) {
-          // 대략 9M=12, 6M=26, 3M=39 (마지막이 최신이면 역순 기준)
-          markerIdxs = [
-            Math.max(0, spark.length - 1 - 39),  // 9M전
-            Math.max(0, spark.length - 1 - 26),  // 6M전
-            Math.max(0, spark.length - 1 - 13),  // 3M전
-          ];
-        } else if (spark.length >= 12) {
-          // 짧으면 비례로
-          markerIdxs = [
-            Math.floor(spark.length * 0.25),
-            Math.floor(spark.length * 0.5),
-            Math.floor(spark.length * 0.75),
-          ];
-        }
-        // 중복 제거
+        markerIdxs.push(0);                            // 1년 전
+        if (n >= 40) markerIdxs.push(Math.floor(n * 0.25));   // 9M전
+        if (n >= 20) markerIdxs.push(Math.floor(n * 0.5));    // 6M전
+        if (n >= 10) markerIdxs.push(Math.floor(n * 0.75));   // 3M전
+        markerIdxs.push(n - 1);                        // 현재
         markerIdxs = markerIdxs.filter(function(v,i,a){return a.indexOf(v)===i;});
 
-        // SVG 내부 마커: 값(위) + 날짜(아래) 텍스트 + 수직선
-        var markerSvg = markerIdxs.map(function(idx) {
+        // SVG 내부 마커
+        var markerSvg = markerIdxs.map(function(idx, mIdx) {
           var p = pts[idx];
           if (!p) return '';
+          var isFirst = idx === 0;
+          var isLast = idx === n - 1;
           var dateLbl = fmtDate(sparkDates[idx] || '');
           var valLbl = fmtVal(p.v);
-          var textX = p.x;
-          // 양끝 근처면 텍스트 anchor 조정
-          var anchor = 'middle';
-          if (p.x < padX + 20) anchor = 'start';
-          else if (p.x > svgW - padX - 20) anchor = 'end';
 
-          return '<line x1="'+p.x.toFixed(1)+'" y1="'+plotTop.toFixed(1)+'" x2="'+p.x.toFixed(1)+'" y2="'+plotBot.toFixed(1)+'" stroke="var(--t3)" stroke-width="0.5" stroke-dasharray="1.5,1.5" opacity="0.3"/>' +
-                 '<circle cx="'+p.x.toFixed(1)+'" cy="'+p.y.toFixed(1)+'" r="2.8" fill="'+lineColor+'" stroke="var(--surface)" stroke-width="1"/>' +
-                 '<text x="'+textX.toFixed(1)+'" y="10" text-anchor="'+anchor+'" font-size="9" font-weight="700" font-family="var(--font)" fill="var(--t2)" font-variant-numeric="tabular-nums">'+valLbl+'</text>' +
-                 '<text x="'+textX.toFixed(1)+'" y="'+(svgH-4)+'" text-anchor="'+anchor+'" font-size="8.5" font-family="var(--font)" fill="var(--t3)" font-variant-numeric="tabular-nums">'+dateLbl+'</text>';
+          // 양끝은 anchor 조정으로 텍스트가 잘리지 않게
+          var textAnchor = 'middle';
+          if (isFirst) textAnchor = 'start';
+          else if (isLast) textAnchor = 'end';
+
+          // 가이드 점선 (현재 점은 생략 — 이미 강조)
+          var guideLine = '';
+          if (!isLast) {
+            guideLine = '<line x1="'+p.x.toFixed(1)+'" y1="'+plotTop.toFixed(1)+'" x2="'+p.x.toFixed(1)+'" y2="'+plotBot.toFixed(1)+'" stroke="var(--t3)" stroke-width="0.5" stroke-dasharray="1.5,1.5" opacity="0.25"/>';
+          }
+
+          // 마커 circle — 현재/시작은 더 크게
+          var radius = (isFirst || isLast) ? 3.2 : 2.5;
+
+          // 텍스트 값 — 현재는 bold+컬러
+          var valColor = isLast ? lineColor : 'var(--t2)';
+          var valWeight = isLast ? '800' : '700';
+
+          return guideLine +
+                 '<circle cx="'+p.x.toFixed(1)+'" cy="'+p.y.toFixed(1)+'" r="'+radius+'" fill="'+lineColor+'" stroke="var(--surface)" stroke-width="1.2"/>' +
+                 '<text x="'+p.x.toFixed(1)+'" y="10" text-anchor="'+textAnchor+'" font-size="9" font-weight="'+valWeight+'" font-family="var(--font)" fill="'+valColor+'" font-variant-numeric="tabular-nums">'+valLbl+'</text>' +
+                 '<text x="'+p.x.toFixed(1)+'" y="'+(svgH-4)+'" text-anchor="'+textAnchor+'" font-size="8.5" font-family="var(--font)" fill="var(--t3)" font-variant-numeric="tabular-nums">'+dateLbl+'</text>';
         }).join('');
 
-        // 전체 hover 포인트 (작은 투명 circle)
+        // 전체 hover 포인트 (모든 데이터)
         var hitDots = pts.map(function(p) {
           var dateStr = sparkDates[p.idx] || '';
           if (!dateStr) {
@@ -9152,10 +9170,10 @@ async function valLoadMarketBenchmark(force) {
             'onmouseover="valShowSparkTip(event, this)" onmouseout="valHideSparkTip()"/>';
         }).join('');
 
-        sparkSvg = '<svg width="100%" height="'+svgH+'" viewBox="0 0 '+svgW+' '+svgH+'" preserveAspectRatio="xMidYMid meet" style="margin-top:4px;display:block;overflow:visible">' +
-          '<polyline points="'+polyPts+'" fill="none" stroke="'+lineColor+'" stroke-width="1.5" opacity="0.75" vector-effect="non-scaling-stroke"/>' +
-          markerSvg +  // 값 + 날짜 + 수직 가이드선 + 강조 circle
-          hitDots +    // 전체 포인트 hover area
+        sparkSvg = '<svg width="100%" height="'+svgH+'" viewBox="0 0 '+svgW+' '+svgH+'" preserveAspectRatio="none" style="margin-top:4px;display:block;overflow:visible">' +
+          '<polyline points="'+polyPts+'" fill="none" stroke="'+lineColor+'" stroke-width="1.5" opacity="0.8" vector-effect="non-scaling-stroke"/>' +
+          markerSvg +
+          hitDots +
         '</svg>';
       }
 
