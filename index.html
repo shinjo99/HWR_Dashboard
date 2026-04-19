@@ -4279,7 +4279,7 @@ const LANG = {
     valModeInfoNote: '※ 엑셀 업로드 후 Integrity Check를 돌리면 자동으로 권장 모드를 제안합니다.',
     
     // Integrity Check
-    valICTitle: '🔍 Model Integrity Check',
+    valICTitle: 'Model Integrity Check',
     valICDesc: '엑셀 모델 정합성 체크 (수식 오류, Capital Stack, IRR, Debt, Revenue).',
     valICFilePick: '.xlsb / .xlsx 파일 선택',
     valICRunBtn: '🔍 정합성 체크 실행',
@@ -4411,7 +4411,7 @@ const LANG = {
     valModeInfoNote: '※ After Excel upload, run Integrity Check to get an automatic mode recommendation.',
     
     // Integrity Check
-    valICTitle: '🔍 Model Integrity Check',
+    valICTitle: 'Model Integrity Check',
     valICDesc: 'Excel model integrity check (formula errors, Capital Stack, IRR, Debt, Revenue).',
     valICFilePick: 'Select .xlsb / .xlsx file',
     valICRunBtn: '🔍 Run Integrity Check',
@@ -7646,163 +7646,7 @@ function valGetThresholds() {
   };
 }
 
-// ══════════════════════════════════════════════════════════
-// Valuation-local language toggle (영↔한)
-// 글로벌 currentLang은 건드리지 않고, Valuation 페이지 내부 텍스트만 전환
-// ══════════════════════════════════════════════════════════
-window._valLang = 'en';  // 기본 영문
-
-// 영문 → 한글 매핑 (Phase 1의 역방향)
-const VAL_EN_TO_KO = {
-  "⚙️ Calculation Mode Comparison": "⚙️ 계산 모드 비교",
-  "Use case:": "용도:",
-  "Replicate & verify Excel model": "엑셀 모델 재현·검증",
-  "Debt Structure:": "Debt 구조:",
-  "Sculpted (DSCR-based)": "Sculpted (DSCR 기반)",
-  "NOL carryforward (Y1–9 offset)": "NOL 이월 (Y1~9 상쇄)",
-  "Accuracy:": "정확도:",
-  "New project estimation": "신규 프로젝트 예측",
-  "Level amortization": "균등 amortization",
-  "99/5 (standard)": "99/5 (표준)",
-  "MACRS standard Sponsor allocation": "MACRS 정상 Sponsor 배분",
-  "💡 Which mode should I use?": "💡 어떤 걸 써야 하나요?",
-  "Upload Excel": "엑셀 업로드",
-  "then": "해서",
-  "match the same numbers": "같은 숫자",
-  "→ use Calibration": "확인하고 싶으면 →",
-  "New project": "새 프로젝트",
-  "with parameters only,": "파라미터만 있고",
-  "IRR estimation": "IRR 예측",
-  "→ use Prediction": "하려면 →",
-  "※ After uploading the Excel, run Model Integrity Check to get an automatic mode recommendation.":
-    "※ 엑셀 업로드 후 Integrity Check를 돌리면 자동으로 권장 모드를 제안합니다.",
-  "⚙️ Calc Mode": "⚙️ 계산 모드",
-  "CAPEX Other ($M)": "CAPEX 기타 ($M)",
-  "Prediction mode:": "Prediction 모드:",
-  "The CAPEX total above equals": "위 CAPEX 합계가 곧",
-  "Save Version": "버전 저장",
-  "Save the current calculation to version history. Optionally tag teammates to send a review request.":
-    "현재 계산 결과를 이력으로 저장합니다. 공유 대상을 지정하면 해당 팀원에게 검토 요청 알림이 전달됩니다 (선택).",
-  "Version name": "버전명",
-  "(auto-generated)": "(자동 생성)",
-  "Change summary": "변경 요약",
-  "Keep it brief (e.g., \"Applied PPA renegotiation\", \"CAPEX reduced by 3%\")":
-    "간결하게 핵심만 (예: \"PPA 재협상 반영\", \"CAPEX 3% 절감 안\")",
-  "Share with": "공유 대상",
-  "(optional)": "(선택)",
-  "— No recipient —": "— 공유 대상 없음 —",
-  "Select teammates for review request (integrates with future notification/comments)":
-    "검토 요청할 팀원 선택 (향후 알림/코멘트 기능과 연동)",
-  "Cancel": "취소",
-  "💾 Save": "💾 저장",
-  "Upload a model or click Calculate": "모델을 업로드하거나 Calculate를 실행하세요",
-  "Upload a PF model (.xlsb) for auto-parsing, or fill inputs on the left and hit Calculate for a quick estimate.":
-    "PF 모델(.xlsb)을 업로드하면 자동 파싱됩니다. 또는 좌측 인풋을 채우고 Calculate를 눌러 빠른 추정값을 확인할 수 있습니다.",
-  "IC decision thresholds · editable in Settings tab": "IC 의사결정 기준 · Settings 탭에서 수정 가능",
-  "Primary · Buyer Hurdle": "Primary · 매수자 Hurdle",
-  "Secondary · HEUH internal": "Secondary · HEUH 내부",
-  "· ITC-neutral": "· ITC 영향 없음",
-  "For scale comparison · complements IRR": "규모 비교용 · IRR 보완 지표",
-  ": IRR is": ": IRR은",
-  "return rate": "수익률",
-  "(% ratio); NPV is": "(%, 비율), NPV는",
-  "absolute dollar value": "금액 규모",
-  ". A large project at 12% IRR can exceed a small project at 15% IRR in absolute value. IC decisions should":
-    ". 작은 프로젝트 IRR 15%보다 큰 프로젝트 IRR 12%가 절대가치 클 수 있음. IC 의사결정은",
-  "consider both": "둘 다 고려",
-  "IRR Diff Analysis (Calibration vs Prediction)": "IRR 차이 분석 (Calibration vs Prediction)",
-  "Run Analysis": "분석 실행",
-  "Total diff": "총 차이",
-  "Get AI explanation": "AI 자세한 설명 받기",
-  "Powered by Claude AI": "Claude AI 기반",
-  "Scenario Comparison": "Scenario 비교",
-  "Calculates and compares three scenarios simultaneously": "세 가지 시나리오를 동시에 계산하여 비교합니다",
-  "🎚️ Sensitivity Adjustment": "🎚️ 민감도 조정",
-  "BESS Toll stays at Base value across all scenarios": "BESS Toll은 모든 시나리오에서 Base값 고정",
-  "🔄 Re-apply Scenario Values": "🔄 시나리오 값 재적용",
-  "Base Scenario": "기본 시나리오",
-  "Upside Scenario": "낙관 시나리오",
-  "Downside Scenario": "보수 시나리오",
-  "Back-solve for target Sponsor IRR · by PPA price": "Target Sponsor IRR 달성을 위한 조건 역산 · PPA 가격 기준",
-  "▶ Run Analysis": "▶ 분석 실행",
-  "PPA shifts → Sponsor IRR · Dev Margin response": "PPA 변화 → Sponsor IRR · Dev Margin 움직임",
-  "vs Target": "Target 대비",
-  "PPA sensitivity appears after Calculate": "Calculate 후 PPA 감도 분석이 표시됩니다",
-  "CF chart appears after Calculate": "Calculate 후 CF 차트가 표시됩니다",
-  "✨ AI Insight": "✨ AI 해석",
-  "✨ AI CF Pattern Insight": "✨ AI CF 패턴 인사이트",
-  "No saved versions": "저장된 버전이 없습니다",
-  "📊 Internal (Project Comparison)": "📊 Internal (프로젝트 비교)",
-  "🌐 External (Market Benchmark)": "🌐 External (시장 벤치마크)",
-  "Project Benchmark": "프로젝트 Benchmark",
-  "Compare projects with Valuation data · click to load": "Valuation 데이터가 있는 프로젝트 비교 · 클릭하면 해당 프로젝트 로드",
-  "↻ Refresh": "↻ 새로고침",
-  "Click the Benchmark tab to load data": "Benchmark 탭을 클릭하면 데이터를 로드합니다",
-  "Market Rate Indicators": "시장 금리 지표",
-  "Discount rate · financing cost reference ·": "할인율 · 자금조달 비용 참고 ·",
-  "No data": "데이터 없음",
-  "📤 Upload": "📤 업로드",
-  "Uploaded LevelTen reports will appear here": "LevelTen 리포트를 업로드하면 여기에 표시됩니다",
-  "Research not run": "리서치 미실행",
-  "🔍 AI Research": "🔍 AI 리서치",
-  "Click \"🔍 AI Research\" to pull BESS tolling prices by ISO (30–60s)":
-    "\"🔍 AI 리서치\" 버튼을 눌러 ISO별 BESS tolling 가격을 조사합니다 (30-60초 소요)",
-  "📌 Current Project vs Market": "📌 현재 프로젝트 vs 시장",
-  "Upload LevelTen Report": "LevelTen 리포트 업로드",
-  "PDF · XLSX · CSV supported · auto-parsed by AI": "PDF · XLSX · CSV 지원 · AI가 자동 파싱",
-  "Quarter": "분기 (Quarter)",
-  "— Select Quarter —": "— 분기 선택 —",
-  "File": "파일",
-  "Upload & Parse": "업로드 & 파싱",
-  "Pure-economics decision (PROCEED · RECUT · STOP) · risks monitored separately":
-    "순수 경제성 기반 의사판단 (PROCEED · RECUT · STOP) · 리스크는 별도 모니터링",
-  "Please run Calculate first.": "Calculate를 먼저 실행하세요.",
-};
-// 한글 → 영문 (역방향 자동 생성)
-const VAL_KO_TO_EN = Object.fromEntries(
-  Object.entries(VAL_EN_TO_KO).map(([en, ko]) => [ko, en])
-);
-
-function toggleValLang() {
-  const page = document.getElementById('page-valuation');
-  if (!page) return;
-  const toBtn = document.getElementById('val-lang-toggle');
-  
-  // 현재 → 반대 언어
-  const from = window._valLang === 'en' ? 'en' : 'ko';
-  const to = from === 'en' ? 'ko' : 'en';
-  const dict = from === 'en' ? VAL_EN_TO_KO : VAL_KO_TO_EN;
-  
-  // 모든 텍스트 노드 순회
-  const walker = document.createTreeWalker(page, NodeFilter.SHOW_TEXT, null);
-  const nodes = [];
-  let n;
-  while (n = walker.nextNode()) nodes.push(n);
-  
-  let replaced = 0;
-  nodes.forEach(function(node) {
-    const text = node.nodeValue;
-    const trimmed = text.trim();
-    if (!trimmed) return;
-    // 완전 일치 치환
-    if (dict[trimmed]) {
-      node.nodeValue = text.replace(trimmed, dict[trimmed]);
-      replaced++;
-    }
-  });
-  
-  window._valLang = to;
-  // 버튼 라벨: 현재 언어의 반대를 표시 (클릭하면 가는 곳)
-  if (toBtn) {
-    toBtn.textContent = to === 'en' ? '한국어' : 'EN';
-  }
-  
-  console.log('[valLang] ' + from + ' → ' + to + ', ' + replaced + ' nodes replaced');
-}
-
-// ══════════════════════════════════════════════════════════
-
-
+function valApplyLanguage() {
   // Valuation 페이지 전체 한글/영어 텍스트 동적 적용
   var L = LANG[currentLang];
   if (!L) return;
@@ -8101,36 +7945,118 @@ function valLoadProject(projectId) {
     var checks = data.checks || [];
     var meta = data.metadata || {};
     var L = LANG[currentLang] || LANG.ko;
+    // 절제된 tone: 화려한 이모지 대신 단색 dot + 한 글자 라벨
     var sevConfig = {
-      'HIGH': {icon:'🔴', color:'#ef4444', bg:'rgba(239,68,68,0.08)', label:'HIGH'},
-      'MEDIUM': {icon:'🟡', color:'#eab308', bg:'rgba(234,179,8,0.08)', label:'MED'},
-      'LOW': {icon:'🟢', color:'#10b981', bg:'rgba(16,185,129,0.08)', label:'LOW'},
-      'OK': {icon:'✅', color:'#22c55e', bg:'rgba(34,197,94,0.08)', label:'OK'}
+      'HIGH':   {dot:'#ef4444', label:'HIGH',   accent:'rgba(239,68,68,0.3)',  textColor:'#fca5a5'},
+      'MEDIUM': {dot:'#f59e0b', label:'MEDIUM', accent:'rgba(245,158,11,0.3)', textColor:'#fcd34d'},
+      'LOW':    {dot:'#64748b', label:'LOW',    accent:'rgba(100,116,139,0.3)', textColor:'#cbd5e1'},
+      'INFO':   {dot:'#64748b', label:'INFO',   accent:'rgba(100,116,139,0.3)', textColor:'#cbd5e1'},
+      'OK':     {dot:'#10b981', label:'PASS',   accent:'rgba(16,185,129,0.3)', textColor:'#6ee7b7'}
     };
-    var html = '<div style="padding:8px;background:rgba(0,0,0,0.2);border-radius:6px;border:1px solid var(--border2)">';
-    html += '<div style="font-size:10px;font-weight:700;margin-bottom:6px;color:var(--t1)">' + L.valICReportTitle + '</div>';
-    html += '<div style="display:flex;gap:4px;margin-bottom:6px;flex-wrap:wrap">';
-    ['high','medium','low','ok'].forEach(function(k) {
-      var v = s[k] || 0;
-      var c = sevConfig[k.toUpperCase()];
+
+    var html = '';
+    
+    // ─── 헤더: 타이틀 + 요약 배지 ───
+    html += '<div style="padding:20px 22px;background:rgba(255,255,255,0.02);border-radius:10px;border:1px solid var(--border);margin-bottom:0">';
+    
+    // 타이틀 + 파일 스탯
+    html += '<div style="display:flex;align-items:baseline;justify-content:space-between;margin-bottom:14px;gap:16px;flex-wrap:wrap">';
+    html += '<div style="font-size:15px;font-weight:600;color:var(--t1);letter-spacing:-0.01em">' + (L.valICReportTitle || 'Integrity Report') + '</div>';
+    
+    // 시트/에러 요약 (담백)
+    var statLine = [];
+    if (meta.sheet_count) statLine.push(meta.sheet_count + ' sheets');
+    if (meta.formula_error_count !== undefined && meta.formula_error_count > 0) statLine.push(meta.formula_error_count.toLocaleString() + ' formula errors');
+    if (meta.na_count) statLine.push(meta.na_count + ' #N/A');
+    if (statLine.length) {
+      html += '<div style="font-size:11px;color:var(--t3);font-variant-numeric:tabular-nums">' + statLine.join('  ·  ') + '</div>';
+    }
+    html += '</div>';
+    
+    // Severity 요약 배지 (있는 것만)
+    var sumBadges = '';
+    [['high','HIGH'],['medium','MEDIUM'],['low','LOW'],['ok','OK']].forEach(function(pair) {
+      var v = s[pair[0]] || 0;
       if (v > 0) {
-        html += '<span style="padding:2px 5px;border-radius:8px;background:'+c.bg+';color:'+c.color+';font-size:9px;font-weight:700">'+c.icon+' '+c.label+' '+v+'</span>';
+        var c = sevConfig[pair[1]];
+        sumBadges += '<span style="display:inline-flex;align-items:center;gap:6px;padding:4px 10px;border-radius:12px;background:rgba(255,255,255,0.03);border:1px solid '+c.accent+';font-size:11px;font-weight:500;color:'+c.textColor+';letter-spacing:0.02em">'
+                  +  '<span style="width:6px;height:6px;border-radius:50%;background:'+c.dot+'"></span>'
+                  +  c.label+' '+v
+                  +  '</span>';
       }
     });
-    html += '</div>';
-    if (meta.recommended_mode) {
-      var modeBadge = meta.recommended_mode === 'calibration' 
-        ? '<div style="padding:6px;background:rgba(124,58,237,0.1);border-left:2px solid #7c3aed;border-radius:4px;font-size:10px;margin-bottom:6px;color:#c4b5fd"><strong>' + L.valICRecommendCalib + '</strong> Calibration ' + L.valICRecommendAuto + '</div>'
-        : '<div style="padding:6px;background:rgba(16,185,129,0.08);border-left:2px solid #10b981;border-radius:4px;font-size:10px;margin-bottom:6px;color:#6ee7b7"><strong>' + L.valICRecommendPredict + '</strong></div>';
-      html += modeBadge;
+    if (sumBadges) {
+      html += '<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px">' + sumBadges + '</div>';
     }
-    checks.forEach(function(c) {
-      var cfg = sevConfig[c.severity] || sevConfig['LOW'];
-      html += '<div style="padding:6px;background:'+cfg.bg+';border-left:2px solid '+cfg.color+';border-radius:4px;font-size:9px;margin-bottom:4px">';
-      html += '<div style="font-weight:700;color:'+cfg.color+';margin-bottom:2px">'+cfg.icon+' '+c.title+'</div>';
-      html += '<div style="color:var(--t3);line-height:1.3">'+c.description+'</div>';
+    
+    // ─── 개별 체크 항목 ───
+    if (checks.length === 0) {
+      html += '<div style="padding:14px;text-align:center;color:var(--t3);font-size:12px">No issues detected.</div>';
+    } else {
+      html += '<div style="display:flex;flex-direction:column;gap:8px">';
+      checks.forEach(function(c) {
+        var cfg = sevConfig[c.severity] || sevConfig['LOW'];
+        // 카드: 왼쪽 얇은 accent line, 내부는 담백한 배경, 큰 글씨 제목
+        html += '<div style="padding:14px 16px;background:rgba(255,255,255,0.02);border:1px solid var(--border);border-left:3px solid '+cfg.dot+';border-radius:8px;transition:background 0.12s">';
+        
+        // 제목 줄: dot + 라벨 + 타이틀
+        html += '<div style="display:flex;align-items:center;gap:10px;margin-bottom:6px">';
+        html += '<span style="font-size:10px;font-weight:700;color:'+cfg.textColor+';letter-spacing:0.08em;padding:2px 8px;border:1px solid '+cfg.accent+';border-radius:10px">'+cfg.label+'</span>';
+        html += '<span style="font-size:13px;font-weight:600;color:var(--t1);letter-spacing:-0.005em">'+c.title+'</span>';
+        html += '</div>';
+        
+        // Description — 이제 제대로 읽힐 크기
+        if (c.description) {
+          html += '<div style="font-size:12px;color:var(--t2);line-height:1.55;margin-top:4px">'+c.description+'</div>';
+        }
+        
+        // Detail: 시트별 breakdown
+        // 백엔드에서 집계된 detail_by_sheet 우선 사용, 없으면 legacy detail 배열 집계
+        var sheetRows = null;
+        if (c.detail_by_sheet && Array.isArray(c.detail_by_sheet) && c.detail_by_sheet.length > 0) {
+          sheetRows = c.detail_by_sheet;  // [{sheet, count, cells:[...]}]
+        } else if (c.detail && Array.isArray(c.detail) && c.detail.length > 0 && c.detail[0].sheet) {
+          // legacy: 샘플 기반 on-the-fly 집계
+          var bySheet = {};
+          c.detail.forEach(function(e) {
+            if (!bySheet[e.sheet]) bySheet[e.sheet] = {count:0, cells:[]};
+            bySheet[e.sheet].count += 1;
+            if (bySheet[e.sheet].cells.length < 3) bySheet[e.sheet].cells.push(e.cell);
+          });
+          sheetRows = Object.entries(bySheet)
+            .map(function(p){ return {sheet:p[0], count:p[1].count, cells:p[1].cells}; })
+            .sort(function(a,b){ return b.count - a.count; });
+        }
+        
+        if (sheetRows) {
+          html += '<div style="margin-top:10px;padding:10px 12px;background:rgba(0,0,0,0.2);border-radius:6px">';
+          html += '<div style="font-size:10px;font-weight:600;color:var(--t3);letter-spacing:0.05em;text-transform:uppercase;margin-bottom:6px">Errors by Sheet</div>';
+          html += '<div style="display:flex;flex-direction:column;gap:0;font-variant-numeric:tabular-nums">';
+          var shown = sheetRows.slice(0, 8);
+          shown.forEach(function(row, idx) {
+            var cellsStr = (row.cells || []).join(', ');
+            if (row.count > (row.cells||[]).length) cellsStr += ', …';
+            html += '<div style="display:flex;justify-content:space-between;align-items:baseline;gap:12px;padding:5px 0;'+(idx < shown.length-1?'border-bottom:1px dashed rgba(255,255,255,0.04)':'')+'">';
+            html += '<span style="font-size:11px;color:var(--t2);font-weight:500;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+row.sheet+'</span>';
+            html += '<span style="font-size:10px;color:var(--t3);font-family:ui-monospace,monospace;flex:1;text-align:right;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+cellsStr+'</span>';
+            html += '<span style="font-size:12px;color:'+cfg.dot+';font-weight:700;min-width:48px;text-align:right">'+row.count.toLocaleString()+'</span>';
+            html += '</div>';
+          });
+          if (sheetRows.length > 8) {
+            html += '<div style="font-size:10px;color:var(--t3);text-align:center;padding-top:6px;font-style:italic">+ '+(sheetRows.length-8)+' more sheets</div>';
+          }
+          html += '</div></div>';
+        }
+        
+        // Action (권고)
+        if (c.action) {
+          html += '<div style="font-size:11px;color:var(--t3);line-height:1.5;margin-top:8px;padding-top:8px;border-top:1px dashed rgba(255,255,255,0.05)">→ '+c.action+'</div>';
+        }
+        html += '</div>';
+      });
       html += '</div>';
-    });
+    }
+    
     html += '</div>';
     container.innerHTML = html;
     container.style.display = 'block';
@@ -12815,8 +12741,6 @@ function valSwitchTab(name, btn) {
     </div>
   </div>
   <div class="val-hd-right">
-    <button id="val-lang-toggle" onclick="toggleValLang()" title="한국어로 전환 / Switch language"
-      style="padding:6px 12px;background:var(--surface3);border:1px solid var(--border2);border-radius:var(--r-md);color:var(--t2);font-size:11px;font-weight:700;font-family:var(--font);cursor:pointer;margin-right:8px;letter-spacing:0.3px;transition:all .15s">한국어</button>
     <button class="page-back-btn" onclick="closeAllPages()">← Back</button>
   </div>
 </div>
