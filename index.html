@@ -2792,8 +2792,10 @@ function renderValuation(body, p, pd) {
             <input type="file" id="vl-file" accept=".xlsb,.xlsx" style="display:none">
           </label>
           <button id="vl-btn" style="padding:7px 14px;background:var(--blue-d);color:#fff;border:none;border-radius:8px;font-size:11px;font-weight:700;cursor:pointer;opacity:0.4;pointer-events:none">Upload</button>
+          <button id="vl-check-btn" title="엑셀 모델 정합성 체크 (수식 오류, Capital Stack, IRR, Debt, Revenue 5개 카테고리)" style="padding:7px 14px;background:linear-gradient(135deg, #7c3aed, #5b21b6);color:#fff;border:none;border-radius:8px;font-size:11px;font-weight:700;cursor:pointer;opacity:0.4;pointer-events:none">🔍 Integrity Check</button>
         </div>
         <div id="vl-status" style="font-size:10px;color:var(--t3)"></div>
+        <div id="vl-integrity-result" style="display:none;margin-top:8px"></div>
       </div>
 
       <!-- OUTPUT CARDS -->
@@ -2949,6 +2951,25 @@ function renderValuation(body, p, pd) {
         </div>
       </div>
 
+      <!-- MODE TOGGLE -->
+      <div class="fin-section" style="margin-bottom:8px">
+        <div class="fin-section-title" style="display:flex;justify-content:space-between;align-items:center">
+          <span>계산 모드</span>
+          <span style="font-size:9px;color:var(--t3)" title="신규 프로젝트는 Prediction / Neptune 재현은 Calibration">ℹ️</span>
+        </div>
+        <div style="display:flex;gap:6px;padding:4px;background:var(--surface3);border-radius:8px">
+          <button id="vl-mode-predict" data-mode="prediction" style="flex:1;padding:8px;border:none;border-radius:6px;font-size:11px;font-weight:700;cursor:pointer;background:linear-gradient(135deg,#059669,#10b981);color:#fff;font-family:var(--font)">
+            📈 Prediction (신규 프로젝트)
+          </button>
+          <button id="vl-mode-calib" data-mode="calibration" style="flex:1;padding:8px;border:none;border-radius:6px;font-size:11px;font-weight:700;cursor:pointer;background:transparent;color:var(--t2);font-family:var(--font)">
+            🎯 Calibration (Neptune 재현)
+          </button>
+        </div>
+        <div id="vl-mode-desc" style="font-size:10px;color:var(--t3);margin-top:5px;line-height:1.4">
+          <strong>Prediction:</strong> 업계 표준 PF 가정 (99/5 flip, 균등 debt, MACRS Sponsor 정상 배분). 신규 프로젝트 합리적 IRR 예측.
+        </div>
+      </div>
+
       <!-- CALCULATE BUTTON -->
       <button id="vl-calc-btn" style="width:100%;padding:12px;background:linear-gradient(135deg,var(--blue-d),#4F46E5);color:#fff;border:none;border-radius:10px;font-size:13px;font-weight:700;cursor:pointer;margin-bottom:10px;font-family:var(--font)">
         📊 Calculate IRR / Margin
@@ -2970,7 +2991,104 @@ function renderValuation(body, p, pd) {
     document.getElementById('vl-fname').textContent = f.name;
     var btn=document.getElementById('vl-btn');
     btn.style.opacity='1'; btn.style.pointerEvents='auto';
+    var checkBtn=document.getElementById('vl-check-btn');
+    if (checkBtn) { checkBtn.style.opacity='1'; checkBtn.style.pointerEvents='auto'; }
   };
+
+  // ── Integrity Check 핸들러
+  var checkBtn = document.getElementById('vl-check-btn');
+  if (checkBtn) checkBtn.onclick = async function(){
+    var file=document.getElementById('vl-file').files[0]; if(!file) return;
+    var st=document.getElementById('vl-status');
+    var result=document.getElementById('vl-integrity-result');
+    this.textContent='⏳ Checking...'; this.disabled=true;
+    st.textContent='모델 정합성 체크 중... (10~30초)';
+    st.style.color='var(--t3)';
+    result.style.display='none';
+    try {
+      var token=window._authToken||localStorage.getItem('hwr_token');
+      var form=new FormData(); form.append('file', file);
+      var res=await fetch('https://hwr-api-production.up.railway.app/valuation/integrity-check',{
+        method:'POST', headers:{'Authorization':'Bearer '+token}, body:form
+      });
+      var data=await res.json();
+      if(!res.ok) throw new Error(data.detail||'Check failed');
+      st.textContent='✅ 정합성 체크 완료';
+      st.style.color='var(--green)';
+      renderIntegrityReport(result, data);
+    } catch(e){
+      st.textContent='❌ '+e.message;
+      st.style.color='var(--red)';
+    } finally {
+      this.textContent='🔍 Integrity Check'; this.disabled=false;
+    }
+  };
+
+  // Integrity Report 렌더러
+  function renderIntegrityReport(container, data) {
+    var s = data.summary || {};
+    var checks = data.checks || [];
+    var meta = data.metadata || {};
+    var sevConfig = {
+      'HIGH':   {icon:'🔴', color:'#ef4444', bg:'rgba(239,68,68,0.08)',  label:'HIGH'},
+      'MEDIUM': {icon:'🟡', color:'#eab308', bg:'rgba(234,179,8,0.08)',  label:'MEDIUM'},
+      'LOW':    {icon:'🟢', color:'#10b981', bg:'rgba(16,185,129,0.08)', label:'LOW'},
+      'OK':     {icon:'✅', color:'#22c55e', bg:'rgba(34,197,94,0.08)',  label:'OK'}
+    };
+    var html = '<div style="padding:10px;background:var(--surface);border-radius:8px;border:1px solid var(--border2)">';
+    html += '<div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;padding-bottom:8px;border-bottom:1px solid var(--border2)">';
+    html += '<span style="font-size:13px;font-weight:700">📋 정합성 체크 리포트</span>';
+    html += '<span style="font-size:9px;color:var(--t3)">'+(data.filename||'')+'</span>';
+    html += '</div>';
+    
+    // Summary badges
+    html += '<div style="display:flex;gap:6px;margin-bottom:10px">';
+    ['high','medium','low','ok'].forEach(function(k){
+      var v=s[k]||0;
+      var c=sevConfig[k.toUpperCase()];
+      if (v>0) {
+        html += '<span style="padding:3px 8px;border-radius:10px;background:'+c.bg+';color:'+c.color+';font-size:10px;font-weight:700">'+c.icon+' '+c.label+' '+v+'</span>';
+      }
+    });
+    html += '</div>';
+    
+    // Metadata 요약 (핵심값만)
+    if (meta.capex_m || meta.debt_ratio) {
+      html += '<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-bottom:10px;padding:8px;background:var(--surface3);border-radius:6px;font-size:10px">';
+      if (meta.capex_m) html += '<div><div style="color:var(--t3)">CAPEX</div><div style="font-weight:700">$'+(meta.capex_m/1000).toFixed(1)+'M</div></div>';
+      if (meta.debt_ratio) html += '<div><div style="color:var(--t3)">Debt%</div><div style="font-weight:700">'+meta.debt_ratio.toFixed(1)+'%</div></div>';
+      if (meta.te_ratio) html += '<div><div style="color:var(--t3)">TE%</div><div style="font-weight:700">'+meta.te_ratio.toFixed(1)+'%</div></div>';
+      if (meta.sponsor_ratio) html += '<div><div style="color:var(--t3)">Sponsor%</div><div style="font-weight:700">'+meta.sponsor_ratio.toFixed(1)+'%</div></div>';
+      if (meta.sponsor_full_irr !== undefined) {
+        var firr = (meta.sponsor_full_irr < 1 ? meta.sponsor_full_irr*100 : meta.sponsor_full_irr);
+        html += '<div><div style="color:var(--t3)">Full IRR</div><div style="font-weight:700">'+firr.toFixed(2)+'%</div></div>';
+      }
+      if (meta.sponsor_contract_irr !== undefined) {
+        var cirr = (meta.sponsor_contract_irr < 1 ? meta.sponsor_contract_irr*100 : meta.sponsor_contract_irr);
+        html += '<div><div style="color:var(--t3)">Contract IRR</div><div style="font-weight:700">'+cirr.toFixed(2)+'%</div></div>';
+      }
+      html += '</div>';
+    }
+    
+    // 개별 체크
+    html += '<div style="display:flex;flex-direction:column;gap:8px">';
+    checks.forEach(function(c){
+      var cfg = sevConfig[c.severity] || sevConfig['LOW'];
+      html += '<div style="padding:10px;background:'+cfg.bg+';border-left:3px solid '+cfg.color+';border-radius:6px">';
+      html += '<div style="display:flex;align-items:center;gap:6px;margin-bottom:4px">';
+      html += '<span style="font-size:14px">'+cfg.icon+'</span>';
+      html += '<span style="font-size:9px;padding:1px 6px;background:'+cfg.color+';color:#fff;border-radius:4px;font-weight:700">'+cfg.label+'</span>';
+      html += '<span style="font-size:9px;color:var(--t3)">'+c.category+'</span>';
+      html += '<span style="font-size:11px;font-weight:700;color:var(--t1)">'+c.title+'</span>';
+      html += '</div>';
+      html += '<div style="font-size:10px;color:var(--t2);margin-bottom:4px;line-height:1.4">'+c.description+'</div>';
+      html += '<div style="font-size:10px;color:'+cfg.color+';font-weight:600">💡 '+c.action+'</div>';
+      html += '</div>';
+    });
+    html += '</div></div>';
+    container.innerHTML = html;
+    container.style.display = 'block';
+  }
 
   // ── 업로드 핸들러
   document.getElementById('vl-btn').onclick = async function(){
@@ -3018,6 +3136,33 @@ function renderValuation(body, p, pd) {
       window._creditMode = 'PTC';
     }
   };
+
+  // ── Mode 토글 (Prediction vs Calibration)
+  window._calibrationMode = window._calibrationMode || 'prediction';  // 기본값
+  function updateModeUI(mode) {
+    window._calibrationMode = mode;
+    var predBtn = document.getElementById('vl-mode-predict');
+    var calBtn = document.getElementById('vl-mode-calib');
+    var desc = document.getElementById('vl-mode-desc');
+    if (!predBtn || !calBtn) return;
+    if (mode === 'calibration') {
+      predBtn.style.background = 'transparent';
+      predBtn.style.color = 'var(--t2)';
+      calBtn.style.background = 'linear-gradient(135deg,#7c3aed,#5b21b6)';
+      calBtn.style.color = '#fff';
+      if (desc) desc.innerHTML = '<strong>Calibration:</strong> Neptune 모델 실측 파라미터 (Sculpted debt, NOL 상쇄, 25.5/7 flip, Construction vs FMV 분리). Neptune 재현 검증용.';
+    } else {
+      predBtn.style.background = 'linear-gradient(135deg,#059669,#10b981)';
+      predBtn.style.color = '#fff';
+      calBtn.style.background = 'transparent';
+      calBtn.style.color = 'var(--t2)';
+      if (desc) desc.innerHTML = '<strong>Prediction:</strong> 업계 표준 PF 가정 (99/5 flip, 균등 debt, MACRS Sponsor 정상 배분). 신규 프로젝트 합리적 IRR 예측.';
+    }
+  }
+  var pBtn = document.getElementById('vl-mode-predict');
+  var cBtn = document.getElementById('vl-mode-calib');
+  if (pBtn) pBtn.onclick = function() { updateModeUI('prediction'); };
+  if (cBtn) cBtn.onclick = function() { updateModeUI('calibration'); };
 
   // ── Calculate 버튼 (Phase 2에서 API 연결)
   document.getElementById('vl-calc-btn').onclick = function(){
@@ -10295,6 +10440,7 @@ async function valRunScenarios() {
       if (!isNaN(v)) override[inp.dataset.field] = v;
     });
     var inputs = Object.assign({}, baseInputs, override);
+    inputs.calibration_mode = window._calibrationMode || 'prediction';
     return fetch('https://hwr-api-production.up.railway.app/valuation/calculate', {
       method:'POST',
       headers:{'Authorization':'Bearer '+token,'Content-Type':'application/json'},
@@ -10549,6 +10695,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
       try {
         var token = window._authToken || localStorage.getItem('hwr_token');
+        inputs.calibration_mode = window._calibrationMode || 'prediction';
         var res = await fetch('https://hwr-api-production.up.railway.app/valuation/calculate', {
           method: 'POST',
           headers: { 'Authorization': 'Bearer '+token, 'Content-Type': 'application/json' },
@@ -10722,6 +10869,7 @@ async function valRunSensitivity(projectId, baseInputs, baseResult) {
     var ppa = Math.round((basePPA + delta) * 100) / 100;
     ppas.push(ppa);
     var inp = Object.assign({}, baseInputs, { ppa_price: ppa });
+    inp.calibration_mode = window._calibrationMode || 'prediction';
     promises.push(
       fetch('https://hwr-api-production.up.railway.app/valuation/calculate', {
         method: 'POST',
@@ -11840,6 +11988,7 @@ async function valRunHeatmap(projectId, baseInputs) {
   ppas.forEach(function(ppa) {
     caps.forEach(function(cap) {
       var inp = Object.assign({}, baseInputs, { ppa_price: ppa, capex_total_override: cap });
+      inp.calibration_mode = window._calibrationMode || 'prediction';
       promises.push(
         fetch('https://hwr-api-production.up.railway.app/valuation/calculate', {
           method:'POST',
