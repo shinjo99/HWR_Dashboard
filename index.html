@@ -2851,11 +2851,17 @@ function renderValuation(body, p, pd) {
       <div class="fin-section">
         <div class="fin-section-title">CAPEX Inputs</div>
         <div class="fin-grid">
-          <div class="fin-field"><label>Module (c/Wp)</label><input id="vi-module" type="number" step="0.1" placeholder="31.5"></div>
-          <div class="fin-field"><label>BOS (c/Wp)</label><input id="vi-bos" type="number" step="0.1" placeholder="42.9"></div>
+          <div class="fin-field"><label>PV MWdc</label><input id="vi-pv-mwdc" type="number" step="0.1" placeholder="268.3" title="Neptune Case 2: 268.3"></div>
+          <div class="fin-field"><label>Module (c/Wdc)</label><input id="vi-module" type="number" step="0.1" placeholder="31.5"></div>
+          <div class="fin-field"><label>PV BOS (c/Wdc)</label><input id="vi-bos" type="number" step="0.1" placeholder="42.88"></div>
           <div class="fin-field"><label>ESS Equipment ($/kWh)</label><input id="vi-ess-equip" type="number" step="1" placeholder="234.5"></div>
+          <div class="fin-field"><label>BESS BOS ($/kWh)</label><input id="vi-bess-bos" type="number" step="1" placeholder="130" title="Neptune: $130/kWh"></div>
           <div class="fin-field"><label>EPC Contingency (%)</label><input id="vi-epc-cont" type="number" step="0.1" placeholder="8"></div>
           <div class="fin-field"><label>Owner's Cost (%)</label><input id="vi-owner" type="number" step="0.1" placeholder="3"></div>
+          <div class="fin-field"><label>Interconnection ($M)</label><input id="vi-intercon" type="number" step="0.1" placeholder="22.5"></div>
+          <div class="fin-field"><label>Dev Cost ($M)</label><input id="vi-dev-cost" type="number" step="0.1" placeholder="20"></div>
+          <div class="fin-field"><label>Total CAPEX Override ($M)</label><input id="vi-capex-override" type="number" step="0.1" placeholder="auto" title="비워두면 자동 계산. Neptune FMV = $836.7M"></div>
+          <div class="fin-field"><label>TE Ratio Override (%)</label><input id="vi-te-ratio" type="number" step="0.1" placeholder="auto" title="비워두면 ITC 공식 기반. Neptune = 32.5%"></div>
           <div class="fin-field"><label>기타 ($M)</label><input id="vi-capex-etc" type="number" step="0.1" placeholder="0"></div>
         </div>
         <div style="margin-top:8px;padding:8px;background:var(--surface3);border-radius:6px;display:flex;justify-content:space-between;align-items:center">
@@ -2920,12 +2926,26 @@ function renderValuation(body, p, pd) {
           <button id="vi-itc-btn" onclick="vlSetCredit('ITC')" style="flex:1;padding:8px;border:1px solid var(--blue);border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;background:var(--blue-d);color:#fff">ITC</button>
           <button id="vi-ptc-btn" onclick="vlSetCredit('PTC')" style="flex:1;padding:8px;border:1px solid var(--border2);border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;background:var(--surface3);color:var(--t2)">PTC</button>
         </div>
-        <div class="fin-grid">
+        <!-- ITC 모드: PV/BESS 분리 -->
+        <div id="vi-itc-group" class="fin-grid">
+          <div class="fin-field"><label>PV ITC (%)</label><input id="vi-pv-itc" type="number" step="1" placeholder="30" title="Neptune PV ITC = 0%"></div>
+          <div class="fin-field"><label>BESS ITC (%)</label><input id="vi-bess-itc" type="number" step="1" placeholder="30" title="Neptune BESS ITC = 30%"></div>
           <div class="fin-field"><label>ITC Eligibility (%)</label><input id="vi-itc-elig" type="number" step="1" placeholder="97"></div>
-          <div class="fin-field"><label id="vi-credit-label">PTC Rate ($/kWh)</label><input id="vi-credit-val" type="number" step="0.001" placeholder="0.027"></div>
+        </div>
+        <!-- PTC 모드: production-based rate -->
+        <div id="vi-ptc-group" class="fin-grid" style="display:none">
+          <div class="fin-field"><label>PTC Rate ($/kWh)</label><input id="vi-ptc-rate" type="number" step="0.001" placeholder="0.027" title="IRA PTC 기본값 ~$0.027/kWh (PV만)"></div>
+          <div class="fin-field"><label>BESS ITC (%)</label><input id="vi-bess-itc-ptc" type="number" step="1" placeholder="30" title="PTC 모드에서도 BESS는 ITC 가능"></div>
+          <div class="fin-field"><label>ITC Eligibility (%)</label><input id="vi-itc-elig-ptc" type="number" step="1" placeholder="97"></div>
+        </div>
+        <!-- 레거시 숨김 필드 (하위호환용) -->
+        <input id="vi-credit-val" type="hidden" value="30">
+        <!-- Flip/Fee -->
+        <div class="fin-grid" style="margin-top:8px">
           <div class="fin-field"><label>Flip Yield (%)</label><input id="vi-flip-y" type="number" step="0.25" placeholder="8.75"></div>
           <div class="fin-field"><label>Flip Term (yr)</label><input id="vi-flip-t" type="number" step="1" placeholder="7"></div>
           <div class="fin-field"><label>TE Upfront Fee (%)</label><input id="vi-te-fee" type="number" step="0.1" placeholder="2"></div>
+          <div class="fin-field"><label>Useful Life (yr)</label><input id="vi-life" type="number" step="1" placeholder="35" title="Neptune = 35년"></div>
         </div>
       </div>
 
@@ -2978,21 +2998,24 @@ function renderValuation(body, p, pd) {
     } finally { this.textContent='Upload'; this.disabled=false; }
   };
 
-  // ── ITC/PTC 토글
+  // ── ITC/PTC 토글 (상호 배타)
   window.vlSetCredit = function(type){
     var itcBtn=document.getElementById('vi-itc-btn');
     var ptcBtn=document.getElementById('vi-ptc-btn');
-    var lbl=document.getElementById('vi-credit-label');
+    var itcGroup=document.getElementById('vi-itc-group');
+    var ptcGroup=document.getElementById('vi-ptc-group');
     if(type==='ITC'){
       itcBtn.style.background='var(--blue-d)'; itcBtn.style.color='#fff'; itcBtn.style.borderColor='var(--blue)';
       ptcBtn.style.background='var(--surface3)'; ptcBtn.style.color='var(--t2)'; ptcBtn.style.borderColor='var(--border2)';
-      lbl.textContent='ITC Rate (%)';
-      document.getElementById('vi-credit-val').placeholder='30';
+      if(itcGroup) itcGroup.style.display='grid';
+      if(ptcGroup) ptcGroup.style.display='none';
+      window._creditMode = 'ITC';
     } else {
       ptcBtn.style.background='var(--blue-d)'; ptcBtn.style.color='#fff'; ptcBtn.style.borderColor='var(--blue)';
       itcBtn.style.background='var(--surface3)'; itcBtn.style.color='var(--t2)'; itcBtn.style.borderColor='var(--border2)';
-      lbl.textContent='PTC Rate ($/kWh)';
-      document.getElementById('vi-credit-val').placeholder='0.027';
+      if(itcGroup) itcGroup.style.display='none';
+      if(ptcGroup) ptcGroup.style.display='grid';
+      window._creditMode = 'PTC';
     }
   };
 
@@ -3072,11 +3095,42 @@ function vlLoadData(safeId, parsed){
   setVal('vi-flip-t', a.flip_term||7);
   setVal('vi-te-fee', a.te_upfront_fee?a.te_upfront_fee*100:2);
   setVal('vi-itc-elig', a.itc_eligibility?a.itc_eligibility*100:97);
+  setVal('vi-itc-elig-ptc', a.itc_eligibility?a.itc_eligibility*100:97);
   setVal('vi-pv-om', a.pv_om_covered||4.5);
   setVal('vi-bess-om', a.bess_mw&&a.pv_mwac?8.6:8.6);
   setVal('vi-assetmgmt', a.asset_mgmt_sm||150);
   setVal('vi-dscr', a.dscr_p50||1.30);
   setVal('vi-aug-y1', 4); setVal('vi-aug-y2', 8); setVal('vi-aug-y3', 12);
+
+  // 새 필드 매핑 (Neptune 기준 defaults 포함)
+  setVal('vi-pv-mwdc', a.pv_mwdc || o.pv_mwdc || 268.3);
+  setVal('vi-module', a.module_cwp || 31.5);
+  setVal('vi-bos', a.bos_cwp || 42.88);
+  setVal('vi-ess-equip', a.ess_per_kwh || 234.5);
+  setVal('vi-bess-bos', a.bess_bos_per_kwh || 130);
+  setVal('vi-epc-cont', a.epc_cont_pct || 8.0);
+  setVal('vi-owner', a.owner_pct || 3.0);
+  setVal('vi-intercon', a.intercon_m || 22.5);
+  setVal('vi-dev-cost', a.dev_cost_m || 20);
+  setVal('vi-life', a.life || o.life_yrs || 35);
+
+  // Capex/TE Override (Neptune 전용 — 있을 때만)
+  if (a.capex_total_override || o.capex_total) {
+    // 저장 버전은 FMV 매칭 원하는 경우 override 제공
+    setVal('vi-capex-override', a.capex_total_override || '');
+  }
+  if (a.te_ratio_override) setVal('vi-te-ratio', a.te_ratio_override);
+
+  // Credit Mode: ITC/PTC 분리
+  var mode = (a.credit_mode || 'ITC').toUpperCase();
+  if (window.vlSetCredit) window.vlSetCredit(mode);
+  if (mode === 'ITC') {
+    setVal('vi-pv-itc', a.pv_itc_rate != null ? a.pv_itc_rate : 0);
+    setVal('vi-bess-itc', a.bess_itc_rate != null ? a.bess_itc_rate : 30);
+  } else {
+    setVal('vi-ptc-rate', a.ptc_rate_per_kwh || 0.027);
+    setVal('vi-bess-itc-ptc', a.bess_itc_rate != null ? a.bess_itc_rate : 30);
+  }
 }
 
 // ─── BUDGET ──────────────────────────────────────────────────
@@ -7882,7 +7936,19 @@ function valDisplayData(data, safeId) {
   setV('vi-toll-esc', a.bess_toll_escalation ? a.bess_toll_escalation*100 : (a.toll_esc || 0));
   // Project specs
   setV('vi-pv-mwac', a.pv_mwac);
+  setV('vi-pv-mwdc', a.pv_mwdc || o.pv_mwdc || (a.pv_mwac ? a.pv_mwac*1.348 : null));
   setV('vi-dev-kwac', a.dev_fee_kwac || 200);
+  // CAPEX 구성
+  setV('vi-module', a.module_cwp || 31.5);
+  setV('vi-bos', a.bos_cwp || 42.88);
+  setV('vi-ess-equip', a.ess_per_kwh || 234.5);
+  setV('vi-bess-bos', a.bess_bos_per_kwh || 130.0);
+  setV('vi-epc-cont', a.epc_cont_pct || 8);
+  setV('vi-owner', a.owner_pct || 3);
+  setV('vi-intercon', a.intercon_m || 22.5);
+  setV('vi-dev-cost', a.dev_cost_m || 20);
+  setV('vi-capex-override', a.capex_total_override || '');
+  setV('vi-te-ratio', a.te_ratio_override || '');
   // OPEX
   setV('vi-pv-om', a.pv_om_covered || a.pv_om);
   setV('vi-bess-om', a.bess_om || 8.6);
@@ -7893,7 +7959,20 @@ function valDisplayData(data, safeId) {
   setV('vi-flip-y', a.flip_yield ? (a.flip_yield>1 ? a.flip_yield : a.flip_yield*100) : 8.75);
   setV('vi-flip-t', a.flip_term || 7);
   setV('vi-te-fee', a.te_upfront_fee ? a.te_upfront_fee*100 : 2);
-  setV('vi-itc-elig', a.itc_eligibility ? a.itc_eligibility*100 : 97);
+  setV('vi-life', a.life || o.life_yrs || 35);
+  // ITC/PTC — 모드에 따라 다른 필드
+  var creditMode = (o.credit_mode || a.credit_mode || 'ITC').toUpperCase();
+  if (typeof window.vlSetCredit === 'function') window.vlSetCredit(creditMode);
+  if (creditMode === 'ITC') {
+    setV('vi-pv-itc', a.pv_itc_rate != null ? a.pv_itc_rate : (o.pv_itc_rate != null ? o.pv_itc_rate : 0));
+    setV('vi-bess-itc', a.bess_itc_rate != null ? a.bess_itc_rate : (o.bess_itc_rate != null ? o.bess_itc_rate : 30));
+    setV('vi-itc-elig', a.itc_eligibility ? a.itc_eligibility*100 : 97);
+  } else {
+    setV('vi-ptc-rate', a.ptc_rate_per_kwh || o.ptc_rate || 0.027);
+    setV('vi-bess-itc-ptc', a.bess_itc_rate != null ? a.bess_itc_rate : 30);
+    setV('vi-itc-elig-ptc', a.itc_eligibility ? a.itc_eligibility*100 : 97);
+  }
+  // 레거시 hidden
   setV('vi-credit-val', a.itc_rate ? a.itc_rate*100 : 30);
   setV('vi-dscr', a.dscr_p50 || 1.30);
   setV('vi-aug-y1', 4); setV('vi-aug-y2', 8); setV('vi-aug-y3', 12);
@@ -10285,20 +10364,10 @@ async function valRunScenarios() {
   if (btn) { btn.textContent='▶ Run Scenarios'; btn.style.opacity='1'; btn.style.pointerEvents='auto'; }
 }
 
-// ITC/PTC toggle
+// ITC/PTC toggle (valuation 페이지용 - window.vlSetCredit의 alias 역할)
 function valSetCredit(type) {
-  var itcBtn = document.getElementById('vi-itc-btn');
-  var ptcBtn = document.getElementById('vi-ptc-btn');
-  var lbl = document.getElementById('vi-credit-lbl');
-  var inp = document.getElementById('vi-credit-val');
-  if (type === 'ITC') {
-    itcBtn.style.background='var(--blue-d)'; itcBtn.style.color='#fff'; itcBtn.style.borderColor='var(--blue)';
-    ptcBtn.style.background='var(--surface3)'; ptcBtn.style.color='var(--t2)'; ptcBtn.style.borderColor='var(--border2)';
-    if(lbl) lbl.textContent='ITC Rate (%)'; if(inp) inp.placeholder='30';
-  } else {
-    ptcBtn.style.background='var(--blue-d)'; ptcBtn.style.color='#fff'; ptcBtn.style.borderColor='var(--blue)';
-    itcBtn.style.background='var(--surface3)'; itcBtn.style.color='var(--t2)'; itcBtn.style.borderColor='var(--border2)';
-    if(lbl) lbl.textContent='PTC Rate ($/kWh)'; if(inp) inp.placeholder='0.027';
+  if (typeof window.vlSetCredit === 'function') {
+    window.vlSetCredit(type);
   }
 }
 
@@ -10380,38 +10449,74 @@ document.addEventListener('DOMContentLoaded', function() {
         return parseFloat(el.value);
       }
 
+      var creditMode = window._creditMode || 'ITC';
+      // 현재 활성 group에서 값 읽기
+      var pvItc = creditMode === 'ITC' ? parseFloat((document.getElementById('vi-pv-itc')||{}).value) : 0;
+      var bessItc = creditMode === 'ITC'
+        ? parseFloat((document.getElementById('vi-bess-itc')||{}).value)
+        : parseFloat((document.getElementById('vi-bess-itc-ptc')||{}).value);
+      var ptcRate = creditMode === 'PTC' ? parseFloat((document.getElementById('vi-ptc-rate')||{}).value) : 0;
+      var itcEligVal = creditMode === 'ITC'
+        ? (parseFloat((document.getElementById('vi-itc-elig')||{}).value) || 97)
+        : (parseFloat((document.getElementById('vi-itc-elig-ptc')||{}).value) || 97);
+
       var inputs = {
         dev_margin_kwac: gv('vi-dev-kwac', 200.0),
         pv_mwac: gv('vi-pv-mwac', null) || null,  // overridden below from project
+        pv_mwdc: gv('vi-pv-mwdc', null) || null,  // 명시 입력 있으면 사용
         ppa_price:  gv('vi-ppa-p', 68.82),
         ppa_term:   gv('vi-ppa-t', 25),
         ppa_esc:    gv('vi-ppa-esc', 0),
         bess_toll:  gv('vi-toll-p', 13.68),
         bess_toll_term: gv('vi-toll-t', 20),
         bess_toll_esc:  gv('vi-toll-esc', 0),
+        // CAPEX 세부
         module_cwp: gv('vi-module', 31.5),
-        bos_cwp:    gv('vi-bos', 42.9),
-        ess_per_kwh: gv('vi-ess-eq', 234.5),
+        bos_cwp:    gv('vi-bos', 42.88),
+        ess_per_kwh: gv('vi-ess-equip', 234.5),
+        bess_bos_per_kwh: gv('vi-bess-bos', 130.0),  // NEW
         epc_cont_pct: gv('vi-epc-cont', 8.0),
         owner_pct:  gv('vi-owner', 3.0),
+        intercon_m: gv('vi-intercon', 22.5),         // NEW
+        dev_cost_m: gv('vi-dev-cost', 20.0),         // NEW
+        capex_etc:  gv('vi-capex-etc', 0),
+        // OPEX
         pv_om:      gv('vi-pv-om', 4.5),
         bess_om:    gv('vi-bess-om', 8.64),
         insurance_pv: gv('vi-ins', 10.57),
         asset_mgmt: gv('vi-assetmgmt', 210),
+        // Augmentation
         aug_price:  gv('vi-aug-price', 150),
         aug_mwh_pct: gv('vi-aug-mwh', 796) > 0 ? (gv('vi-aug-mwh',796) / 796 * 100) : 18.8,
         aug_y1:     gv('vi-aug-y1', 4),
         aug_y2:     gv('vi-aug-y2', 8),
         aug_y3:     gv('vi-aug-y3', 12),
+        // Debt
         debt_ratio: gv('vi-debt-r', 47.6),
         int_rate:   gv('vi-int-r', 5.5),
         loan_term:  gv('vi-loan-t', 18),
         dscr:       gv('vi-dscr', 1.3),
+        // Tax Equity
         flip_yield: gv('vi-flip-y', 8.75),
         flip_term:  gv('vi-flip-t', 7),
         te_fee:     gv('vi-te-fee', 2),
-        itc_elig:   gv('vi-itc-elig', 97),
-        credit_val: gv('vi-credit-val', 30),
+        itc_elig:   itcEligVal,
+        // Credit System (NEW — PV/BESS 분리, PTC 별도)
+        credit_mode: creditMode,
+        pv_itc_rate: isNaN(pvItc) ? null : pvItc,
+        bess_itc_rate: isNaN(bessItc) ? null : bessItc,
+        ptc_rate_per_kwh: isNaN(ptcRate) ? null : ptcRate,
+        // Life
+        life:       gv('vi-life', 35),                    // NEW
+        // Overrides (비워두면 auto)
+        capex_total_override: (function(){
+          var v = parseFloat((document.getElementById('vi-capex-override')||{}).value);
+          return isNaN(v) || v <= 0 ? null : v;
+        })(),
+        te_ratio_override: (function(){
+          var v = parseFloat((document.getElementById('vi-te-ratio')||{}).value);
+          return isNaN(v) || v <= 0 ? null : v;
+        })(),
         // Hurdle IRR (NPV 할인율로 사용)
         hurdle_sponsor_irr: parseFloat((document.getElementById('thr-sponsor-irr')||{}).value) || 10.0,
       };
