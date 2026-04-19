@@ -4775,6 +4775,19 @@ const LANG = {
     valSizeReference: '규모 비교용 · IRR 보완 지표',
     valValueCreation: '가치 창출', valLeverageEffect: '레버리지 효과',
     valNOLDelay: 'NOL 지연 손실',
+    
+    // IRR Decomposition
+    valDecompTitle: 'IRR 차이 분석 (Calibration vs Prediction)',
+    valDecompRun: '분석 실행',
+    valDecompReRun: '↻ 재분석',
+    valDecompCalib: '🎯 Calibration',
+    valDecompPredict: '📈 Prediction',
+    valDecompDelta: '총 차이',
+    valDecompExplain: 'AI 자세한 설명 받기',
+    valDecompExplainNote: 'Claude AI 기반',
+    valDecompNeedCalc: '먼저 Calculate를 실행한 후 분석해주세요.',
+    valDecompGenerating: '⏳ 생성 중...',
+    valDecompRegenerate: '↻ 재생성',
   },
   en: {
     total: 'Total', pv: 'PV', ess: 'ESS',
@@ -8120,9 +8133,9 @@ function valApplyLanguage() {
   }
   
   // ─── 헤더 ───
-  setPlaceholder('val-scenario', 'valScenarioName');
-  setPlaceholder('val-reason', 'valChangeReason');
-  setPlaceholder('val-share', 'valShareTarget');
+  setPlaceholder('val-scenario-name', 'valScenarioName');
+  setPlaceholder('val-change-reason', 'valChangeReason');
+  setPlaceholder('val-approver', 'valShareTarget');
   var savedBadge = document.getElementById('val-saved-badge');
   if (savedBadge) {
     var span = savedBadge.querySelector('span') || savedBadge;
@@ -8273,6 +8286,28 @@ function valApplyLanguage() {
   if (dataBadge && dataBadge.textContent.toLowerCase().includes('no data')) {
     dataBadge.textContent = L.valNoData;
   }
+  
+  // ─── 추가 한글 텍스트들 ───
+  // Upload fname
+  var uploadFname = document.getElementById('val-upload-fname');
+  if (uploadFname) {
+    if (currentLang === 'en' && uploadFname.textContent.includes('업로드')) {
+      uploadFname.textContent = 'PF Model Upload (.xlsb / .xlsx)';
+    } else if (currentLang === 'ko' && uploadFname.textContent.includes('Upload')) {
+      uploadFname.textContent = 'PF Model 업로드 (.xlsb / .xlsx)';
+    }
+  }
+  
+  // "공유 대상 없음" 정적 옵션
+  document.querySelectorAll('option').forEach(function(opt) {
+    if (opt.textContent.includes('공유 대상 없음') || opt.textContent.includes('No share target')) {
+      opt.textContent = currentLang === 'en' ? '— No share target —' : '— 공유 대상 없음 —';
+    }
+  });
+  
+  // "시나리오명" input placeholder (이미 위에서 처리했지만 명시적 재적용)
+  var scenInput = document.getElementById('val-scenario-name');
+  if (scenInput) scenInput.placeholder = L.valScenarioName;
 }
 
 function initValuationPage() {
@@ -8437,7 +8472,6 @@ function valLoadProject(projectId) {
     };
     var html = '<div style="padding:8px;background:rgba(0,0,0,0.2);border-radius:6px;border:1px solid var(--border2)">';
     html += '<div style="font-size:10px;font-weight:700;margin-bottom:6px;color:var(--t1)">' + L.valICReportTitle + '</div>';
-    // Summary badges
     html += '<div style="display:flex;gap:4px;margin-bottom:6px;flex-wrap:wrap">';
     ['high','medium','low','ok'].forEach(function(k) {
       var v = s[k] || 0;
@@ -8447,14 +8481,12 @@ function valLoadProject(projectId) {
       }
     });
     html += '</div>';
-    // 권장 mode
     if (meta.recommended_mode) {
       var modeBadge = meta.recommended_mode === 'calibration' 
         ? '<div style="padding:6px;background:rgba(124,58,237,0.1);border-left:2px solid #7c3aed;border-radius:4px;font-size:10px;margin-bottom:6px;color:#c4b5fd"><strong>' + L.valICRecommendCalib + '</strong> Calibration ' + L.valICRecommendAuto + '</div>'
         : '<div style="padding:6px;background:rgba(16,185,129,0.08);border-left:2px solid #10b981;border-radius:4px;font-size:10px;margin-bottom:6px;color:#6ee7b7"><strong>' + L.valICRecommendPredict + '</strong></div>';
       html += modeBadge;
     }
-    // Checks (제목/설명은 백엔드가 현재 언어로 반환)
     checks.forEach(function(c) {
       var cfg = sevConfig[c.severity] || sevConfig['LOW'];
       html += '<div style="padding:6px;background:'+cfg.bg+';border-left:2px solid '+cfg.color+';border-radius:4px;font-size:9px;margin-bottom:4px">';
@@ -8466,6 +8498,124 @@ function valLoadProject(projectId) {
     container.innerHTML = html;
     container.style.display = 'block';
   }
+
+  // ══════ IRR Decomposition 핸들러 ══════
+  var decompSection = document.getElementById('vo-decomp-section');
+  var decompRunBtn = document.getElementById('vo-decomp-run-btn');
+  if (decompRunBtn) decompRunBtn.onclick = async function() {
+    var runTxt = document.getElementById('vo-decomp-run-txt');
+    var content = document.getElementById('vo-decomp-content');
+    if (runTxt) runTxt.textContent = currentLang === 'en' ? '⏳ Analyzing...' : '⏳ 분석 중...';
+    this.disabled = true;
+    try {
+      var token = window._authToken || localStorage.getItem('hwr_token');
+      var projectId = (document.getElementById('val-proj-select')||{}).value || '';
+      // 최신 inputs 수집 (Calculate 실행된 결과 기준)
+      var inputs = window._lastValInputs || {};
+      if (!inputs || Object.keys(inputs).length === 0) {
+        alert(currentLang === 'en' 
+          ? 'Please click Calculate first to run the analysis.' 
+          : '먼저 Calculate를 실행한 후 분석해주세요.');
+        this.disabled = false;
+        if (runTxt) runTxt.textContent = currentLang === 'en' ? 'Run Analysis' : '분석 실행';
+        return;
+      }
+      var res = await fetch('https://hwr-api-production.up.railway.app/valuation/decompose-irr', {
+        method: 'POST',
+        headers: { 'Authorization': 'Bearer '+token, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ project_id: projectId, inputs: inputs })
+      });
+      var data = await res.json();
+      if (!res.ok) throw new Error(data.detail || 'Analysis failed');
+      window._lastDecomposition = data.result;
+      voRenderDecomposition(data.result);
+      if (content) content.style.display = 'block';
+      if (runTxt) runTxt.textContent = currentLang === 'en' ? '↻ Re-analyze' : '↻ 재분석';
+    } catch(e) {
+      alert('❌ ' + e.message);
+      if (runTxt) runTxt.textContent = currentLang === 'en' ? 'Run Analysis' : '분석 실행';
+    } finally {
+      this.disabled = false;
+    }
+  };
+
+  function voRenderDecomposition(data) {
+    var d = data;
+    document.getElementById('vo-decomp-calib-irr').textContent = d.calib_irr.toFixed(2) + '%';
+    document.getElementById('vo-decomp-predict-irr').textContent = d.predict_irr.toFixed(2) + '%';
+    var deltaEl = document.getElementById('vo-decomp-delta');
+    var sign = d.total_delta >= 0 ? '+' : '';
+    deltaEl.textContent = sign + d.total_delta.toFixed(2) + '%p';
+    deltaEl.style.color = d.total_delta >= 0 ? 'var(--green)' : 'var(--red)';
+    
+    var container = document.getElementById('vo-decomp-factors');
+    container.innerHTML = '';
+    var factors = d.factors || [];
+    factors.forEach(function(f) {
+      var name = currentLang === 'en' ? f.name_en : f.name_ko;
+      var fromC = f.from_calib;
+      var toP = f.to_predict;
+      var sign2 = f.delta_pp >= 0 ? '+' : '';
+      var color = f.delta_pp >= 0 ? '#10b981' : '#ef4444';
+      var absPp = Math.abs(f.delta_pp);
+      var maxAbs = Math.max(...factors.map(function(x){ return Math.abs(x.delta_pp); }));
+      var widthPct = maxAbs > 0 ? (absPp / maxAbs * 100) : 0;
+      
+      var html = '<div style="padding:10px;background:rgba(0,0,0,0.2);border-radius:6px;border-left:3px solid ' + color + '">';
+      html += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">';
+      html += '<div style="font-size:11px;font-weight:700;color:var(--t1)">' + name + '</div>';
+      html += '<div style="font-size:13px;font-weight:800;color:' + color + ';font-variant-numeric:tabular-nums">' + sign2 + f.delta_pp.toFixed(2) + '%p</div>';
+      html += '</div>';
+      // Bar
+      html += '<div style="height:4px;background:rgba(255,255,255,0.05);border-radius:2px;overflow:hidden;margin-bottom:6px">';
+      html += '<div style="height:100%;width:' + widthPct + '%;background:' + color + ';transition:width 0.3s"></div>';
+      html += '</div>';
+      // Detail
+      html += '<div style="font-size:9px;color:var(--t3);line-height:1.5">';
+      html += '<div>🎯 <span style="color:#c4b5fd">Calibration:</span> ' + fromC + '</div>';
+      html += '<div>📈 <span style="color:#6ee7b7">Prediction:</span> ' + toP + '</div>';
+      html += '</div>';
+      html += '</div>';
+      container.innerHTML += html;
+    });
+  }
+
+  // ══════ Claude 해설 버튼 핸들러 ══════
+  var explainBtn = document.getElementById('vo-decomp-explain-btn');
+  if (explainBtn) explainBtn.onclick = async function() {
+    var txt = document.getElementById('vo-decomp-explain-txt');
+    var result = document.getElementById('vo-decomp-explanation');
+    if (!window._lastDecomposition) {
+      alert(currentLang === 'en' ? 'Run analysis first.' : '먼저 분석을 실행해주세요.');
+      return;
+    }
+    if (txt) txt.textContent = currentLang === 'en' ? '⏳ Generating...' : '⏳ 생성 중...';
+    this.disabled = true;
+    try {
+      var token = window._authToken || localStorage.getItem('hwr_token');
+      var res = await fetch('https://hwr-api-production.up.railway.app/valuation/explain-diff', {
+        method: 'POST',
+        headers: { 'Authorization': 'Bearer '+token, 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          project_id: (document.getElementById('val-proj-select')||{}).value || '',
+          decomposition: window._lastDecomposition,
+          lang: currentLang || 'ko'
+        })
+      });
+      var data = await res.json();
+      if (!res.ok) throw new Error(data.detail || 'Explanation failed');
+      if (result) {
+        result.textContent = data.explanation || '';
+        result.style.display = 'block';
+      }
+      if (txt) txt.textContent = currentLang === 'en' ? '↻ Regenerate' : '↻ 재생성';
+    } catch(e) {
+      alert('❌ ' + e.message);
+      if (txt) txt.textContent = currentLang === 'en' ? 'Get AI Explanation' : 'AI 자세한 설명 받기';
+    } finally {
+      this.disabled = false;
+    }
+  };
 
   // 현재 세션 valuation 데이터 초기화 (전환 시 이전 데이터 잔존 방지)
   window._lastValData = null;
@@ -8852,15 +9002,15 @@ async function valShowSaveModal() {
       var admins = await apiCall('GET', '/auth/admins');
       if (admins && admins.admins && admins.admins.length) {
         var others = admins.admins.filter(function(a){return a !== myEmail;});
-        approverSel.innerHTML = '<option value="">— 공유 대상 없음 —</option>' +
+        approverSel.innerHTML = '<option value="">— '+(currentLang==='en'?'No share target':'공유 대상 없음')+' —</option>' +
           others.map(function(a){
             return '<option value="'+a+'">'+a+'</option>';
           }).join('');
       } else {
-        approverSel.innerHTML = '<option value="">— 공유 대상 없음 —</option>';
+        approverSel.innerHTML = '<option value="">— '+(currentLang==='en'?'No share target':'공유 대상 없음')+' —</option>';
       }
     } catch(e) {
-      approverSel.innerHTML = '<option value="">— 공유 대상 없음 —</option>';
+      approverSel.innerHTML = '<option value="">— '+(currentLang==='en'?'No share target':'공유 대상 없음')+' —</option>';
     }
   }
 
@@ -8882,7 +9032,7 @@ async function valSaveVersion() {
   // approver는 선택 필드 — 검증 제거
 
   var calc = window._lastCalcResult;
-  if (!calc) { alert('먼저 Calculate를 실행하세요.'); return; }
+  if (!calc) { alert(currentLang==='en'?'Please run Calculate first.':'먼저 Calculate를 실행하세요.'); return; }
 
   var safeId = calc.projectId.replace(/[/.]/g,'_');
   var payload = {
@@ -9224,7 +9374,7 @@ async function valLoadBenchmark() {
     window._bmIsoCounts = isoCounts;
 
     if (!rows.length) {
-      if(loadEl) loadEl.innerHTML='<div class="val-empty-icon">📭</div><div class="val-empty-title">아직 업로드된 Valuation 데이터가 없습니다</div>';
+      if(loadEl) loadEl.innerHTML='<div class="val-empty-icon">📭</div><div class="val-empty-title">'+(currentLang==='en'?'No Valuation data uploaded yet':'아직 업로드된 Valuation 데이터가 없습니다')+'</div>';
       return;
     }
 
@@ -9330,7 +9480,7 @@ async function valLoadBenchmark() {
     if(tableEl) tableEl.style.display='block';
     _bmLoaded = true;
   } catch(e) {
-    if(loadEl) loadEl.innerHTML='<div class="val-empty-icon">⚠️</div><div class="val-empty-title">로드 실패: '+e.message+'</div>';
+    if(loadEl) loadEl.innerHTML='<div class="val-empty-icon">⚠️</div><div class="val-empty-title">'+(currentLang==='en'?'Load failed: ':'로드 실패: ')+e.message+'</div>';
   }
 }
 
@@ -10055,7 +10205,7 @@ async function valLoadLevelTen() {
   try {
     var data = await apiCall('GET', '/benchmark/levelten');
     if (!data || !Object.keys(data).length) {
-      contentEl.innerHTML = '<div class="val-empty" style="padding:16px"><div class="val-empty-icon" style="font-size:24px">📈</div><div class="val-empty-title" style="font-size:11px">LevelTen 리포트를 업로드하면 여기에 표시됩니다</div></div>';
+      contentEl.innerHTML = '<div class="val-empty" style="padding:16px"><div class="val-empty-icon" style="font-size:24px">📈</div><div class="val-empty-title" style="font-size:11px">'+(currentLang==='en'?'LevelTen report will appear here after upload':'LevelTen 리포트를 업로드하면 여기에 표시됩니다')+'</div></div>';
       if (metaEl) metaEl.textContent = '데이터 없음';
       return;
     }
@@ -10799,7 +10949,7 @@ async function valRunBreakEven() {
   var baseInputs = window._valBaseInputs || {};
 
   if (!baseInputs.ppa_price) {
-    alert('먼저 Calculate를 실행하세요.');
+    alert(currentLang==='en'?'Please run Calculate first.':'먼저 Calculate를 실행하세요.');
     return;
   }
 
@@ -11071,7 +11221,7 @@ document.addEventListener('DOMContentLoaded', function() {
         });
         var data = await res.json();
         if (!res.ok) throw new Error(data.detail || 'Upload failed');
-        st.textContent = '✅ Saved!';
+        st.textContent = currentLang==='en'?'✅ Saved!':'✅ 저장됨!';
         st.style.color = 'var(--green)';
         showSaveToast();
         valDisplayData({
@@ -11224,6 +11374,10 @@ document.addEventListener('DOMContentLoaded', function() {
         msg.style.color = 'var(--green)';
         // 계산 결과 임시 보관 (Save Version 버튼 클릭 시 저장)
         window._lastCalcResult = { inputs: inputs, outputs: r, projectId: projectId };
+        // IRR 분해 분석용
+        window._lastValInputs = inputs;
+        var decompSec = document.getElementById('vo-decomp-section');
+        if (decompSec) decompSec.style.display = 'block';
         var saveBtn = document.getElementById('val-save-version-btn');
         if (saveBtn) {
           saveBtn.style.display = 'inline-flex';
@@ -12064,7 +12218,7 @@ async function valRunCFInterp() {
   var resEl  = document.getElementById('cf-interp-result');
   var body   = document.getElementById('cf-interp-body');
   if (!detail || !vals || !vals.length) {
-    if (body) body.innerHTML = '<span style="color:var(--t3)">먼저 Calculate를 실행하세요.</span>';
+    if (body) body.innerHTML = '<span style="color:var(--t3)">'+(currentLang==='en'?'Please run Calculate first.':'먼저 Calculate를 실행하세요.')+'</span>';
     if (resEl) resEl.style.display = 'block';
     return;
   }
@@ -13013,14 +13167,14 @@ function valSwitchTab(name, btn) {
   <select id="val-proj-select" class="val-proj-sel" style="padding:5px 10px;background:var(--surface3);border:1px solid var(--border);border-radius:var(--r-md);color:var(--t1);font-size:11px;font-family:var(--font);cursor:pointer;max-width:180px;height:32px;box-sizing:border-box"></select>
   <label class="val-upload-label" style="height:32px;box-sizing:border-box">
     <span>📎</span>
-    <span id="val-upload-fname">PF Model 업로드 (.xlsb / .xlsx)</span>
+    <span id="val-upload-fname">PF Model Upload (.xlsb / .xlsx)</span>
     <input type="file" id="val-upload-file" accept=".xlsb,.xlsx" style="display:none">
   </label>
   <button id="val-upload-btn2" class="val-parse-btn" style="height:32px;box-sizing:border-box">Upload &amp; Parse</button>
   <span id="val-upload-status" style="font-size:10px;color:var(--t3)"></span>
-  <input id="val-scenario-name" placeholder="시나리오명" style="padding:5px 10px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:5px;color:var(--t2);font-size:11px;font-family:var(--font);width:100px;height:32px;box-sizing:border-box">
-  <input id="val-change-reason" placeholder="변경 근거 (예: TE 시장 경색 반영)" style="padding:5px 10px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:5px;color:var(--t2);font-size:11px;font-family:var(--font);width:200px;height:32px;box-sizing:border-box">
-  <input id="val-approver" placeholder="공유 대상 (선택)" style="padding:5px 10px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:5px;color:var(--t2);font-size:11px;font-family:var(--font);width:120px;height:32px;box-sizing:border-box">
+  <input id="val-scenario-name" style="padding:5px 10px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:5px;color:var(--t2);font-size:11px;font-family:var(--font);width:100px;height:32px;box-sizing:border-box">
+  <input id="val-change-reason" placeholder="-" style="padding:5px 10px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:5px;color:var(--t2);font-size:11px;font-family:var(--font);width:200px;height:32px;box-sizing:border-box">
+  <input id="val-approver" placeholder="-" style="padding:5px 10px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:5px;color:var(--t2);font-size:11px;font-family:var(--font);width:120px;height:32px;box-sizing:border-box">
 
   <div class="val-status-badge" style="margin-left:auto;height:32px">
     <div class="val-status-dot" id="val-status-dot"></div>
@@ -13378,7 +13532,7 @@ function valSwitchTab(name, btn) {
                 <div style="font-size:10px;color:var(--t3)">vs <span id="vo-hurdle-irr-target" style="color:var(--t2);font-weight:700">—</span></div>
               </div>
               <div style="font-size:9px;color:var(--t3);margin-bottom:6px">Sponsor IRR · After TE Flip · Full Life</div>
-              <div id="vo-hurdle-irr-status" style="font-size:10px;font-weight:700;padding:3px 8px;display:inline-block;border-radius:4px;background:var(--surface2);color:var(--t3)">Calculate 필요</div>
+              <div id="vo-hurdle-irr-status" style="font-size:10px;font-weight:700;padding:3px 8px;display:inline-block;border-radius:4px;background:var(--surface2);color:var(--t3)">Calculate</div>
             </div>
 
             <!-- Secondary: Dev Margin vs Hurdle -->
@@ -13389,7 +13543,7 @@ function valSwitchTab(name, btn) {
                 <div style="font-size:10px;color:var(--t3)">vs <span id="vo-hurdle-margin-target" style="color:var(--t2);font-weight:700">—</span></div>
               </div>
               <div style="font-size:9px;color:var(--t3);margin-bottom:6px">Dev Margin · c/Wp</div>
-              <div id="vo-hurdle-margin-status" style="font-size:10px;font-weight:700;padding:3px 8px;display:inline-block;border-radius:4px;background:var(--surface2);color:var(--t3)">Calculate 필요</div>
+              <div id="vo-hurdle-margin-status" style="font-size:10px;font-weight:700;padding:3px 8px;display:inline-block;border-radius:4px;background:var(--surface2);color:var(--t3)">Calculate</div>
             </div>
 
             <!-- Overall Verdict -->
@@ -13476,6 +13630,44 @@ function valSwitchTab(name, btn) {
           </div>
           <div style="font-size:9px;color:var(--t3);margin-top:8px;padding:6px 10px;background:rgba(37,99,235,.05);border-left:2px solid var(--blue-h);border-radius:0 4px 4px 0;line-height:1.5">
             💡 <b style="color:var(--t2)">IRR vs NPV</b>: IRR은 <b>수익률</b> (%, 비율), NPV는 <b>금액 규모</b>. 작은 프로젝트 IRR 15%보다 큰 프로젝트 IRR 12%가 절대가치 클 수 있음. IC 의사결정은 <b>둘 다 고려</b>.
+          </div>
+        </div>
+
+        <!-- IRR Decomposition (Calibration vs Prediction) -->
+        <div id="vo-decomp-section" style="background:linear-gradient(135deg, rgba(124,58,237,0.04), rgba(59,130,246,0.03));border:1px solid rgba(124,58,237,0.2);border-radius:var(--r-lg);padding:14px 16px;margin-bottom:16px;display:none">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+            <div style="font-size:11px;font-weight:800;color:#c4b5fd">🔍 <span id="vo-decomp-title">IRR 차이 분석 (Calibration vs Prediction)</span></div>
+            <button id="vo-decomp-run-btn" style="padding:5px 12px;background:linear-gradient(135deg,#7c3aed,#5b21b6);color:#fff;border:none;border-radius:6px;font-size:10px;font-weight:700;cursor:pointer;font-family:var(--font)">
+              <span id="vo-decomp-run-txt">분석 실행</span>
+            </button>
+          </div>
+          <div id="vo-decomp-content" style="display:none">
+            <!-- IRR 비교 헤더 -->
+            <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:10px">
+              <div style="padding:10px;background:rgba(124,58,237,0.08);border:1px solid rgba(124,58,237,0.25);border-radius:6px;text-align:center">
+                <div style="font-size:9px;color:#c4b5fd;font-weight:700;margin-bottom:3px">🎯 Calibration</div>
+                <div id="vo-decomp-calib-irr" style="font-size:18px;font-weight:800;color:#ddd6fe">—</div>
+              </div>
+              <div style="padding:10px;background:rgba(16,185,129,0.08);border:1px solid rgba(16,185,129,0.25);border-radius:6px;text-align:center">
+                <div style="font-size:9px;color:#6ee7b7;font-weight:700;margin-bottom:3px">📈 Prediction</div>
+                <div id="vo-decomp-predict-irr" style="font-size:18px;font-weight:800;color:#a7f3d0">—</div>
+              </div>
+              <div style="padding:10px;background:rgba(255,255,255,0.03);border:1px solid var(--border2);border-radius:6px;text-align:center">
+                <div style="font-size:9px;color:var(--t3);font-weight:700;margin-bottom:3px"><span id="vo-decomp-delta-label">총 차이</span></div>
+                <div id="vo-decomp-delta" style="font-size:18px;font-weight:800;color:var(--amber)">—</div>
+              </div>
+            </div>
+            <!-- 요인별 bars -->
+            <div id="vo-decomp-factors" style="display:flex;flex-direction:column;gap:8px;margin-bottom:10px"></div>
+            <!-- Claude 해설 버튼 -->
+            <div style="display:flex;gap:8px;align-items:center">
+              <button id="vo-decomp-explain-btn" style="flex:1;padding:8px;background:linear-gradient(135deg,#5B4CF0,#8B6FE8);color:#fff;border:none;border-radius:6px;font-size:11px;font-weight:700;cursor:pointer;font-family:var(--font)">
+                💬 <span id="vo-decomp-explain-txt">AI 자세한 설명 받기</span>
+              </button>
+              <span id="vo-decomp-explain-note" style="font-size:9px;color:var(--t3);flex-shrink:0">Claude AI 기반</span>
+            </div>
+            <!-- Claude 해설 결과 -->
+            <div id="vo-decomp-explanation" style="display:none;margin-top:10px;padding:12px;background:rgba(91,76,240,0.05);border-left:3px solid #5B4CF0;border-radius:0 6px 6px 0;font-size:11px;color:var(--t2);line-height:1.7;white-space:pre-wrap"></div>
           </div>
         </div>
 
