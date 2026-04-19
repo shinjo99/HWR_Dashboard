@@ -3138,7 +3138,7 @@ function renderValuation(body, p, pd) {
   };
 
   // ── Mode 토글 (Prediction vs Calibration)
-  window._calibrationMode = window._calibrationMode || 'prediction';  // 기본값
+  window._calibrationMode = window._calibrationMode || 'calibration';  // 기본값: Calibration (엑셀 검증이 주 workflow)
   function updateModeUI(mode) {
     window._calibrationMode = mode;
     var predBtn = document.getElementById('vl-mode-predict');
@@ -4698,28 +4698,6 @@ const LANG = {
     valModeInfoHelpCalib: '• <strong>엑셀 업로드</strong>해서 <strong>같은 숫자</strong> 확인하고 싶으면 → <strong style="color:#c4b5fd">Calibration</strong>',
     valModeInfoHelpPredict: '• <strong>새 프로젝트</strong> 파라미터만 있고 <strong>IRR 예측</strong>하려면 → <strong style="color:#6ee7b7">Prediction</strong>',
     valModeInfoNote: '※ 엑셀 업로드 후 Integrity Check를 돌리면 자동으로 권장 모드를 제안합니다.',
-    valModeReselect: '🔄 모드 다시 선택',
-    
-    // Onboarding
-    valOnbTitle: '어떤 작업을 하시나요?',
-    valOnbSub: '목적에 맞는 계산 모드를 선택해주세요. 언제든 좌측 사이드바에서 변경 가능합니다.',
-    valOnbCalibTitle: '기존 엑셀 모델 검증',
-    valOnbCalibDesc: '이미 만들어진 PF 엑셀 모델을 업로드해서 <strong>동일한 IRR을 재현</strong>하고 검증합니다.',
-    valOnbCalibFeature: 'Calibration mode 특징:',
-    valOnbCalibF1: '• Neptune Case 2 파라미터 (sculpted debt, 25.5/7 flip)',
-    valOnbCalibF2: '• NOL 이월로 Y1~Y9 tax 상쇄',
-    valOnbCalibF3: '• Construction/FMV 분리 구조',
-    valOnbCalibF4: '• <strong>정확도: ±0.15%p</strong> (Neptune 기준)',
-    valOnbCalibBtn: '🎯 Calibration 모드로 시작',
-    valOnbPredictTitle: '신규 프로젝트 예측',
-    valOnbPredictDesc: '새 프로젝트 파라미터를 직접 입력해서 <strong>합리적인 IRR을 예측</strong>합니다. 아직 엑셀 모델 없음.',
-    valOnbPredictFeature: 'Prediction mode 특징:',
-    valOnbPredictF1: '• 업계 표준 PF 가정 (99/5 Partnership Flip)',
-    valOnbPredictF2: '• 균등 Debt amortization',
-    valOnbPredictF3: '• MACRS tax benefit Sponsor 정상 배분',
-    valOnbPredictF4: '• <strong>Dev Margin 10 c/Wac</strong> HWR 표준 공식',
-    valOnbPredictBtn: '📈 Prediction 모드로 시작',
-    valOnbFooter: 'ℹ️ 선택값은 브라우저에 저장됩니다. 좌측 사이드바에서 언제든 변경 가능합니다.',
     
     // Integrity Check
     valICTitle: '🔍 Model Integrity Check',
@@ -4852,28 +4830,6 @@ const LANG = {
     valModeInfoHelpCalib: '• To <strong>upload Excel</strong> and verify <strong>same numbers</strong> → <strong style="color:#c4b5fd">Calibration</strong>',
     valModeInfoHelpPredict: '• For <strong>new project</strong> with parameters only, to <strong>predict IRR</strong> → <strong style="color:#6ee7b7">Prediction</strong>',
     valModeInfoNote: '※ After Excel upload, run Integrity Check to get an automatic mode recommendation.',
-    valModeReselect: '🔄 Reselect Mode',
-    
-    // Onboarding
-    valOnbTitle: 'What would you like to do?',
-    valOnbSub: 'Select the calculation mode for your purpose. You can change it anytime from the left sidebar.',
-    valOnbCalibTitle: 'Verify Existing Excel Model',
-    valOnbCalibDesc: 'Upload an existing PF Excel model to <strong>replicate the same IRR</strong> and verify.',
-    valOnbCalibFeature: 'Calibration mode features:',
-    valOnbCalibF1: '• Neptune Case 2 parameters (sculpted debt, 25.5/7 flip)',
-    valOnbCalibF2: '• NOL carryforward offsets Y1~Y9 tax',
-    valOnbCalibF3: '• Construction/FMV separated structure',
-    valOnbCalibF4: '• <strong>Accuracy: ±0.15%p</strong> (vs Neptune)',
-    valOnbCalibBtn: '🎯 Start with Calibration',
-    valOnbPredictTitle: 'Predict New Project',
-    valOnbPredictDesc: 'Input new project parameters directly to <strong>predict reasonable IRR</strong>. No Excel model yet.',
-    valOnbPredictFeature: 'Prediction mode features:',
-    valOnbPredictF1: '• Industry standard PF assumptions (99/5 Partnership Flip)',
-    valOnbPredictF2: '• Level Debt amortization',
-    valOnbPredictF3: '• Normal MACRS tax benefit to Sponsor',
-    valOnbPredictF4: '• <strong>Dev Margin 10 c/Wac</strong> HWR standard formula',
-    valOnbPredictBtn: '📈 Start with Prediction',
-    valOnbFooter: 'ℹ️ Your choice is saved in browser. Change anytime from the left sidebar.',
     
     // Integrity Check
     valICTitle: '🔍 Model Integrity Check',
@@ -8195,46 +8151,6 @@ function valApplyLanguage() {
   var icBtn = document.getElementById('vl-check-run-btn');
   if (icBtn && !icBtn.disabled) icBtn.textContent = L.valICRunBtn;
   
-  // ─── Onboarding 카드 ───
-  var onb = document.getElementById('val-onboarding');
-  if (onb) {
-    var onbTitle = document.getElementById('val-onb-title');
-    if (onbTitle) onbTitle.textContent = L.valOnbTitle;
-    var onbSub = document.getElementById('val-onb-sub');
-    if (onbSub) onbSub.textContent = L.valOnbSub;
-    
-    var onbCalib = document.getElementById('val-onb-calib');
-    if (onbCalib) {
-      onbCalib.innerHTML = 
-        '<div style="font-size:32px;margin-bottom:12px">🎯</div>' +
-        '<div style="font-size:15px;font-weight:800;margin-bottom:6px;color:#c4b5fd">' + L.valOnbCalibTitle + '</div>' +
-        '<div style="font-size:11px;color:var(--t3);line-height:1.6;margin-bottom:14px">' + L.valOnbCalibDesc + '</div>' +
-        '<div style="padding:10px;background:rgba(0,0,0,0.25);border-radius:8px;font-size:10px;color:var(--t2);line-height:1.5">' +
-          '<strong style="color:#c4b5fd">' + L.valOnbCalibFeature + '</strong><br>' +
-          L.valOnbCalibF1 + '<br>' + L.valOnbCalibF2 + '<br>' + L.valOnbCalibF3 + '<br>' + L.valOnbCalibF4 +
-        '</div>' +
-        '<div style="margin-top:14px;padding:8px;background:rgba(124,58,237,0.15);border-radius:6px;font-size:10px;color:#ddd6fe;text-align:center;font-weight:700">' +
-          L.valOnbCalibBtn + '</div>';
-    }
-    
-    var onbPred = document.getElementById('val-onb-predict');
-    if (onbPred) {
-      onbPred.innerHTML = 
-        '<div style="font-size:32px;margin-bottom:12px">📈</div>' +
-        '<div style="font-size:15px;font-weight:800;margin-bottom:6px;color:#6ee7b7">' + L.valOnbPredictTitle + '</div>' +
-        '<div style="font-size:11px;color:var(--t3);line-height:1.6;margin-bottom:14px">' + L.valOnbPredictDesc + '</div>' +
-        '<div style="padding:10px;background:rgba(0,0,0,0.25);border-radius:8px;font-size:10px;color:var(--t2);line-height:1.5">' +
-          '<strong style="color:#6ee7b7">' + L.valOnbPredictFeature + '</strong><br>' +
-          L.valOnbPredictF1 + '<br>' + L.valOnbPredictF2 + '<br>' + L.valOnbPredictF3 + '<br>' + L.valOnbPredictF4 +
-        '</div>' +
-        '<div style="margin-top:14px;padding:8px;background:rgba(16,185,129,0.15);border-radius:6px;font-size:10px;color:#a7f3d0;text-align:center;font-weight:700">' +
-          L.valOnbPredictBtn + '</div>';
-    }
-    
-    var onbFooter = document.getElementById('val-onb-footer');
-    if (onbFooter) onbFooter.textContent = L.valOnbFooter;
-  }
-  
   // ─── Mode Info 모달 ───
   var infoModal = document.getElementById('val-mode-info-modal');
   if (infoModal) {
@@ -8276,9 +8192,6 @@ function valApplyLanguage() {
         L.valModeInfoHelpPredict + '<br><br>' +
         '<span style="font-size:10px;color:var(--t3)">' + L.valModeInfoNote + '</span>';
     }
-    
-    var reselectBtn = infoModal.querySelector('button[onclick*="val_mode_chosen"]');
-    if (reselectBtn) reselectBtn.textContent = L.valModeReselect;
   }
   
   // ─── Empty state ───
@@ -8396,36 +8309,6 @@ function valLoadProject(projectId) {
   if (pBtn2) pBtn2.onclick = function() { vlUpdateModeUI('prediction'); };
   if (cBtn2) cBtn2.onclick = function() { vlUpdateModeUI('calibration'); };
   
-  // ══════ Onboarding: 첫 방문이면 모드 선택 카드 표시 ══════
-  var onboardingEl = document.getElementById('val-onboarding');
-  if (onboardingEl && !localStorage.getItem('val_mode_chosen')) {
-    onboardingEl.style.display = 'flex';
-    var onbCalib = document.getElementById('val-onb-calib');
-    var onbPredict = document.getElementById('val-onb-predict');
-    if (onbCalib) onbCalib.onclick = function() {
-      vlUpdateModeUI('calibration');
-      localStorage.setItem('val_mode_chosen', '1');
-      onboardingEl.style.display = 'none';
-    };
-    if (onbPredict) onbPredict.onclick = function() {
-      vlUpdateModeUI('prediction');
-      localStorage.setItem('val_mode_chosen', '1');
-      onboardingEl.style.display = 'none';
-    };
-    // 카드 hover 효과
-    [onbCalib, onbPredict].forEach(function(card) {
-      if (!card) return;
-      card.onmouseenter = function() {
-        this.style.transform = 'translateY(-2px)';
-        this.style.boxShadow = '0 8px 24px rgba(124,58,237,0.25)';
-      };
-      card.onmouseleave = function() {
-        this.style.transform = '';
-        this.style.boxShadow = '';
-      };
-    });
-  }
-
   // ══════ Integrity Check 핸들러 (상단바 버튼) ══════
   // 파일 선택 → 자동 실행 → 모달로 결과 표시
   var checkFile = document.getElementById('vl-check-file');
@@ -11115,7 +10998,7 @@ async function valRunScenarios() {
       if (!isNaN(v)) override[inp.dataset.field] = v;
     });
     var inputs = Object.assign({}, baseInputs, override);
-    inputs.calibration_mode = window._calibrationMode || 'prediction';
+    inputs.calibration_mode = window._calibrationMode || 'calibration';
     return fetch('https://hwr-api-production.up.railway.app/valuation/calculate', {
       method:'POST',
       headers:{'Authorization':'Bearer '+token,'Content-Type':'application/json'},
@@ -11368,7 +11251,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
       try {
         var token = window._authToken || localStorage.getItem('hwr_token');
-        inputs.calibration_mode = window._calibrationMode || 'prediction';
+        inputs.calibration_mode = window._calibrationMode || 'calibration';
         var res = await fetch('https://hwr-api-production.up.railway.app/valuation/calculate', {
           method: 'POST',
           headers: { 'Authorization': 'Bearer '+token, 'Content-Type': 'application/json' },
@@ -11546,7 +11429,7 @@ async function valRunSensitivity(projectId, baseInputs, baseResult) {
     var ppa = Math.round((basePPA + delta) * 100) / 100;
     ppas.push(ppa);
     var inp = Object.assign({}, baseInputs, { ppa_price: ppa });
-    inp.calibration_mode = window._calibrationMode || 'prediction';
+    inp.calibration_mode = window._calibrationMode || 'calibration';
     promises.push(
       fetch('https://hwr-api-production.up.railway.app/valuation/calculate', {
         method: 'POST',
@@ -12665,7 +12548,7 @@ async function valRunHeatmap(projectId, baseInputs) {
   ppas.forEach(function(ppa) {
     caps.forEach(function(cap) {
       var inp = Object.assign({}, baseInputs, { ppa_price: ppa, capex_total_override: cap });
-      inp.calibration_mode = window._calibrationMode || 'prediction';
+      inp.calibration_mode = window._calibrationMode || 'calibration';
       promises.push(
         fetch('https://hwr-api-production.up.railway.app/valuation/calculate', {
           method:'POST',
@@ -13214,59 +13097,6 @@ function valSwitchTab(name, btn) {
   </div>
 </div>
 
-<!-- ═══ ONBOARDING OVERLAY (첫 방문 시 모드 선택) ═══ -->
-<div id="val-onboarding" style="display:none;position:absolute;inset:52px 0 0 0;background:rgba(11,15,25,0.85);backdrop-filter:blur(12px);z-index:100;align-items:center;justify-content:center;padding:40px">
-  <div style="max-width:780px;width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:16px;padding:32px;box-shadow:0 30px 60px rgba(0,0,0,0.5)">
-    <div style="text-align:center;margin-bottom:28px">
-      <div style="font-size:28px;margin-bottom:8px">✨</div>
-      <div id="val-onb-title" style="font-size:18px;font-weight:700;color:var(--t1);margin-bottom:6px">어떤 작업을 하시나요?</div>
-      <div id="val-onb-sub" style="font-size:12px;color:var(--t3)">목적에 맞는 계산 모드를 선택해주세요. 언제든 좌측 사이드바에서 변경 가능합니다.</div>
-    </div>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
-      <!-- Calibration 카드 -->
-      <button id="val-onb-calib" style="background:linear-gradient(135deg,rgba(124,58,237,0.08),rgba(91,33,182,0.05));border:2px solid rgba(124,58,237,0.3);border-radius:12px;padding:24px;cursor:pointer;text-align:left;transition:all 0.15s;font-family:var(--font);color:var(--t1)">
-        <div style="font-size:32px;margin-bottom:12px">🎯</div>
-        <div style="font-size:15px;font-weight:800;margin-bottom:6px;color:#c4b5fd">기존 엑셀 모델 검증</div>
-        <div style="font-size:11px;color:var(--t3);line-height:1.6;margin-bottom:14px">
-          이미 만들어진 PF 엑셀 모델을 업로드해서 <strong>동일한 IRR을 재현</strong>하고 검증합니다.
-        </div>
-        <div style="padding:10px;background:rgba(0,0,0,0.25);border-radius:8px;font-size:10px;color:var(--t2);line-height:1.5">
-          <strong style="color:#c4b5fd">Calibration mode 특징:</strong><br>
-          • Neptune Case 2 파라미터 (sculpted debt, 25.5/7 flip)<br>
-          • NOL 이월로 Y1~Y9 tax 상쇄<br>
-          • Construction/FMV 분리 구조<br>
-          • <strong>정확도: ±0.15%p</strong> (Neptune 기준)
-        </div>
-        <div style="margin-top:14px;padding:8px;background:rgba(124,58,237,0.15);border-radius:6px;font-size:10px;color:#ddd6fe;text-align:center;font-weight:700">
-          🎯 Calibration 모드로 시작
-        </div>
-      </button>
-      
-      <!-- Prediction 카드 -->
-      <button id="val-onb-predict" style="background:linear-gradient(135deg,rgba(16,185,129,0.06),rgba(5,150,105,0.04));border:2px solid rgba(16,185,129,0.25);border-radius:12px;padding:24px;cursor:pointer;text-align:left;transition:all 0.15s;font-family:var(--font);color:var(--t1)">
-        <div style="font-size:32px;margin-bottom:12px">📈</div>
-        <div style="font-size:15px;font-weight:800;margin-bottom:6px;color:#6ee7b7">신규 프로젝트 예측</div>
-        <div style="font-size:11px;color:var(--t3);line-height:1.6;margin-bottom:14px">
-          새 프로젝트 파라미터를 직접 입력해서 <strong>합리적인 IRR을 예측</strong>합니다. 아직 엑셀 모델 없음.
-        </div>
-        <div style="padding:10px;background:rgba(0,0,0,0.25);border-radius:8px;font-size:10px;color:var(--t2);line-height:1.5">
-          <strong style="color:#6ee7b7">Prediction mode 특징:</strong><br>
-          • 업계 표준 PF 가정 (99/5 Partnership Flip)<br>
-          • 균등 Debt amortization<br>
-          • MACRS tax benefit Sponsor 정상 배분<br>
-          • <strong>Dev Margin 10 c/Wac</strong> HWR 표준 공식
-        </div>
-        <div style="margin-top:14px;padding:8px;background:rgba(16,185,129,0.15);border-radius:6px;font-size:10px;color:#a7f3d0;text-align:center;font-weight:700">
-          📈 Prediction 모드로 시작
-        </div>
-      </button>
-    </div>
-    <div id="val-onb-footer" style="text-align:center;margin-top:20px;font-size:10px;color:var(--t3)">
-      ℹ️ 선택값은 브라우저에 저장됩니다. 좌측 사이드바에서 언제든 변경 가능합니다.
-    </div>
-  </div>
-</div>
-
 <!-- ═══ MODE INFO 팝업 (ⓘ 클릭 시) ═══ -->
 <div id="val-mode-info-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.7);backdrop-filter:blur(8px);z-index:200;align-items:center;justify-content:center;padding:24px">
   <div style="max-width:600px;width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:14px;padding:28px;box-shadow:0 20px 50px rgba(0,0,0,0.5);max-height:90vh;overflow-y:auto">
@@ -13303,11 +13133,6 @@ function valSwitchTab(name, btn) {
       • <strong>엑셀 업로드</strong>해서 <strong>같은 숫자</strong> 확인하고 싶으면 → <strong style="color:#c4b5fd">Calibration</strong><br>
       • <strong>새 프로젝트</strong> 파라미터만 있고 <strong>IRR 예측</strong>하려면 → <strong style="color:#6ee7b7">Prediction</strong><br><br>
       <span style="font-size:10px;color:var(--t3)">※ 엑셀 업로드 후 Integrity Check를 돌리면 자동으로 권장 모드를 제안합니다.</span>
-    </div>
-    <div style="margin-top:12px;text-align:center">
-      <button onclick="localStorage.removeItem('val_mode_chosen');document.getElementById('val-mode-info-modal').style.display='none';document.getElementById('val-onboarding').style.display='flex';" style="background:transparent;border:1px solid var(--border2);color:var(--t3);padding:6px 14px;border-radius:6px;font-size:10px;cursor:pointer;font-family:var(--font)">
-        🔄 모드 다시 선택
-      </button>
     </div>
   </div>
 </div>
