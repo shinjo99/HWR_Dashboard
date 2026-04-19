@@ -9056,14 +9056,16 @@ async function valLoadMarketBenchmark(force) {
                : val.toFixed(2);
       var d1m = d.d_1m || 0;
       var d1y = d.d_1y || 0;  // 1년 변화
+      var spark = d.spark || [];  // ★ 사용 전에 선언 (호이스팅 버그 수정)
+
       var chgColor = d1y > 0 ? 'var(--green)' : d1y < 0 ? 'var(--red)' : 'var(--t3)';
       var chgSign = d1y > 0 ? '▲' : d1y < 0 ? '▼' : '·';
 
       // 상단 우측에 1년 변화 (절대값 + YoY %)
       var chgTxt = '';
-      if (spark.length > 1 && d.spark) {
-        var valYAgo = d.spark[0];  // 스파크 첫 값 = 1년전
-        var valNow = d.spark[d.spark.length - 1];  // 마지막 = 현재
+      if (spark.length > 1) {
+        var valYAgo = spark[0];
+        var valNow = spark[spark.length - 1];
         var absChg = valNow - valYAgo;
         var pctChg = valYAgo !== 0 ? (absChg / Math.abs(valYAgo)) * 100 : 0;
         chgSign = absChg > 0 ? '▲' : absChg < 0 ? '▼' : '·';
@@ -9073,8 +9075,6 @@ async function valLoadMarketBenchmark(force) {
         // fallback: 1년치 데이터 없으면 월간 변화
         chgTxt = Math.abs(d1m) >= 0.01 ? chgSign + ' ' + Math.abs(d1m).toFixed(2) : '±0.00';
       }
-
-      var spark = d.spark || [];
 
       // 스파크라인 — 그래프 왼쪽 끝 = 1년전, 오른쪽 끝 = 현재
       // SVG 내부에 값(상단)/날짜(하단) 텍스트 직접 배치
