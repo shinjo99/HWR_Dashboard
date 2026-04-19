@@ -8456,8 +8456,6 @@ async function valSaveVersion() {
   }
 }
 
-// ── 버전 승인/반려
-async 
 // ── History 로드 (재설계: 승인 flow 제거, 깔끔한 타임라인)
 function valLoadHistory(safeId) {
   apiCall('GET', '/valuation/'+safeId+'/versions').then(function(vers) {
@@ -8929,7 +8927,6 @@ async function valLoadPeerIRR() {
 }
 
 
-async 
 // ── LevelTen 섹션 접기/펴기 ──────────────────────────
 function valToggleLevelTen() {
   var content = document.getElementById('bm-lt-content');
@@ -11885,7 +11882,7 @@ function valDrawIRRGauge(canvasId, value, label, min, max, good, ok) {
 // ── 2. Capital Structure 워터폴
 
 // ── 3. Sensitivity 히트맵 (PPA × CAPEX)
-async 
+
 // ── 4. Input change tracking (auto-recalc disabled — button-driven only)
 // 인풋 변경 시 Calculate 버튼에 'dirty' 표시만. 실제 계산은 버튼 클릭으로만 실행.
 function valAttachDebounce() {
