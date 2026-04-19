@@ -4283,7 +4283,7 @@ const LANG = {
     valICDesc: '엑셀 모델 정합성 체크 (수식 오류, Capital Stack, IRR, Debt, Revenue).',
     valICFilePick: '.xlsb / .xlsx 파일 선택',
     valICRunBtn: '🔍 정합성 체크 실행',
-    valICBtnLabel: 'Integrity Check',
+    valICBtnLabel: 'Model Integrity Check',
     valICChecking: '⏳ Checking...',
     valICReportTitle: '📋 정합성 리포트',
     valICRecommendCalib: '🎯 권장 모드:',
@@ -4415,7 +4415,7 @@ const LANG = {
     valICDesc: 'Excel model integrity check (formula errors, Capital Stack, IRR, Debt, Revenue).',
     valICFilePick: 'Select .xlsb / .xlsx file',
     valICRunBtn: '🔍 Run Integrity Check',
-    valICBtnLabel: 'Integrity Check',
+    valICBtnLabel: 'Model Integrity Check',
     valICChecking: '⏳ Checking...',
     valICReportTitle: '📋 Integrity Report',
     valICRecommendCalib: '🎯 Recommended Mode:',
@@ -7933,7 +7933,7 @@ function valLoadProject(projectId) {
       if (icModal) icModal.style.display = 'flex';
     } finally {
       if (icIcon) icIcon.textContent = '🔍';
-      if (icBtnText) icBtnText.textContent = L.valICBtnLabel || 'Integrity Check';
+      if (icBtnText) icBtnText.textContent = L.valICBtnLabel || 'Model Integrity Check';
       if (icLabel) icLabel.style.pointerEvents = 'auto';
       // 같은 파일 재선택 가능하도록 value 리셋
       this.value = '';
@@ -12669,7 +12669,7 @@ function valSwitchTab(name, btn) {
   <!-- 🔍 Integrity Check: 파일 선택 시 자동 실행 -->
   <label id="val-ic-label" title="업로드 전 모델 정합성 체크" style="display:flex;align-items:center;gap:6px;padding:5px 12px;background:linear-gradient(135deg,rgba(124,58,237,0.15),rgba(91,33,182,0.1));border:1px solid rgba(124,58,237,0.4);border-radius:var(--r-md);color:#c4b5fd;font-size:11px;font-weight:600;cursor:pointer;height:32px;box-sizing:border-box;white-space:nowrap">
     <span id="val-ic-icon">🔍</span>
-    <span id="val-ic-btn-text">Integrity Check</span>
+    <span id="val-ic-btn-text">Model Integrity Check</span>
     <input type="file" id="vl-check-file" accept=".xlsb,.xlsx" style="display:none">
   </label>
 
