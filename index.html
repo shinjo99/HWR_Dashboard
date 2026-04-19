@@ -4683,6 +4683,98 @@ const LANG = {
     financeTitle: '📊 재무 현황', financeSub: 'P&L · B/S · C/F',
     issuesTitle: '🔥 핵심 이슈', issuesSub: '매각현황 · PPA · Atlas North M1',
     issuesBtn: '🔥 핵심 이슈', reportBtn: '📋 보고', financeBtn: '📊 재무',
+    
+    // ═══ VALUATION 페이지 ═══
+    valCalcMode: '계산 모드',
+    valModePredict: '📈 Prediction', valModeCalib: '🎯 Calibration',
+    valModePredictDesc: '<strong>Prediction:</strong> 신규 프로젝트 예측용. 표준 99/5 flip + 균등 debt + MACRS Sponsor 배분.',
+    valModeCalibDesc: '<strong>Calibration:</strong> 엑셀 모델 재현용. Sculpted debt + NOL 상쇄 + 25.5/7 flip. Neptune ±0.15%p 정확도.',
+    valModeInfoTitle: '⚙️ 계산 모드 비교',
+    valModeInfoUsage: '용도', valModeInfoDebt: 'Debt 구조', valModeInfoFlip: 'Partnership Flip',
+    valModeInfoTax: 'Tax', valModeInfoCapex: 'CAPEX', valModeInfoAccuracy: '정확도',
+    valModeCalibUsage: '엑셀 모델 재현·검증',
+    valModePredictUsage: '신규 프로젝트 예측',
+    valModeInfoHelp: '💡 어떤 걸 써야 하나요?',
+    valModeInfoHelpCalib: '• <strong>엑셀 업로드</strong>해서 <strong>같은 숫자</strong> 확인하고 싶으면 → <strong style="color:#c4b5fd">Calibration</strong>',
+    valModeInfoHelpPredict: '• <strong>새 프로젝트</strong> 파라미터만 있고 <strong>IRR 예측</strong>하려면 → <strong style="color:#6ee7b7">Prediction</strong>',
+    valModeInfoNote: '※ 엑셀 업로드 후 Integrity Check를 돌리면 자동으로 권장 모드를 제안합니다.',
+    valModeReselect: '🔄 모드 다시 선택',
+    
+    // Onboarding
+    valOnbTitle: '어떤 작업을 하시나요?',
+    valOnbSub: '목적에 맞는 계산 모드를 선택해주세요. 언제든 좌측 사이드바에서 변경 가능합니다.',
+    valOnbCalibTitle: '기존 엑셀 모델 검증',
+    valOnbCalibDesc: '이미 만들어진 PF 엑셀 모델을 업로드해서 <strong>동일한 IRR을 재현</strong>하고 검증합니다.',
+    valOnbCalibFeature: 'Calibration mode 특징:',
+    valOnbCalibF1: '• Neptune Case 2 파라미터 (sculpted debt, 25.5/7 flip)',
+    valOnbCalibF2: '• NOL 이월로 Y1~Y9 tax 상쇄',
+    valOnbCalibF3: '• Construction/FMV 분리 구조',
+    valOnbCalibF4: '• <strong>정확도: ±0.15%p</strong> (Neptune 기준)',
+    valOnbCalibBtn: '🎯 Calibration 모드로 시작',
+    valOnbPredictTitle: '신규 프로젝트 예측',
+    valOnbPredictDesc: '새 프로젝트 파라미터를 직접 입력해서 <strong>합리적인 IRR을 예측</strong>합니다. 아직 엑셀 모델 없음.',
+    valOnbPredictFeature: 'Prediction mode 특징:',
+    valOnbPredictF1: '• 업계 표준 PF 가정 (99/5 Partnership Flip)',
+    valOnbPredictF2: '• 균등 Debt amortization',
+    valOnbPredictF3: '• MACRS tax benefit Sponsor 정상 배분',
+    valOnbPredictF4: '• <strong>Dev Margin 10 c/Wac</strong> HWR 표준 공식',
+    valOnbPredictBtn: '📈 Prediction 모드로 시작',
+    valOnbFooter: 'ℹ️ 선택값은 브라우저에 저장됩니다. 좌측 사이드바에서 언제든 변경 가능합니다.',
+    
+    // Integrity Check
+    valICTitle: '🔍 Model Integrity Check',
+    valICDesc: '엑셀 모델 정합성 체크 (수식 오류, Capital Stack, IRR, Debt, Revenue).',
+    valICFilePick: '.xlsb / .xlsx 파일 선택',
+    valICRunBtn: '🔍 정합성 체크 실행',
+    valICChecking: '⏳ Checking...',
+    valICReportTitle: '📋 정합성 리포트',
+    valICRecommendCalib: '🎯 권장 모드:',
+    valICRecommendAuto: '(자동 전환됨)',
+    valICRecommendPredict: '📈 권장 모드: Prediction (기본값)',
+    
+    // 사이드바 섹션
+    valSecProject: 'Project', valSecRevenue: 'Revenue', valSecCapex: 'CAPEX',
+    valSecOpex: 'OPEX', valSecBess: 'BESS Augmentation', valSecDebt: 'Debt/Tax',
+    valSecCredit: 'Credit (ITC/PTC)', valSecAdvanced: 'Advanced',
+    
+    // 헤더/탭
+    valTabOverview: 'Overview', valTabSensitivity: 'Sensitivity',
+    valTabCashFlow: 'Cash Flow', valTabHistory: 'History',
+    valTabBenchmark: 'Benchmark', valTabIC: 'IC Opinion',
+    valExportIC: '✨ Export IC Opinion',
+    valUploadParse: 'Upload & Parse', valSaved: 'Saved!',
+    valScenarioName: '시나리오명',
+    valChangeReason: '변경 근거 (예: TE 시장 경색 반영)',
+    valShareTarget: '공유 대상 (선택)',
+    valLive: 'Live · Calculated',
+    valNoData: 'No data — upload model',
+    valLoadFailed: 'Load failed',
+    
+    // Empty state
+    valEmptyTitle: '모델을 업로드하거나 Calculate를 실행하세요',
+    valEmptySub: 'PF 모델(.xlsb)을 업로드하면 자동 파싱됩니다. 또는 좌측 인풋을 채우고 Calculate를 눌러 빠른 추정값을 확인할 수 있습니다.',
+    
+    // 결과 카드
+    valDevMargin: 'DEV MARGIN', valSponsorIRR: 'SPONSOR IRR',
+    valEbitdaYield: 'EBITDA YIELD', valReturnsDetail: 'RETURNS DETAIL',
+    valAfterFlip: 'After TE Flip · Full Life',
+    valFullLife: 'Full Life · Useful Life of Project',
+    valLevered: 'Levered · Pre-Tax',
+    valAfterTaxBeforeNOL: 'After-Tax (Before NOL)',
+    valAfterTaxAfterNOL: 'After-Tax (After NOL)',
+    valProjectIRR: 'PROJECT IRR',
+    valUnleveredPreTax: 'Unlevered · Pre-Tax · ITC 영향 없음',
+    valCapitalCost: 'Capital Cost · Hurdle',
+    valSponsorNPV: 'SPONSOR NPV', valProjectNPV: 'PROJECT NPV',
+    valHurdle: 'Hurdle', valFullLifeSponsorCF: 'Full Life Sponsor CF',
+    valUnleveredProjectCF: 'Unlevered Project CF',
+    valIRRvsNPV: 'IRR vs NPV',
+    valIRRvsNPVDesc: 'IRR은 수익률 (%, 비율), NPV는 금액 규모. 작은 프로젝트 IRR 15%보다 큰 프로젝트 IRR 12%가 절대가치 클 수 있음. IC 의사결정은 둘 다 고려.',
+    valCapitalStructure: 'CAPITAL STRUCTURE',
+    valNPVTitle: 'NPV (NET PRESENT VALUE)',
+    valSizeReference: '규모 비교용 · IRR 보완 지표',
+    valValueCreation: '가치 창출', valLeverageEffect: '레버리지 효과',
+    valNOLDelay: 'NOL 지연 손실',
   },
   en: {
     total: 'Total', pv: 'PV', ess: 'ESS',
@@ -4731,6 +4823,98 @@ const LANG = {
     financeTitle: '📊 Financial Overview', financeSub: 'P&L · B/S · C/F',
     issuesTitle: '🔥 Key Issues', issuesSub: 'Divestment · PPA · Atlas North M1',
     issuesBtn: '🔥 Key Issues', reportBtn: '📋 Reports', financeBtn: '📊 Finance',
+    
+    // ═══ VALUATION page ═══
+    valCalcMode: 'Calculation Mode',
+    valModePredict: '📈 Prediction', valModeCalib: '🎯 Calibration',
+    valModePredictDesc: '<strong>Prediction:</strong> For new projects. Standard 99/5 flip + level debt + MACRS Sponsor allocation.',
+    valModeCalibDesc: '<strong>Calibration:</strong> For replicating Excel models. Sculpted debt + NOL offset + 25.5/7 flip. Neptune ±0.15%p accuracy.',
+    valModeInfoTitle: '⚙️ Calculation Mode Comparison',
+    valModeInfoUsage: 'Usage', valModeInfoDebt: 'Debt Structure', valModeInfoFlip: 'Partnership Flip',
+    valModeInfoTax: 'Tax', valModeInfoCapex: 'CAPEX', valModeInfoAccuracy: 'Accuracy',
+    valModeCalibUsage: 'Excel model replication/verification',
+    valModePredictUsage: 'New project prediction',
+    valModeInfoHelp: '💡 Which one should I use?',
+    valModeInfoHelpCalib: '• To <strong>upload Excel</strong> and verify <strong>same numbers</strong> → <strong style="color:#c4b5fd">Calibration</strong>',
+    valModeInfoHelpPredict: '• For <strong>new project</strong> with parameters only, to <strong>predict IRR</strong> → <strong style="color:#6ee7b7">Prediction</strong>',
+    valModeInfoNote: '※ After Excel upload, run Integrity Check to get an automatic mode recommendation.',
+    valModeReselect: '🔄 Reselect Mode',
+    
+    // Onboarding
+    valOnbTitle: 'What would you like to do?',
+    valOnbSub: 'Select the calculation mode for your purpose. You can change it anytime from the left sidebar.',
+    valOnbCalibTitle: 'Verify Existing Excel Model',
+    valOnbCalibDesc: 'Upload an existing PF Excel model to <strong>replicate the same IRR</strong> and verify.',
+    valOnbCalibFeature: 'Calibration mode features:',
+    valOnbCalibF1: '• Neptune Case 2 parameters (sculpted debt, 25.5/7 flip)',
+    valOnbCalibF2: '• NOL carryforward offsets Y1~Y9 tax',
+    valOnbCalibF3: '• Construction/FMV separated structure',
+    valOnbCalibF4: '• <strong>Accuracy: ±0.15%p</strong> (vs Neptune)',
+    valOnbCalibBtn: '🎯 Start with Calibration',
+    valOnbPredictTitle: 'Predict New Project',
+    valOnbPredictDesc: 'Input new project parameters directly to <strong>predict reasonable IRR</strong>. No Excel model yet.',
+    valOnbPredictFeature: 'Prediction mode features:',
+    valOnbPredictF1: '• Industry standard PF assumptions (99/5 Partnership Flip)',
+    valOnbPredictF2: '• Level Debt amortization',
+    valOnbPredictF3: '• Normal MACRS tax benefit to Sponsor',
+    valOnbPredictF4: '• <strong>Dev Margin 10 c/Wac</strong> HWR standard formula',
+    valOnbPredictBtn: '📈 Start with Prediction',
+    valOnbFooter: 'ℹ️ Your choice is saved in browser. Change anytime from the left sidebar.',
+    
+    // Integrity Check
+    valICTitle: '🔍 Model Integrity Check',
+    valICDesc: 'Excel model integrity check (formula errors, Capital Stack, IRR, Debt, Revenue).',
+    valICFilePick: 'Select .xlsb / .xlsx file',
+    valICRunBtn: '🔍 Run Integrity Check',
+    valICChecking: '⏳ Checking...',
+    valICReportTitle: '📋 Integrity Report',
+    valICRecommendCalib: '🎯 Recommended Mode:',
+    valICRecommendAuto: '(auto-switched)',
+    valICRecommendPredict: '📈 Recommended Mode: Prediction (default)',
+    
+    // Sidebar sections
+    valSecProject: 'Project', valSecRevenue: 'Revenue', valSecCapex: 'CAPEX',
+    valSecOpex: 'OPEX', valSecBess: 'BESS Augmentation', valSecDebt: 'Debt/Tax',
+    valSecCredit: 'Credit (ITC/PTC)', valSecAdvanced: 'Advanced',
+    
+    // Header/tabs
+    valTabOverview: 'Overview', valTabSensitivity: 'Sensitivity',
+    valTabCashFlow: 'Cash Flow', valTabHistory: 'History',
+    valTabBenchmark: 'Benchmark', valTabIC: 'IC Opinion',
+    valExportIC: '✨ Export IC Opinion',
+    valUploadParse: 'Upload & Parse', valSaved: 'Saved!',
+    valScenarioName: 'Scenario name',
+    valChangeReason: 'Change reason (e.g., TE market tightening)',
+    valShareTarget: 'Share with (optional)',
+    valLive: 'Live · Calculated',
+    valNoData: 'No data — upload model',
+    valLoadFailed: 'Load failed',
+    
+    // Empty state
+    valEmptyTitle: 'Upload a model or run Calculate',
+    valEmptySub: 'PF models (.xlsb) are parsed automatically. Or fill in the left inputs and click Calculate for a quick estimate.',
+    
+    // Result cards
+    valDevMargin: 'DEV MARGIN', valSponsorIRR: 'SPONSOR IRR',
+    valEbitdaYield: 'EBITDA YIELD', valReturnsDetail: 'RETURNS DETAIL',
+    valAfterFlip: 'After TE Flip · Full Life',
+    valFullLife: 'Full Life · Useful Life of Project',
+    valLevered: 'Levered · Pre-Tax',
+    valAfterTaxBeforeNOL: 'After-Tax (Before NOL)',
+    valAfterTaxAfterNOL: 'After-Tax (After NOL)',
+    valProjectIRR: 'PROJECT IRR',
+    valUnleveredPreTax: 'Unlevered · Pre-Tax · No ITC effect',
+    valCapitalCost: 'Capital Cost · Hurdle',
+    valSponsorNPV: 'SPONSOR NPV', valProjectNPV: 'PROJECT NPV',
+    valHurdle: 'Hurdle', valFullLifeSponsorCF: 'Full Life Sponsor CF',
+    valUnleveredProjectCF: 'Unlevered Project CF',
+    valIRRvsNPV: 'IRR vs NPV',
+    valIRRvsNPVDesc: 'IRR is a rate (%, ratio), NPV is absolute dollar value. A 12% IRR on a larger project may be worth more than a 15% IRR on a small one. IC decisions should consider both.',
+    valCapitalStructure: 'CAPITAL STRUCTURE',
+    valNPVTitle: 'NPV (NET PRESENT VALUE)',
+    valSizeReference: 'For size comparison · IRR complementary metric',
+    valValueCreation: 'Value Creation', valLeverageEffect: 'Leverage Effect',
+    valNOLDelay: 'NOL Delay Loss',
   }
 };
 
@@ -4740,6 +4924,11 @@ function toggleLang() {
   btn.textContent = currentLang === 'ko' ? 'KO' : 'EN';
   btn.style.color = currentLang === 'en' ? 'var(--blue)' : 'var(--t2)';
   applyLang();
+  // Valuation 페이지가 열려있으면 재렌더
+  var valPage = document.getElementById('page-valuation');
+  if (valPage && valPage.style.display !== 'none' && typeof valApplyLanguage === 'function') {
+    valApplyLanguage();
+  }
 }
 
 function applyLang() {
@@ -7907,7 +8096,189 @@ function valGetThresholds() {
   };
 }
 
+function valApplyLanguage() {
+  // Valuation 페이지 전체 한글/영어 텍스트 동적 적용
+  var L = LANG[currentLang];
+  if (!L) return;
+  
+  // 헬퍼: ID 또는 selector로 텍스트/HTML 적용
+  function setText(id, key) {
+    var el = document.getElementById(id);
+    if (el && L[key]) el.textContent = L[key];
+  }
+  function setHTML(id, key) {
+    var el = document.getElementById(id);
+    if (el && L[key]) el.innerHTML = L[key];
+  }
+  function setPlaceholder(id, key) {
+    var el = document.getElementById(id);
+    if (el && L[key]) el.placeholder = L[key];
+  }
+  function setAllText(selector, key) {
+    var els = document.querySelectorAll(selector);
+    els.forEach(function(el) { if (L[key]) el.textContent = L[key]; });
+  }
+  
+  // ─── 헤더 ───
+  setPlaceholder('val-scenario', 'valScenarioName');
+  setPlaceholder('val-reason', 'valChangeReason');
+  setPlaceholder('val-share', 'valShareTarget');
+  var savedBadge = document.getElementById('val-saved-badge');
+  if (savedBadge) {
+    var span = savedBadge.querySelector('span') || savedBadge;
+    span.textContent = L.valSaved;
+  }
+  var liveBadge = document.getElementById('val-live-badge');
+  if (liveBadge) liveBadge.textContent = L.valLive;
+  
+  // Upload & Parse 버튼
+  var uploadBtn = document.getElementById('val-upload-btn2');
+  if (uploadBtn && !uploadBtn.disabled) uploadBtn.textContent = L.valUploadParse;
+  
+  // Export IC Opinion 버튼
+  var exportBtn = document.getElementById('val-export-btn');
+  if (exportBtn) exportBtn.textContent = L.valExportIC;
+  
+  // ─── 탭 버튼 ───
+  var tabs = document.querySelectorAll('.val-tab');
+  var tabKeys = ['valTabOverview', 'valTabSensitivity', 'valTabCashFlow', 'valTabHistory', 'valTabBenchmark', 'valTabIC'];
+  tabs.forEach(function(tab, i) {
+    if (tabKeys[i] && L[tabKeys[i]]) tab.textContent = L[tabKeys[i]];
+  });
+  
+  // ─── 좌측 사이드바 섹션 제목 ───
+  var secTitles = document.querySelectorAll('.val-sec-title');
+  // 순서: 계산 모드, Integrity Check, Project, Revenue, CAPEX, OPEX, BESS, Debt, Credit, Advanced
+  var secMap = ['valCalcMode', 'valICTitle', 'valSecProject', 'valSecRevenue', 
+                'valSecCapex', 'valSecOpex', 'valSecBess', 'valSecDebt', 
+                'valSecCredit', 'valSecAdvanced'];
+  secTitles.forEach(function(el, i) {
+    if (secMap[i] && L[secMap[i]]) el.textContent = L[secMap[i]];
+  });
+  
+  // ─── 모드 설명 ───
+  var desc = document.getElementById('vl-mode-desc');
+  if (desc) {
+    var mode = window._calibrationMode || 'calibration';
+    desc.innerHTML = (mode === 'calibration') ? L.valModeCalibDesc : L.valModePredictDesc;
+  }
+  // 모드 버튼 텍스트
+  var mp = document.getElementById('vl-mode-predict');
+  var mc = document.getElementById('vl-mode-calib');
+  if (mp && L.valModePredict) mp.textContent = L.valModePredict;
+  if (mc && L.valModeCalib) mc.textContent = L.valModeCalib;
+  
+  // ─── Integrity Check ───
+  var icDesc = document.querySelector('#vl-check-file')?.closest('.val-sec-body')?.querySelector('div');
+  if (icDesc) icDesc.textContent = L.valICDesc;
+  var icFname = document.getElementById('vl-check-fname');
+  if (icFname && !document.getElementById('vl-check-file').files[0]) icFname.textContent = L.valICFilePick;
+  var icBtn = document.getElementById('vl-check-run-btn');
+  if (icBtn && !icBtn.disabled) icBtn.textContent = L.valICRunBtn;
+  
+  // ─── Onboarding 카드 ───
+  var onb = document.getElementById('val-onboarding');
+  if (onb) {
+    var onbTitle = onb.querySelector('div > div:nth-child(1) > div:nth-child(2)');
+    if (onbTitle) onbTitle.textContent = L.valOnbTitle;
+    var onbSub = onb.querySelector('div > div:nth-child(1) > div:nth-child(3)');
+    if (onbSub) onbSub.textContent = L.valOnbSub;
+    
+    var onbCalib = document.getElementById('val-onb-calib');
+    if (onbCalib) {
+      onbCalib.innerHTML = 
+        '<div style="font-size:32px;margin-bottom:12px">🎯</div>' +
+        '<div style="font-size:15px;font-weight:800;margin-bottom:6px;color:#c4b5fd">' + L.valOnbCalibTitle + '</div>' +
+        '<div style="font-size:11px;color:var(--t3);line-height:1.6;margin-bottom:14px">' + L.valOnbCalibDesc + '</div>' +
+        '<div style="padding:10px;background:rgba(0,0,0,0.25);border-radius:8px;font-size:10px;color:var(--t2);line-height:1.5">' +
+          '<strong style="color:#c4b5fd">' + L.valOnbCalibFeature + '</strong><br>' +
+          L.valOnbCalibF1 + '<br>' + L.valOnbCalibF2 + '<br>' + L.valOnbCalibF3 + '<br>' + L.valOnbCalibF4 +
+        '</div>' +
+        '<div style="margin-top:14px;padding:8px;background:rgba(124,58,237,0.15);border-radius:6px;font-size:10px;color:#ddd6fe;text-align:center;font-weight:700">' +
+          L.valOnbCalibBtn + '</div>';
+    }
+    
+    var onbPred = document.getElementById('val-onb-predict');
+    if (onbPred) {
+      onbPred.innerHTML = 
+        '<div style="font-size:32px;margin-bottom:12px">📈</div>' +
+        '<div style="font-size:15px;font-weight:800;margin-bottom:6px;color:#6ee7b7">' + L.valOnbPredictTitle + '</div>' +
+        '<div style="font-size:11px;color:var(--t3);line-height:1.6;margin-bottom:14px">' + L.valOnbPredictDesc + '</div>' +
+        '<div style="padding:10px;background:rgba(0,0,0,0.25);border-radius:8px;font-size:10px;color:var(--t2);line-height:1.5">' +
+          '<strong style="color:#6ee7b7">' + L.valOnbPredictFeature + '</strong><br>' +
+          L.valOnbPredictF1 + '<br>' + L.valOnbPredictF2 + '<br>' + L.valOnbPredictF3 + '<br>' + L.valOnbPredictF4 +
+        '</div>' +
+        '<div style="margin-top:14px;padding:8px;background:rgba(16,185,129,0.15);border-radius:6px;font-size:10px;color:#a7f3d0;text-align:center;font-weight:700">' +
+          L.valOnbPredictBtn + '</div>';
+    }
+    
+    var onbFooter = onb.querySelector('div > div:last-child');
+    if (onbFooter) onbFooter.textContent = L.valOnbFooter;
+  }
+  
+  // ─── Mode Info 모달 ───
+  var infoModal = document.getElementById('val-mode-info-modal');
+  if (infoModal) {
+    var infoTitle = infoModal.querySelector('div > div:first-child > div:first-child');
+    if (infoTitle) infoTitle.textContent = L.valModeInfoTitle;
+    
+    var infoGrid = infoModal.querySelector('div[style*="grid-template-columns:1fr 1fr"]');
+    if (infoGrid) {
+      infoGrid.innerHTML = 
+        '<div style="padding:14px;background:rgba(124,58,237,0.06);border:1px solid rgba(124,58,237,0.2);border-radius:10px">' +
+          '<div style="font-size:13px;font-weight:800;margin-bottom:8px;color:#c4b5fd">🎯 Calibration</div>' +
+          '<div style="font-size:10px;color:var(--t2);line-height:1.7">' +
+            '<strong>' + L.valModeInfoUsage + ':</strong> ' + L.valModeCalibUsage + '<br>' +
+            '<strong>' + L.valModeInfoDebt + ':</strong> Sculpted (DSCR-based)<br>' +
+            '<strong>' + L.valModeInfoFlip + ':</strong> 25.5/7<br>' +
+            '<strong>' + L.valModeInfoTax + ':</strong> NOL carryforward (Y1~9 offset)<br>' +
+            '<strong>' + L.valModeInfoCapex + ':</strong> FMV ≠ Construction<br>' +
+            '<strong>' + L.valModeInfoAccuracy + ':</strong> Neptune ±0.15%p' +
+          '</div>' +
+        '</div>' +
+        '<div style="padding:14px;background:rgba(16,185,129,0.06);border:1px solid rgba(16,185,129,0.2);border-radius:10px">' +
+          '<div style="font-size:13px;font-weight:800;margin-bottom:8px;color:#6ee7b7">📈 Prediction</div>' +
+          '<div style="font-size:10px;color:var(--t2);line-height:1.7">' +
+            '<strong>' + L.valModeInfoUsage + ':</strong> ' + L.valModePredictUsage + '<br>' +
+            '<strong>' + L.valModeInfoDebt + ':</strong> Level amortization<br>' +
+            '<strong>' + L.valModeInfoFlip + ':</strong> 99/5 (standard)<br>' +
+            '<strong>' + L.valModeInfoTax + ':</strong> MACRS normal Sponsor allocation<br>' +
+            '<strong>' + L.valModeInfoCapex + ':</strong> FMV = Construction<br>' +
+            '<strong>' + L.valModeInfoAccuracy + ':</strong> Industry standard approximation' +
+          '</div>' +
+        '</div>';
+    }
+    
+    var infoHelp = infoModal.querySelector('div[style*="background:rgba(0,0,0,0.25)"]');
+    if (infoHelp) {
+      infoHelp.innerHTML = 
+        '<strong style="color:var(--t1)">' + L.valModeInfoHelp + '</strong><br>' +
+        L.valModeInfoHelpCalib + '<br>' +
+        L.valModeInfoHelpPredict + '<br><br>' +
+        '<span style="font-size:10px;color:var(--t3)">' + L.valModeInfoNote + '</span>';
+    }
+    
+    var reselectBtn = infoModal.querySelector('button[onclick*="val_mode_chosen"]');
+    if (reselectBtn) reselectBtn.textContent = L.valModeReselect;
+  }
+  
+  // ─── Empty state ───
+  var emptyTitle = document.querySelector('#val-empty-state .val-empty-title');
+  if (emptyTitle) emptyTitle.textContent = L.valEmptyTitle;
+  var emptySub = document.querySelector('#val-empty-state .val-empty-sub');
+  if (emptySub) emptySub.textContent = L.valEmptySub;
+  
+  // ─── Data badge (No data — upload model) ───
+  var dataBadge = document.getElementById('val-data-badge');
+  if (dataBadge && dataBadge.textContent.toLowerCase().includes('no data')) {
+    dataBadge.textContent = L.valNoData;
+  }
+}
+
 function initValuationPage() {
+  // 언어 적용 먼저
+  setTimeout(valApplyLanguage, 0);
+  
   // Populate project dropdown
   var sel = document.getElementById('val-proj-select');
   if (!sel) return;
@@ -8035,7 +8406,7 @@ function valLoadProject(projectId) {
     try {
       var token = window._authToken || localStorage.getItem('hwr_token');
       var form = new FormData(); form.append('file', file);
-      var res = await fetch('https://hwr-api-production.up.railway.app/valuation/integrity-check', {
+      var res = await fetch('https://hwr-api-production.up.railway.app/valuation/integrity-check?lang=' + (currentLang || 'ko'), {
         method: 'POST', headers: {'Authorization': 'Bearer '+token}, body: form
       });
       var data = await res.json();
@@ -8057,6 +8428,7 @@ function valLoadProject(projectId) {
     var s = data.summary || {};
     var checks = data.checks || [];
     var meta = data.metadata || {};
+    var L = LANG[currentLang] || LANG.ko;
     var sevConfig = {
       'HIGH': {icon:'🔴', color:'#ef4444', bg:'rgba(239,68,68,0.08)', label:'HIGH'},
       'MEDIUM': {icon:'🟡', color:'#eab308', bg:'rgba(234,179,8,0.08)', label:'MED'},
@@ -8064,7 +8436,7 @@ function valLoadProject(projectId) {
       'OK': {icon:'✅', color:'#22c55e', bg:'rgba(34,197,94,0.08)', label:'OK'}
     };
     var html = '<div style="padding:8px;background:rgba(0,0,0,0.2);border-radius:6px;border:1px solid var(--border2)">';
-    html += '<div style="font-size:10px;font-weight:700;margin-bottom:6px;color:var(--t1)">📋 정합성 리포트</div>';
+    html += '<div style="font-size:10px;font-weight:700;margin-bottom:6px;color:var(--t1)">' + L.valICReportTitle + '</div>';
     // Summary badges
     html += '<div style="display:flex;gap:4px;margin-bottom:6px;flex-wrap:wrap">';
     ['high','medium','low','ok'].forEach(function(k) {
@@ -8078,11 +8450,11 @@ function valLoadProject(projectId) {
     // 권장 mode
     if (meta.recommended_mode) {
       var modeBadge = meta.recommended_mode === 'calibration' 
-        ? '<div style="padding:6px;background:rgba(124,58,237,0.1);border-left:2px solid #7c3aed;border-radius:4px;font-size:10px;margin-bottom:6px;color:#c4b5fd"><strong>🎯 권장 모드:</strong> Calibration (자동 전환됨)</div>'
-        : '<div style="padding:6px;background:rgba(16,185,129,0.08);border-left:2px solid #10b981;border-radius:4px;font-size:10px;margin-bottom:6px;color:#6ee7b7"><strong>📈 권장 모드:</strong> Prediction (기본값)</div>';
+        ? '<div style="padding:6px;background:rgba(124,58,237,0.1);border-left:2px solid #7c3aed;border-radius:4px;font-size:10px;margin-bottom:6px;color:#c4b5fd"><strong>' + L.valICRecommendCalib + '</strong> Calibration ' + L.valICRecommendAuto + '</div>'
+        : '<div style="padding:6px;background:rgba(16,185,129,0.08);border-left:2px solid #10b981;border-radius:4px;font-size:10px;margin-bottom:6px;color:#6ee7b7"><strong>' + L.valICRecommendPredict + '</strong></div>';
       html += modeBadge;
     }
-    // Checks
+    // Checks (제목/설명은 백엔드가 현재 언어로 반환)
     checks.forEach(function(c) {
       var cfg = sevConfig[c.severity] || sevConfig['LOW'];
       html += '<div style="padding:6px;background:'+cfg.bg+';border-left:2px solid '+cfg.color+';border-radius:4px;font-size:9px;margin-bottom:4px">';
