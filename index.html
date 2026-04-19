@@ -7952,6 +7952,149 @@ function valLoadProject(projectId) {
     }
   });
 
+  // ══════ MODE 토글 (Prediction vs Calibration) ══════
+  // 기본값 'calibration' (엑셀 검증이 주 용도)
+  // localStorage에 사용자 선택 저장 → 이후 방문 시 재사용
+  var savedMode = localStorage.getItem('val_calc_mode');
+  window._calibrationMode = savedMode || 'calibration';
+  
+  function vlUpdateModeUI(mode) {
+    window._calibrationMode = mode;
+    localStorage.setItem('val_calc_mode', mode);
+    var predBtn = document.getElementById('vl-mode-predict');
+    var calBtn = document.getElementById('vl-mode-calib');
+    var desc = document.getElementById('vl-mode-desc');
+    if (!predBtn || !calBtn) return;
+    if (mode === 'calibration') {
+      predBtn.style.background = 'transparent';
+      predBtn.style.color = 'var(--t2)';
+      calBtn.style.background = 'linear-gradient(135deg,#7c3aed,#5b21b6)';
+      calBtn.style.color = '#fff';
+      if (desc) desc.innerHTML = '<strong>Calibration:</strong> 엑셀 모델 재현용. Sculpted debt + NOL 상쇄 + 25.5/7 flip. Neptune ±0.15%p 정확도.';
+    } else {
+      predBtn.style.background = 'linear-gradient(135deg,#059669,#10b981)';
+      predBtn.style.color = '#fff';
+      calBtn.style.background = 'transparent';
+      calBtn.style.color = 'var(--t2)';
+      if (desc) desc.innerHTML = '<strong>Prediction:</strong> 신규 프로젝트 예측용. 표준 99/5 flip + 균등 debt + MACRS Sponsor 배분.';
+    }
+  }
+  
+  // 초기 UI 반영
+  vlUpdateModeUI(window._calibrationMode);
+  
+  var pBtn2 = document.getElementById('vl-mode-predict');
+  var cBtn2 = document.getElementById('vl-mode-calib');
+  if (pBtn2) pBtn2.onclick = function() { vlUpdateModeUI('prediction'); };
+  if (cBtn2) cBtn2.onclick = function() { vlUpdateModeUI('calibration'); };
+  
+  // ══════ Onboarding: 첫 방문이면 모드 선택 카드 표시 ══════
+  var onboardingEl = document.getElementById('val-onboarding');
+  if (onboardingEl && !localStorage.getItem('val_mode_chosen')) {
+    onboardingEl.style.display = 'flex';
+    var onbCalib = document.getElementById('val-onb-calib');
+    var onbPredict = document.getElementById('val-onb-predict');
+    if (onbCalib) onbCalib.onclick = function() {
+      vlUpdateModeUI('calibration');
+      localStorage.setItem('val_mode_chosen', '1');
+      onboardingEl.style.display = 'none';
+    };
+    if (onbPredict) onbPredict.onclick = function() {
+      vlUpdateModeUI('prediction');
+      localStorage.setItem('val_mode_chosen', '1');
+      onboardingEl.style.display = 'none';
+    };
+    // 카드 hover 효과
+    [onbCalib, onbPredict].forEach(function(card) {
+      if (!card) return;
+      card.onmouseenter = function() {
+        this.style.transform = 'translateY(-2px)';
+        this.style.boxShadow = '0 8px 24px rgba(124,58,237,0.25)';
+      };
+      card.onmouseleave = function() {
+        this.style.transform = '';
+        this.style.boxShadow = '';
+      };
+    });
+  }
+
+  // ══════ Integrity Check 핸들러 ══════
+  var checkFile = document.getElementById('vl-check-file');
+  var checkBtn = document.getElementById('vl-check-run-btn');
+  var checkFname = document.getElementById('vl-check-fname');
+  if (checkFile) checkFile.onchange = function() {
+    var f = this.files[0]; if (!f) return;
+    if (checkFname) checkFname.textContent = f.name;
+    if (checkBtn) { checkBtn.style.opacity = '1'; checkBtn.style.pointerEvents = 'auto'; }
+  };
+  if (checkBtn) checkBtn.onclick = async function() {
+    var file = checkFile.files[0]; if (!file) return;
+    var result = document.getElementById('vl-check-result');
+    this.textContent = '⏳ Checking...'; this.disabled = true;
+    result.style.display = 'none';
+    try {
+      var token = window._authToken || localStorage.getItem('hwr_token');
+      var form = new FormData(); form.append('file', file);
+      var res = await fetch('https://hwr-api-production.up.railway.app/valuation/integrity-check', {
+        method: 'POST', headers: {'Authorization': 'Bearer '+token}, body: form
+      });
+      var data = await res.json();
+      if (!res.ok) throw new Error(data.detail || 'Check failed');
+      vlRenderIntegrityReport(result, data);
+      // 권장 mode 자동 전환
+      if (data.metadata && data.metadata.recommended_mode) {
+        vlUpdateModeUI(data.metadata.recommended_mode);
+      }
+    } catch(e) {
+      result.innerHTML = '<div style="padding:8px;background:rgba(239,68,68,0.1);color:#f87171;font-size:10px;border-radius:6px">❌ ' + e.message + '</div>';
+      result.style.display = 'block';
+    } finally {
+      this.textContent = '🔍 정합성 체크 실행'; this.disabled = false;
+    }
+  };
+
+  function vlRenderIntegrityReport(container, data) {
+    var s = data.summary || {};
+    var checks = data.checks || [];
+    var meta = data.metadata || {};
+    var sevConfig = {
+      'HIGH': {icon:'🔴', color:'#ef4444', bg:'rgba(239,68,68,0.08)', label:'HIGH'},
+      'MEDIUM': {icon:'🟡', color:'#eab308', bg:'rgba(234,179,8,0.08)', label:'MED'},
+      'LOW': {icon:'🟢', color:'#10b981', bg:'rgba(16,185,129,0.08)', label:'LOW'},
+      'OK': {icon:'✅', color:'#22c55e', bg:'rgba(34,197,94,0.08)', label:'OK'}
+    };
+    var html = '<div style="padding:8px;background:rgba(0,0,0,0.2);border-radius:6px;border:1px solid var(--border2)">';
+    html += '<div style="font-size:10px;font-weight:700;margin-bottom:6px;color:var(--t1)">📋 정합성 리포트</div>';
+    // Summary badges
+    html += '<div style="display:flex;gap:4px;margin-bottom:6px;flex-wrap:wrap">';
+    ['high','medium','low','ok'].forEach(function(k) {
+      var v = s[k] || 0;
+      var c = sevConfig[k.toUpperCase()];
+      if (v > 0) {
+        html += '<span style="padding:2px 5px;border-radius:8px;background:'+c.bg+';color:'+c.color+';font-size:9px;font-weight:700">'+c.icon+' '+c.label+' '+v+'</span>';
+      }
+    });
+    html += '</div>';
+    // 권장 mode
+    if (meta.recommended_mode) {
+      var modeBadge = meta.recommended_mode === 'calibration' 
+        ? '<div style="padding:6px;background:rgba(124,58,237,0.1);border-left:2px solid #7c3aed;border-radius:4px;font-size:10px;margin-bottom:6px;color:#c4b5fd"><strong>🎯 권장 모드:</strong> Calibration (자동 전환됨)</div>'
+        : '<div style="padding:6px;background:rgba(16,185,129,0.08);border-left:2px solid #10b981;border-radius:4px;font-size:10px;margin-bottom:6px;color:#6ee7b7"><strong>📈 권장 모드:</strong> Prediction (기본값)</div>';
+      html += modeBadge;
+    }
+    // Checks
+    checks.forEach(function(c) {
+      var cfg = sevConfig[c.severity] || sevConfig['LOW'];
+      html += '<div style="padding:6px;background:'+cfg.bg+';border-left:2px solid '+cfg.color+';border-radius:4px;font-size:9px;margin-bottom:4px">';
+      html += '<div style="font-weight:700;color:'+cfg.color+';margin-bottom:2px">'+cfg.icon+' '+c.title+'</div>';
+      html += '<div style="color:var(--t3);line-height:1.3">'+c.description+'</div>';
+      html += '</div>';
+    });
+    html += '</div>';
+    container.innerHTML = html;
+    container.style.display = 'block';
+  }
+
   // 현재 세션 valuation 데이터 초기화 (전환 시 이전 데이터 잔존 방지)
   window._lastValData = null;
 
@@ -12513,10 +12656,150 @@ function valSwitchTab(name, btn) {
   </div>
 </div>
 
+<!-- ═══ ONBOARDING OVERLAY (첫 방문 시 모드 선택) ═══ -->
+<div id="val-onboarding" style="display:none;position:absolute;inset:52px 0 0 0;background:rgba(11,15,25,0.85);backdrop-filter:blur(12px);z-index:100;align-items:center;justify-content:center;padding:40px">
+  <div style="max-width:780px;width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:16px;padding:32px;box-shadow:0 30px 60px rgba(0,0,0,0.5)">
+    <div style="text-align:center;margin-bottom:28px">
+      <div style="font-size:28px;margin-bottom:8px">✨</div>
+      <div style="font-size:18px;font-weight:700;color:var(--t1);margin-bottom:6px">어떤 작업을 하시나요?</div>
+      <div style="font-size:12px;color:var(--t3)">목적에 맞는 계산 모드를 선택해주세요. 언제든 좌측 사이드바에서 변경 가능합니다.</div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+      <!-- Calibration 카드 -->
+      <button id="val-onb-calib" style="background:linear-gradient(135deg,rgba(124,58,237,0.08),rgba(91,33,182,0.05));border:2px solid rgba(124,58,237,0.3);border-radius:12px;padding:24px;cursor:pointer;text-align:left;transition:all 0.15s;font-family:var(--font);color:var(--t1)">
+        <div style="font-size:32px;margin-bottom:12px">🎯</div>
+        <div style="font-size:15px;font-weight:800;margin-bottom:6px;color:#c4b5fd">기존 엑셀 모델 검증</div>
+        <div style="font-size:11px;color:var(--t3);line-height:1.6;margin-bottom:14px">
+          이미 만들어진 PF 엑셀 모델을 업로드해서 <strong>동일한 IRR을 재현</strong>하고 검증합니다.
+        </div>
+        <div style="padding:10px;background:rgba(0,0,0,0.25);border-radius:8px;font-size:10px;color:var(--t2);line-height:1.5">
+          <strong style="color:#c4b5fd">Calibration mode 특징:</strong><br>
+          • Neptune Case 2 파라미터 (sculpted debt, 25.5/7 flip)<br>
+          • NOL 이월로 Y1~Y9 tax 상쇄<br>
+          • Construction/FMV 분리 구조<br>
+          • <strong>정확도: ±0.15%p</strong> (Neptune 기준)
+        </div>
+        <div style="margin-top:14px;padding:8px;background:rgba(124,58,237,0.15);border-radius:6px;font-size:10px;color:#ddd6fe;text-align:center;font-weight:700">
+          🎯 Calibration 모드로 시작
+        </div>
+      </button>
+      
+      <!-- Prediction 카드 -->
+      <button id="val-onb-predict" style="background:linear-gradient(135deg,rgba(16,185,129,0.06),rgba(5,150,105,0.04));border:2px solid rgba(16,185,129,0.25);border-radius:12px;padding:24px;cursor:pointer;text-align:left;transition:all 0.15s;font-family:var(--font);color:var(--t1)">
+        <div style="font-size:32px;margin-bottom:12px">📈</div>
+        <div style="font-size:15px;font-weight:800;margin-bottom:6px;color:#6ee7b7">신규 프로젝트 예측</div>
+        <div style="font-size:11px;color:var(--t3);line-height:1.6;margin-bottom:14px">
+          새 프로젝트 파라미터를 직접 입력해서 <strong>합리적인 IRR을 예측</strong>합니다. 아직 엑셀 모델 없음.
+        </div>
+        <div style="padding:10px;background:rgba(0,0,0,0.25);border-radius:8px;font-size:10px;color:var(--t2);line-height:1.5">
+          <strong style="color:#6ee7b7">Prediction mode 특징:</strong><br>
+          • 업계 표준 PF 가정 (99/5 Partnership Flip)<br>
+          • 균등 Debt amortization<br>
+          • MACRS tax benefit Sponsor 정상 배분<br>
+          • <strong>Dev Margin 10 c/Wac</strong> HWR 표준 공식
+        </div>
+        <div style="margin-top:14px;padding:8px;background:rgba(16,185,129,0.15);border-radius:6px;font-size:10px;color:#a7f3d0;text-align:center;font-weight:700">
+          📈 Prediction 모드로 시작
+        </div>
+      </button>
+    </div>
+    <div style="text-align:center;margin-top:20px;font-size:10px;color:var(--t3)">
+      ℹ️ 선택값은 브라우저에 저장됩니다. 좌측 사이드바에서 언제든 변경 가능합니다.
+    </div>
+  </div>
+</div>
+
+<!-- ═══ MODE INFO 팝업 (ⓘ 클릭 시) ═══ -->
+<div id="val-mode-info-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.7);backdrop-filter:blur(8px);z-index:200;align-items:center;justify-content:center;padding:24px">
+  <div style="max-width:600px;width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:14px;padding:28px;box-shadow:0 20px 50px rgba(0,0,0,0.5);max-height:90vh;overflow-y:auto">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+      <div style="font-size:15px;font-weight:800;color:var(--t1)">⚙️ 계산 모드 비교</div>
+      <button onclick="document.getElementById('val-mode-info-modal').style.display='none'" style="background:transparent;border:none;color:var(--t3);font-size:20px;cursor:pointer">✕</button>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px">
+      <div style="padding:14px;background:rgba(124,58,237,0.06);border:1px solid rgba(124,58,237,0.2);border-radius:10px">
+        <div style="font-size:13px;font-weight:800;margin-bottom:8px;color:#c4b5fd">🎯 Calibration</div>
+        <div style="font-size:10px;color:var(--t2);line-height:1.7">
+          <strong>용도:</strong> 엑셀 모델 재현·검증<br>
+          <strong>Debt 구조:</strong> Sculpted (DSCR 기반)<br>
+          <strong>Partnership Flip:</strong> 25.5/7<br>
+          <strong>Tax:</strong> NOL 이월 (Y1~9 상쇄)<br>
+          <strong>CAPEX:</strong> FMV ≠ Construction<br>
+          <strong>정확도:</strong> Neptune ±0.15%p
+        </div>
+      </div>
+      <div style="padding:14px;background:rgba(16,185,129,0.06);border:1px solid rgba(16,185,129,0.2);border-radius:10px">
+        <div style="font-size:13px;font-weight:800;margin-bottom:8px;color:#6ee7b7">📈 Prediction</div>
+        <div style="font-size:10px;color:var(--t2);line-height:1.7">
+          <strong>용도:</strong> 신규 프로젝트 예측<br>
+          <strong>Debt 구조:</strong> 균등 amortization<br>
+          <strong>Partnership Flip:</strong> 99/5 (표준)<br>
+          <strong>Tax:</strong> MACRS 정상 Sponsor 배분<br>
+          <strong>CAPEX:</strong> FMV = Construction<br>
+          <strong>정확도:</strong> 업계 표준 근사
+        </div>
+      </div>
+    </div>
+    <div style="padding:12px;background:rgba(0,0,0,0.25);border-radius:8px;font-size:11px;color:var(--t2);line-height:1.6">
+      <strong style="color:var(--t1)">💡 어떤 걸 써야 하나요?</strong><br>
+      • <strong>엑셀 업로드</strong>해서 <strong>같은 숫자</strong> 확인하고 싶으면 → <strong style="color:#c4b5fd">Calibration</strong><br>
+      • <strong>새 프로젝트</strong> 파라미터만 있고 <strong>IRR 예측</strong>하려면 → <strong style="color:#6ee7b7">Prediction</strong><br><br>
+      <span style="font-size:10px;color:var(--t3)">※ 엑셀 업로드 후 Integrity Check를 돌리면 자동으로 권장 모드를 제안합니다.</span>
+    </div>
+    <div style="margin-top:12px;text-align:center">
+      <button onclick="localStorage.removeItem('val_mode_chosen');document.getElementById('val-mode-info-modal').style.display='none';document.getElementById('val-onboarding').style.display='flex';" style="background:transparent;border:1px solid var(--border2);color:var(--t3);padding:6px 14px;border-radius:6px;font-size:10px;cursor:pointer;font-family:var(--font)">
+        🔄 모드 다시 선택
+      </button>
+    </div>
+  </div>
+</div>
+
 <div class="val-body">
 
   <!-- ── LEFT: INPUTS ── -->
   <div class="val-left">
+
+    <!-- ⓘ CALCULATION MODE -->
+    <div class="val-section" style="background:linear-gradient(135deg,rgba(124,58,237,0.05),rgba(59,130,246,0.03));border-left:3px solid rgba(124,58,237,0.5)">
+      <div class="val-section-hd" style="display:flex;align-items:center;justify-content:space-between">
+        <span class="val-sec-title" style="color:rgba(196,181,253,1)">⚙️ 계산 모드</span>
+        <button onclick="document.getElementById('val-mode-info-modal').style.display='flex'" title="모드 상세 설명" style="background:transparent;border:1px solid var(--border2);color:var(--t3);width:20px;height:20px;border-radius:50%;font-size:10px;cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0;font-family:var(--font)">ⓘ</button>
+      </div>
+      <div class="val-sec-body">
+        <div style="display:flex;gap:4px;padding:3px;background:rgba(0,0,0,0.3);border-radius:6px;margin-bottom:6px">
+          <button id="vl-mode-predict" data-mode="prediction" style="flex:1;padding:6px 4px;border:none;border-radius:4px;font-size:10px;font-weight:700;cursor:pointer;background:transparent;color:var(--t2);font-family:var(--font)">
+            📈 Prediction
+          </button>
+          <button id="vl-mode-calib" data-mode="calibration" style="flex:1;padding:6px 4px;border:none;border-radius:4px;font-size:10px;font-weight:700;cursor:pointer;background:linear-gradient(135deg,#7c3aed,#5b21b6);color:#fff;font-family:var(--font)">
+            🎯 Calibration
+          </button>
+        </div>
+        <div id="vl-mode-desc" style="font-size:9px;color:var(--t3);line-height:1.4">
+          <strong>Calibration:</strong> Neptune 모델 재현용. 엑셀 업로드 시 동일한 IRR 재현.
+        </div>
+      </div>
+    </div>
+
+    <!-- 🔍 MODEL INTEGRITY CHECK -->
+    <div class="val-section" style="background:linear-gradient(135deg,rgba(124,58,237,0.03),rgba(59,130,246,0.02))">
+      <div class="val-section-hd" onclick="valToggleSec(this)">
+        <span class="val-sec-title" style="color:rgba(196,181,253,1)">🔍 Model Integrity Check</span>
+        <span class="val-sec-toggle open">▼</span>
+      </div>
+      <div class="val-sec-body">
+        <div style="font-size:10px;color:var(--t3);margin-bottom:6px;line-height:1.4">
+          엑셀 모델 정합성 체크 (수식 오류, Capital Stack, IRR, Debt, Revenue).
+        </div>
+        <label style="display:flex;align-items:center;gap:6px;padding:6px;background:rgba(0,0,0,0.2);border:1px dashed var(--border2);border-radius:6px;cursor:pointer;font-size:10px;color:var(--t2);margin-bottom:4px">
+          <span>📎</span><span id="vl-check-fname" style="flex:1">.xlsb / .xlsx 파일 선택</span>
+          <input type="file" id="vl-check-file" accept=".xlsb,.xlsx" style="display:none">
+        </label>
+        <button id="vl-check-run-btn" style="width:100%;padding:7px;background:linear-gradient(135deg,#7c3aed,#5b21b6);color:#fff;border:none;border-radius:6px;font-size:10px;font-weight:700;cursor:pointer;opacity:0.4;pointer-events:none">
+          🔍 정합성 체크 실행
+        </button>
+        <div id="vl-check-result" style="display:none;margin-top:8px"></div>
+      </div>
+    </div>
 
     <!-- ① PROJECT -->
     <div class="val-section">
