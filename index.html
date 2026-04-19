@@ -3156,7 +3156,7 @@ function renderValuation(body, p, pd) {
       predBtn.style.color = '#fff';
       calBtn.style.background = 'transparent';
       calBtn.style.color = 'var(--t2)';
-      if (desc) desc.innerHTML = '<strong>Prediction:</strong> 업계 표준 PF 가정 (99/5 flip, 균등 debt, MACRS Sponsor 정상 배분). 신규 프로젝트 합리적 IRR 예측.';
+      if (desc) desc.innerHTML = '<strong>Prediction:</strong> 모델 준비 전 프로젝트의 간략 사업성 검토. 업계 표준 PF 가정 (99/5 flip + 균등 debt + MACRS 정상 배분) 적용, FMV = CAPEX 합계.';
     }
   }
   var pBtn = document.getElementById('vl-mode-predict');
@@ -4687,8 +4687,8 @@ const LANG = {
     // ═══ VALUATION 페이지 ═══
     valCalcMode: '계산 모드',
     valModePredict: '📈 Prediction', valModeCalib: '🎯 Calibration',
-    valModePredictDesc: '<strong>Prediction:</strong> 신규 프로젝트 예측용. 표준 99/5 flip + 균등 debt + MACRS Sponsor 배분.',
-    valModeCalibDesc: '<strong>Calibration:</strong> 엑셀 모델 재현용. Sculpted debt + NOL 상쇄 + 25.5/7 flip. Neptune ±0.15%p 정확도.',
+    valModePredictDesc: '<strong>Prediction:</strong> 모델 준비 전 프로젝트의 간략 사업성 검토. 업계 표준 PF 가정 (99/5 flip + 균등 debt + MACRS 정상 배분) 적용, FMV = CAPEX 합계 (Dev/EPC Margin 포함).',
+    valModeCalibDesc: '<strong>Calibration:</strong> 업로드된 엑셀 모델 재현용. Sculpted debt + NOL 상쇄 + custom Partnership Flip. 원본 모델 ±0.15%p 정확도.',
     valModeInfoTitle: '⚙️ 계산 모드 비교',
     valModeInfoUsage: '용도', valModeInfoDebt: 'Debt 구조', valModeInfoFlip: 'Partnership Flip',
     valModeInfoTax: 'Tax', valModeInfoCapex: 'CAPEX', valModeInfoAccuracy: '정확도',
@@ -4819,8 +4819,8 @@ const LANG = {
     // ═══ VALUATION page ═══
     valCalcMode: 'Calculation Mode',
     valModePredict: '📈 Prediction', valModeCalib: '🎯 Calibration',
-    valModePredictDesc: '<strong>Prediction:</strong> For new projects. Standard 99/5 flip + level debt + MACRS Sponsor allocation.',
-    valModeCalibDesc: '<strong>Calibration:</strong> For replicating Excel models. Sculpted debt + NOL offset + 25.5/7 flip. Neptune ±0.15%p accuracy.',
+    valModePredictDesc: '<strong>Prediction:</strong> Quick feasibility check for projects without a full model. Uses industry-standard PF assumptions (99/5 flip + level debt + MACRS allocation); FMV = sum of CAPEX inputs (includes Dev/EPC Margin).',
+    valModeCalibDesc: '<strong>Calibration:</strong> For replicating uploaded Excel models. Sculpted debt + NOL offset + custom Partnership Flip. ±0.15%p accuracy vs original model.',
     valModeInfoTitle: '⚙️ Calculation Mode Comparison',
     valModeInfoUsage: 'Usage', valModeInfoDebt: 'Debt Structure', valModeInfoFlip: 'Partnership Flip',
     valModeInfoTax: 'Tax', valModeInfoCapex: 'CAPEX', valModeInfoAccuracy: 'Accuracy',
@@ -8137,6 +8137,12 @@ function valApplyLanguage() {
     var mode = window._calibrationMode || 'calibration';
     desc.innerHTML = (mode === 'calibration') ? L.valModeCalibDesc : L.valModePredictDesc;
   }
+  // ─── Prediction FMV 경고 박스 (CAPEX 섹션) ───
+  var fmvNote = document.getElementById('vi-prediction-fmv-note');
+  if (fmvNote) {
+    var curMode = window._calibrationMode || 'calibration';
+    fmvNote.style.display = (curMode === 'prediction') ? 'block' : 'none';
+  }
   // 모드 버튼 텍스트
   var mp = document.getElementById('vl-mode-predict');
   var mc = document.getElementById('vl-mode-calib');
@@ -8168,7 +8174,7 @@ function valApplyLanguage() {
             '<strong>' + L.valModeInfoFlip + ':</strong> 25.5/7<br>' +
             '<strong>' + L.valModeInfoTax + ':</strong> NOL carryforward (Y1~9 offset)<br>' +
             '<strong>' + L.valModeInfoCapex + ':</strong> FMV ≠ Construction<br>' +
-            '<strong>' + L.valModeInfoAccuracy + ':</strong> Neptune ±0.15%p' +
+            '<strong>' + L.valModeInfoAccuracy + ':</strong> 업로드 모델 ±0.15%p' +
           '</div>' +
         '</div>' +
         '<div style="padding:14px;background:rgba(16,185,129,0.06);border:1px solid rgba(16,185,129,0.2);border-radius:10px">' +
@@ -8291,14 +8297,17 @@ function valLoadProject(projectId) {
       predBtn.style.color = 'var(--t2)';
       calBtn.style.background = 'linear-gradient(135deg,#7c3aed,#5b21b6)';
       calBtn.style.color = '#fff';
-      if (desc) desc.innerHTML = '<strong>Calibration:</strong> 엑셀 모델 재현용. Sculpted debt + NOL 상쇄 + 25.5/7 flip. Neptune ±0.15%p 정확도.';
+      if (desc) desc.innerHTML = '<strong>Calibration:</strong> 업로드된 엑셀 모델 재현용. Sculpted debt + NOL 상쇄 + custom Partnership Flip. 원본 모델 ±0.15%p 정확도.';
     } else {
       predBtn.style.background = 'linear-gradient(135deg,#059669,#10b981)';
       predBtn.style.color = '#fff';
       calBtn.style.background = 'transparent';
       calBtn.style.color = 'var(--t2)';
-      if (desc) desc.innerHTML = '<strong>Prediction:</strong> 신규 프로젝트 예측용. 표준 99/5 flip + 균등 debt + MACRS Sponsor 배분.';
+      if (desc) desc.innerHTML = '<strong>Prediction:</strong> 모델 준비 전 프로젝트의 간략 사업성 검토. 업계 표준 PF 가정 (99/5 flip + 균등 debt + MACRS 정상 배분) 적용, FMV = CAPEX 합계.';
     }
+    // Prediction FMV 경고 박스 (CAPEX 섹션)
+    var fmvNote = document.getElementById('vi-prediction-fmv-note');
+    if (fmvNote) fmvNote.style.display = (mode === 'prediction') ? 'block' : 'none';
   }
   
   // 초기 UI 반영
@@ -13113,7 +13122,7 @@ function valSwitchTab(name, btn) {
           <strong>Partnership Flip:</strong> 25.5/7<br>
           <strong>Tax:</strong> NOL 이월 (Y1~9 상쇄)<br>
           <strong>CAPEX:</strong> FMV ≠ Construction<br>
-          <strong>정확도:</strong> Neptune ±0.15%p
+          <strong>정확도:</strong> 업로드 모델 ±0.15%p
         </div>
       </div>
       <div style="padding:14px;background:rgba(16,185,129,0.06);border:1px solid rgba(16,185,129,0.2);border-radius:10px">
@@ -13161,7 +13170,7 @@ function valSwitchTab(name, btn) {
           </button>
         </div>
         <div id="vl-mode-desc" style="font-size:9px;color:var(--t3);line-height:1.4">
-          <strong>Calibration:</strong> Neptune 모델 재현용. 엑셀 업로드 시 동일한 IRR 재현.
+          <strong>Calibration:</strong> 엑셀 모델 재현용. 업로드한 PF 모델과 동일한 IRR 재현.
         </div>
       </div>
     </div>
@@ -13198,52 +13207,136 @@ function valSwitchTab(name, btn) {
       </div>
     </div>
 
-    <!-- ③ STRUCTURE -->
+    <!-- ③ DEAL STRUCTURE (Debt ratio only; 세부는 아래 Debt 섹션으로 이동) -->
     <div class="val-section">
       <div class="val-section-hd" onclick="valToggleSec(this)">
         <span class="val-sec-title">Deal Structure</span>
         <span class="val-sec-toggle open">▼</span>
       </div>
       <div class="val-sec-body">
-        <div class="val-grid1" style="margin-bottom:8px">
-          <div class="vf"><label>Debt Ratio (%)</label><input class="vi" id="vi-debt-r" type="number" step="1" placeholder="47.6"></div>
-        </div>
-        <div class="val-credit-row">
-          <button id="vi-itc-btn" class="val-credit-btn on" onclick="valSetCredit('ITC')">ITC</button>
-          <button id="vi-ptc-btn" class="val-credit-btn off" onclick="valSetCredit('PTC')">PTC</button>
+        <div class="val-grid1" style="margin-bottom:6px">
+          <div class="vf"><label>Life (yr)</label><input class="vi" id="vi-life" type="number" step="1" placeholder="35"></div>
         </div>
         <div class="val-grid2">
-          <div class="vf"><label id="vi-credit-lbl">ITC Rate (%)</label><input class="vi" id="vi-credit-val" type="number" step="1" placeholder="30"></div>
-          <div class="vf"><label>Flip Yield (%)</label><input class="vi" id="vi-flip-y" type="number" step="0.25" placeholder="8.75"></div>
-          <div class="vf" style="grid-column:span 2"><label>Flip Term (yr)</label><input class="vi" id="vi-flip-t" type="number" step="1" placeholder="7"></div>
+          <div class="vf"><label>CAPEX Override ($M)</label><input class="vi" id="vi-capex-override" type="number" step="1" placeholder="auto"></div>
+          <div class="vf"><label>TE Ratio Override (%)</label><input class="vi" id="vi-te-ratio" type="number" step="0.1" placeholder="auto"></div>
         </div>
       </div>
     </div>
 
-    <!-- 엔진용 hidden inputs (기본값 고정) -->
+    <!-- ④ CAPEX -->
+    <div class="val-section">
+      <div class="val-section-hd" onclick="valToggleSec(this)">
+        <span class="val-sec-title">CAPEX</span>
+        <span class="val-sec-toggle open">▼</span>
+      </div>
+      <div class="val-sec-body">
+        <div class="val-grid2">
+          <div class="vf"><label>PV Module (¢/Wdc)</label><input class="vi" id="vi-module" type="number" step="0.1" placeholder="31.5"></div>
+          <div class="vf"><label>PV BOS (¢/Wdc)</label><input class="vi" id="vi-bos" type="number" step="0.1" placeholder="42.88"></div>
+          <div class="vf"><label>BESS Equip. ($/kWh)</label><input class="vi" id="vi-ess-equip" type="number" step="1" placeholder="234.5"></div>
+          <div class="vf"><label>BESS BOS ($/kWh)</label><input class="vi" id="vi-bess-bos" type="number" step="1" placeholder="130"></div>
+          <div class="vf"><label>EPC Cont. (%)</label><input class="vi" id="vi-epc-cont" type="number" step="0.5" placeholder="8"></div>
+          <div class="vf"><label>Owner Cost (%)</label><input class="vi" id="vi-owner" type="number" step="0.5" placeholder="3"></div>
+          <div class="vf"><label>Interconnect ($M)</label><input class="vi" id="vi-intercon" type="number" step="0.5" placeholder="22.5"></div>
+          <div class="vf"><label>Dev Cost ($M)</label><input class="vi" id="vi-dev-cost" type="number" step="0.5" placeholder="20"></div>
+          <div class="vf" style="grid-column:span 2"><label>CAPEX 기타 ($M)</label><input class="vi" id="vi-capex-etc" type="number" step="0.5" placeholder="0"></div>
+        </div>
+        <!-- ⚠️ Prediction FMV 경고 -->
+        <div id="vi-prediction-fmv-note" style="display:none;margin-top:8px;padding:8px;background:rgba(245,158,11,0.08);border:1px solid rgba(245,158,11,0.3);border-radius:6px;font-size:9px;color:#fbbf24;line-height:1.5">
+          💡 <strong>Prediction 모드:</strong> 위 CAPEX 합계가 곧 <strong>FMV</strong>이며, Dev Margin/EPC Margin이 Y0 Sponsor 현금유입으로 반영됩니다.
+        </div>
+      </div>
+    </div>
+
+    <!-- ⑤ OPEX -->
+    <div class="val-section">
+      <div class="val-section-hd" onclick="valToggleSec(this)">
+        <span class="val-sec-title">OPEX</span>
+        <span class="val-sec-toggle open">▼</span>
+      </div>
+      <div class="val-sec-body">
+        <div class="val-grid2">
+          <div class="vf"><label>PV O&amp;M ($/kW-yr)</label><input class="vi" id="vi-pv-om" type="number" step="0.1" placeholder="4.5"></div>
+          <div class="vf"><label>BESS O&amp;M ($/kW-yr)</label><input class="vi" id="vi-bess-om" type="number" step="0.1" placeholder="8.64"></div>
+          <div class="vf"><label>Insurance ($/kW)</label><input class="vi" id="vi-ins" type="number" step="0.1" placeholder="10.57"></div>
+          <div class="vf"><label>Asset Mgmt ($K/yr)</label><input class="vi" id="vi-assetmgmt" type="number" step="10" placeholder="210"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ⑥ DEBT -->
+    <div class="val-section">
+      <div class="val-section-hd" onclick="valToggleSec(this)">
+        <span class="val-sec-title">Debt</span>
+        <span class="val-sec-toggle open">▼</span>
+      </div>
+      <div class="val-sec-body">
+        <div class="val-grid2">
+          <div class="vf"><label>Debt Ratio (%)</label><input class="vi" id="vi-debt-r" type="number" step="1" placeholder="47.6"></div>
+          <div class="vf"><label>Interest (%)</label><input class="vi" id="vi-int-r" type="number" step="0.1" placeholder="5.5"></div>
+          <div class="vf"><label>Loan Term (yr)</label><input class="vi" id="vi-loan-t" type="number" step="1" placeholder="18"></div>
+          <div class="vf"><label>DSCR Target</label><input class="vi" id="vi-dscr" type="number" step="0.05" placeholder="1.30"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ⑦ CREDIT & TAX EQUITY -->
+    <div class="val-section">
+      <div class="val-section-hd" onclick="valToggleSec(this)">
+        <span class="val-sec-title">Credit &amp; Tax Equity</span>
+        <span class="val-sec-toggle open">▼</span>
+      </div>
+      <div class="val-sec-body">
+        <div class="val-credit-row" style="margin-bottom:6px">
+          <button id="vi-itc-btn" class="val-credit-btn on" onclick="valSetCredit('ITC')">ITC</button>
+          <button id="vi-ptc-btn" class="val-credit-btn off" onclick="valSetCredit('PTC')">PTC</button>
+        </div>
+        <!-- ITC 입력 -->
+        <div id="vi-itc-group" class="val-grid2" style="margin-bottom:6px">
+          <div class="vf"><label>PV ITC (%)</label><input class="vi" id="vi-pv-itc" type="number" step="1" placeholder="0"></div>
+          <div class="vf"><label>BESS ITC (%)</label><input class="vi" id="vi-bess-itc" type="number" step="1" placeholder="30"></div>
+          <div class="vf" style="grid-column:span 2"><label>ITC Eligible Basis (%)</label><input class="vi" id="vi-itc-elig" type="number" step="1" placeholder="97"></div>
+        </div>
+        <!-- PTC 입력 (숨김, PTC 선택 시에만 표시) -->
+        <div id="vi-ptc-group" class="val-grid2" style="display:none;margin-bottom:6px">
+          <div class="vf"><label>PTC Rate ($/kWh)</label><input class="vi" id="vi-ptc-rate" type="number" step="0.001" placeholder="0.027"></div>
+          <div class="vf"><label>BESS ITC (%)</label><input class="vi" id="vi-bess-itc-ptc" type="number" step="1" placeholder="30"></div>
+          <div class="vf" style="grid-column:span 2"><label>ITC Eligible Basis (%)</label><input class="vi" id="vi-itc-elig-ptc" type="number" step="1" placeholder="97"></div>
+        </div>
+        <!-- 공용 legacy field (gv('vi-credit-val') 하위 호환) -->
+        <input type="hidden" id="vi-credit-val" value="30">
+        <!-- Flip -->
+        <div class="val-grid2" style="padding-top:6px;border-top:1px dashed rgba(255,255,255,.05)">
+          <div class="vf"><label>Flip Yield (%)</label><input class="vi" id="vi-flip-y" type="number" step="0.25" placeholder="8.75"></div>
+          <div class="vf"><label>Flip Term (yr)</label><input class="vi" id="vi-flip-t" type="number" step="1" placeholder="7"></div>
+          <div class="vf" style="grid-column:span 2"><label>TE Fee (%)</label><input class="vi" id="vi-te-fee" type="number" step="0.5" placeholder="2"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ⑧ BESS AUGMENTATION (고급, 기본 접힘) -->
+    <div class="val-section">
+      <div class="val-section-hd" onclick="valToggleSec(this)">
+        <span class="val-sec-title">BESS Augmentation</span>
+        <span class="val-sec-toggle">▼</span>
+      </div>
+      <div class="val-sec-body" style="display:none">
+        <div class="val-grid2">
+          <div class="vf"><label>Aug. Price ($/kWh)</label><input class="vi" id="vi-aug-price" type="number" step="5" placeholder="150"></div>
+          <div class="vf"><label>Aug. MWh (%)</label><input class="vi" id="vi-aug-mwh" type="number" step="0.5" placeholder="18.8"></div>
+          <div class="vf"><label>Aug. Y1 (MWh)</label><input class="vi" id="vi-aug-y1" type="number" step="1" placeholder="4"></div>
+          <div class="vf"><label>Aug. Y2 (MWh)</label><input class="vi" id="vi-aug-y2" type="number" step="1" placeholder="8"></div>
+          <div class="vf" style="grid-column:span 2"><label>Aug. Y3 (MWh)</label><input class="vi" id="vi-aug-y3" type="number" step="1" placeholder="12"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 엔진용 hidden (UI 없는 legacy ID) -->
     <div style="display:none">
-      <input id="vi-module"    value="31.5">
-      <input id="vi-bos"       value="42.9">
-      <input id="vi-ess-eq"    value="234.5">
-      <input id="vi-epc-cont"  value="8">
-      <input id="vi-owner"     value="3">
-      <input id="vi-capex-etc" value="0">
-      <input id="vi-pv-om"     value="4.5">
-      <input id="vi-bess-om"   value="8.6">
-      <input id="vi-ins"       value="5.0">
-      <input id="vi-assetmgmt" value="150">
-      <input id="vi-opex-etc"  value="0">
-      <input id="vi-int-r"     value="5.5">
-      <input id="vi-loan-t"    value="18">
-      <input id="vi-dscr"      value="1.30">
-      <input id="vi-itc-elig"  value="97">
-      <input id="vi-te-fee"    value="2">
-      <input id="vi-aug-price" value="150">
-      <input id="vi-aug-mwh"   value="18.8">
-      <input id="vi-aug-y1"    value="4">
-      <input id="vi-aug-y2"    value="8">
-      <input id="vi-aug-y3"    value="12">
-      <span  id="vi-capex-total"></span>
+      <input id="vi-pv-mwdc" value="">
+      <input id="vi-opex-etc" value="0">
+      <span id="vi-capex-total"></span>
     </div>
 
     </div><!-- /val-left-scroll -->
