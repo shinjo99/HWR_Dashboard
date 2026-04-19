@@ -1081,7 +1081,7 @@ input[type=number] { -moz-appearance:textfield; }
       </div>
       <div style="display:flex;align-items:center;gap:8px">
         <button id="btn-issues-save" onclick="saveAllIssueData()" style="padding:6px 16px;background:var(--blue-d);color:#fff;border:none;border-radius:var(--r-md);font-size:12px;font-weight:700;cursor:pointer;font-family:var(--font);display:flex;align-items:center;gap:5px">
-          💾 저장
+          💾 Save
         </button>
         <button id="close-issues" class="page-back-btn" onclick="closeAllPages()">← HEUH Dashboard</button>
       </div>
@@ -1337,7 +1337,7 @@ input[type=number] { -moz-appearance:textfield; }
 <div id="kpi-edit-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:800;align-items:center;justify-content:center">
   <div style="background:var(--surface);border:1px solid var(--border2);border-radius:var(--r-xl);padding:28px;width:520px;max-width:calc(100vw - 32px);max-height:80vh;overflow-y:auto">
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px">
-      <div style="font-size:15px;font-weight:800;color:var(--t1)">KPI 현황 업데이트</div>
+      <div style="font-size:15px;font-weight:800;color:var(--t1)">KPI 현황 Updated</div>
       <button onclick="closeKPIEdit()" style="background:none;border:none;color:var(--t2);font-size:18px;cursor:pointer">✕</button>
     </div>
     <div style="margin-bottom:14px">
@@ -1977,7 +1977,7 @@ input[type=number] { -moz-appearance:textfield; }
       📎 <span id="ai-file-name">보고서 업로드 (PDF · 엑셀 · Word)</span>
     </label>
     <input type="file" id="ai-file-input" accept=".pdf,.xlsx,.xls,.csv,.docx,.doc" style="display:none">
-    <button id="ai-parse-btn" style="display:none;margin-top:6px;width:100%;padding:7px;background:linear-gradient(135deg,#5B4CF0,#8B6FE8);color:#fff;border:none;border-radius:8px;font-size:11px;font-weight:700;cursor:pointer">✨ AI 파싱 → 대시보드 업데이트</button>
+    <button id="ai-parse-btn" style="display:none;margin-top:6px;width:100%;padding:7px;background:linear-gradient(135deg,#5B4CF0,#8B6FE8);color:#fff;border:none;border-radius:8px;font-size:11px;font-weight:700;cursor:pointer">✨ AI 파싱 → 대시보드 Updated</button>
   </div>
   <div class="ai-input-row">
     <textarea class="ai-input" id="ai-input" placeholder="예: PJM 지역 대용량 ESS 프로젝트 현황은?" rows="1"></textarea>
@@ -2773,89 +2773,6 @@ function renderFinancial(body,p,pd){
 // ─── VALUATION TAB ───────────────────────────────────────────
 
 // ── Valuation 데이터 UI 반영
-function vlLoadData(safeId, parsed){
-  var a=parsed.assumptions||{};
-  var o=parsed.outputs||{};
-
-  // Show output section
-  var outEl=document.getElementById('vl-output');
-  if(outEl) outEl.style.display='block';
-
-  // Badge
-  var badge=document.getElementById('vl-badge');
-  if(badge){ badge.textContent='✓ Loaded'; badge.style.background='var(--green-sub)'; badge.style.color='var(--green)'; }
-
-  // Margin cards
-  function fmt(v){ return v?'$'+(v/1000).toFixed(1)+'M':'—'; }
-  function fmtPct(v){ return v?(v*100).toFixed(2)+'%':'—'; }
-
-  var dm=document.getElementById('vl-dev-margin');
-  var em=document.getElementById('vl-epc-margin');
-  var tm=document.getElementById('vl-total-margin');
-  if(dm) dm.textContent = o.dev_margin?'$'+(o.dev_margin/1000).toFixed(1)+'M':'—';
-  if(em) em.textContent = o.total_margin&&o.dev_margin?'$'+((o.total_margin-o.dev_margin)/1000).toFixed(1)+'M':'—';
-  if(tm) tm.textContent = o.total_margin?'$'+(o.total_margin/1000).toFixed(1)+'M':'—';
-
-  // IRR
-  var li=document.getElementById('vl-lirr'); if(li) li.textContent=fmtPct(o.levered_irr);
-  var ui=document.getElementById('vl-uirr'); if(ui) ui.textContent=fmtPct(o.unlevered_irr);
-  var si=document.getElementById('vl-sirr'); if(si) si.textContent=fmtPct(o.sponsor_irr_contract);
-
-  // Capital structure
-  var cap=document.getElementById('vl-capex'); if(cap) cap.textContent=fmt(o.capex_total);
-  var dbt=document.getElementById('vl-debt'); if(dbt) dbt.textContent=fmt(o.debt);
-  var te=document.getElementById('vl-te'); if(te) te.textContent=fmt(o.tax_equity);
-  var eq=document.getElementById('vl-eq'); if(eq) eq.textContent=fmt(o.sponsor_equity);
-  var ppa=document.getElementById('vl-ppa'); if(ppa) ppa.textContent=o.ppa_price?'$'+o.ppa_price+'/MWh':'—';
-  var toll=document.getElementById('vl-toll'); if(toll) toll.textContent=o.bess_toll&&o.bess_toll>0?'$'+o.bess_toll+'/kW-mo':'—';
-
-  // Fill inputs from assumptions
-  function setVal(id, val){ var el=document.getElementById(id); if(el&&val!=null) el.value=val; }
-  setVal('vi-ppa-p', a.ppa_price||o.ppa_price);
-  setVal('vi-ppa-t', a.ppa_term||o.ppa_term);
-  setVal('vi-toll-p', a.bess_toll||o.bess_toll);
-  setVal('vi-toll-t', a.bess_toll_term||o.bess_toll_term);
-  setVal('vi-flip-y', a.flip_yield ? (a.flip_yield>1 ? a.flip_yield : a.flip_yield*100) : 8.75);
-  setVal('vi-flip-t', a.flip_term||7);
-  setVal('vi-te-fee', a.te_upfront_fee?a.te_upfront_fee*100:2);
-  setVal('vi-itc-elig', a.itc_eligibility?a.itc_eligibility*100:97);
-  setVal('vi-itc-elig-ptc', a.itc_eligibility?a.itc_eligibility*100:97);
-  setVal('vi-pv-om', a.pv_om_covered||4.5);
-  setVal('vi-bess-om', a.bess_mw&&a.pv_mwac?8.6:8.6);
-  setVal('vi-assetmgmt', a.asset_mgmt_sm||150);
-  setVal('vi-dscr', a.dscr_p50||1.30);
-  setVal('vi-aug-y1', 4); setVal('vi-aug-y2', 8); setVal('vi-aug-y3', 12);
-
-  // 새 필드 매핑 (Neptune 기준 defaults 포함)
-  setVal('vi-pv-mwdc', a.pv_mwdc || o.pv_mwdc || 268.3);
-  setVal('vi-module', a.module_cwp || 31.5);
-  setVal('vi-bos', a.bos_cwp || 42.88);
-  setVal('vi-ess-equip', a.ess_per_kwh || 234.5);
-  setVal('vi-bess-bos', a.bess_bos_per_kwh || 130);
-  setVal('vi-epc-cont', a.epc_cont_pct || 8.0);
-  setVal('vi-owner', a.owner_pct || 3.0);
-  setVal('vi-intercon', a.intercon_m || 22.5);
-  setVal('vi-dev-cost', a.dev_cost_m || 20);
-  setVal('vi-life', a.life || o.life_yrs || 35);
-
-  // Capex/TE Override (Neptune 전용 — 있을 때만)
-  if (a.capex_total_override || o.capex_total) {
-    // 저장 버전은 FMV 매칭 원하는 경우 override 제공
-    setVal('vi-capex-override', a.capex_total_override || '');
-  }
-  if (a.te_ratio_override) setVal('vi-te-ratio', a.te_ratio_override);
-
-  // Credit Mode: ITC/PTC 분리
-  var mode = (a.credit_mode || 'ITC').toUpperCase();
-  if (window.vlSetCredit) window.vlSetCredit(mode);
-  if (mode === 'ITC') {
-    setVal('vi-pv-itc', a.pv_itc_rate != null ? a.pv_itc_rate : 30);
-    setVal('vi-bess-itc', a.bess_itc_rate != null ? a.bess_itc_rate : 30);
-  } else {
-    setVal('vi-ptc-rate', a.ptc_rate_per_kwh || 0.027);
-    setVal('vi-bess-itc-ptc', a.bess_itc_rate != null ? a.bess_itc_rate : 30);
-  }
-}
 
 // ─── BUDGET ──────────────────────────────────────────────────
 function renderBudget(body,p,pd){
@@ -3233,16 +3150,6 @@ function kpiCard(label, val, sub, color, sparkVals, delta) {
 }
 
 // ── Count-up animation ──────────────────────────────────────
-function animateCount(el, target, suffix='', duration=600) {
-  const startTime = performance.now();
-  function tick(now) {
-    const p = Math.min((now - startTime) / duration, 1);
-    const ease = 1 - Math.pow(1 - p, 3);
-    el.textContent = Math.round(target * ease).toLocaleString() + suffix;
-    if (p < 1) requestAnimationFrame(tick);
-  }
-  requestAnimationFrame(tick);
-}
 
 document.addEventListener('DOMContentLoaded',()=>{
   // BU 탭 필터
@@ -3483,7 +3390,7 @@ ${JSON.stringify(portfolioData, null, 0)}
 
 ## PPV (Portfolio at Risk Value) - 실시간
 - 총 PPV (totalRisked): $${ppvSummary.totalRisked || 0}M
-- 프로젝트 수: ${ppvSummary.projectCount || 0}개
+- Projects: ${ppvSummary.projectCount || 0}개
 - Stage별: Early $${ppvSummary.byStage?.Early?.toFixed(1)||0}M / Mid $${ppvSummary.byStage?.Mid?.toFixed(1)||0}M / Late $${ppvSummary.byStage?.Late?.toFixed(1)||0}M
 - 프로젝트별 Risk Factor: ${JSON.stringify(ppvOverrides, null, 0)}
 
@@ -3569,7 +3476,7 @@ async function parseAndUpdateDashboard(file) {
   parseBtn.disabled = true;
   parseBtn.textContent = '⏳ 파싱 중...';
   
-  appendAIMsg('user', `📎 ${file.name} 파일을 분석하여 대시보드를 업데이트합니다.`);
+  appendAIMsg('user', `📎 ${file.name} 파일을 분석하여 대시보드를 Updated합니다.`);
   const typingEl = appendAIMsg('assistant', '', true);
 
   try {
@@ -3660,14 +3567,14 @@ async function parseAndUpdateDashboard(file) {
   }
 
   parseBtn.disabled = false;
-  parseBtn.textContent = '✨ AI 파싱 → 대시보드 업데이트';
+  parseBtn.textContent = '✨ AI 파싱 → 대시보드 Updated';
 }
 
 // Quick actions - 데이터는 sendAIMessage의 system 프롬프트에 포함됨
 const QUICK_PROMPTS = {
   report: `전체 포트폴리오 경영진 보고용 요약 리포트를 작성해주세요. HEUH(개발/리테일/DC/Gas) 포트폴리오별 현황, ISO별 분포, COD 연도별 파이프라인, 총 용량(PV+ESS), 매각 대상 현황을 포함해주세요.`,
   risk: `현재 포트폴리오의 주요 리스크 요인을 분석해주세요. BLM 프로젝트 리스크, ISO 집중도 리스크, COD 일정 리스크, 매각 성사 불확실성, Atlas Milestone 지연 리스크를 구체적 프로젝트명과 함께 분석해주세요.`,
-  cod: `COD 연도별 프로젝트 현황을 정리해주세요. 2026년부터 연도별 프로젝트 수, 총 용량(PV+ESS MWac), 주요 프로젝트명을 표 형식으로 보여주세요.`,
+  cod: `COD 연도별 프로젝트 현황을 정리해주세요. 2026년부터 연도별 Projects, 총 용량(PV+ESS MWac), 주요 프로젝트명을 표 형식으로 보여주세요.`,
   finance: `포트폴리오 재무 분석을 해주세요. HEUH BU별 총 PV·ESS 용량, 평균 프로젝트 규모, PV vs ESS 비중, Safe Harbor 투자 현황을 분석해주세요.`,
 };
 
@@ -3713,7 +3620,7 @@ async function analyzeDocument(doc, project) {
     if(docItem) docItem.after(resultDiv);
     
   } catch(e) {
-    alert('분석 실패: '+e.message);
+    alert('Analysis failed: '+e.message);
   }
   
   if(btn){ btn.classList.remove('loading'); btn.textContent='✨ AI 분석'; }
@@ -3738,9 +3645,9 @@ async function aiFinancialAssist(project) {
 
 다음을 제공해주세요:
 1. **CAPEX 추정 범위** ($/Wac 기준, 현재 미국 시장 기준)
-2. **적정 OPEX** ($/MWac/year)
+2. **fair OPEX** ($/MWac/year)
 3. **예상 설비이용률** (해당 지역/유형 기준)
-4. **적정 PPA 가격 범위** ($/MWh, ${project.iso} 기준)
+4. **fair PPA 가격 범위** ($/MWh, ${project.iso} 기준)
 5. **주요 재무 리스크**
 6. **벤치마크 PIRR 범위**
 
@@ -3755,7 +3662,7 @@ async function aiFinancialAssist(project) {
       resultArea.style.display='block';
     }
   } catch(e) {
-    alert('분석 실패: '+e.message);
+    alert('Analysis failed: '+e.message);
   }
   if(btn){ btn.textContent='✨ AI 재무 분석'; btn.disabled=false; }
 }
@@ -4154,7 +4061,7 @@ function fillFromLive() {
 }
 
 function previewFX() {
-  // 미리보기: 현재 월 값으로 배지 업데이트
+  // 미리보기: 현재 월 값으로 배지 Updated
   const curM = new Date().getMonth() + 1;
   const el = document.getElementById('fx-m-' + curM);
   if (el && el.value) {
@@ -4266,8 +4173,8 @@ const LANG = {
     // ═══ VALUATION 페이지 ═══
     valCalcMode: '계산 모드',
     valModePredict: '📈 Prediction', valModeCalib: '🎯 Calibration',
-    valModePredictDesc: '<strong>Prediction:</strong> 모델 준비 전 프로젝트의 간략 사업성 검토. 업계 표준 PF 가정 (99/5 flip + 균등 debt + MACRS 정상 배분) 적용, FMV = CAPEX 합계 (Dev/EPC Margin 포함).',
-    valModeCalibDesc: '<strong>Calibration:</strong> 업로드된 엑셀 모델 재현용. Sculpted debt + NOL 상쇄 + custom Partnership Flip. 원본 모델 ±0.15%p 정확도.',
+    valModePredictDesc: '<strong>Prediction:</strong> Preliminary feasibility before Excel model is built. Applies industry-standard PF assumptions (99/5 flip + level debt + MACRS standard allocation). FMV = CAPEX total (incl. Dev/EPC Margin).',
+    valModeCalibDesc: '<strong>Calibration:</strong> Replicates uploaded Excel model. Sculpted debt + NOL offset + custom Partnership Flip. Accuracy ±0.15%p vs original.',
     valModeInfoTitle: '⚙️ 계산 모드 비교',
     valModeInfoUsage: '용도', valModeInfoDebt: 'Debt 구조', valModeInfoFlip: 'Partnership Flip',
     valModeInfoTax: 'Tax', valModeInfoCapex: 'CAPEX', valModeInfoAccuracy: '정확도',
@@ -4286,10 +4193,6 @@ const LANG = {
     valICBtnLabel: 'Model Audit',
     valICChecking: '⏳ Checking...',
     valICReportTitle: '📋 정합성 리포트',
-    valICRecommendCalib: '🎯 권장 모드:',
-    valICRecommendAuto: '(자동 전환됨)',
-    valICRecommendPredict: '📈 권장 모드: Prediction (기본값)',
-    
     // 사이드바 섹션
     valSecProject: 'Project', valSecRevenue: 'Revenue', valSecCapex: 'CAPEX',
     valSecOpex: 'OPEX', valSecBess: 'BESS Augmentation', valSecDebt: 'Debt/Tax',
@@ -4301,51 +4204,14 @@ const LANG = {
     valTabBenchmark: 'Benchmark', valTabIC: 'IC Opinion',
     valExportIC: '✨ Export IC Opinion',
     valUploadParse: 'Upload & Parse', valSaved: 'Saved!',
-    valScenarioName: '시나리오명',
-    valChangeReason: '변경 근거 (예: TE 시장 경색 반영)',
-    valShareTarget: '공유 대상 (선택)',
     valLive: 'Live · Calculated',
     valNoData: 'No data — upload model',
-    valLoadFailed: 'Load failed',
-    
     // Empty state
     valEmptyTitle: '모델을 업로드하거나 Calculate를 실행하세요',
     valEmptySub: 'PF 모델(.xlsb)을 업로드하면 자동 파싱됩니다. 또는 좌측 인풋을 채우고 Calculate를 눌러 빠른 추정값을 확인할 수 있습니다.',
     
     // 결과 카드
-    valDevMargin: 'DEV MARGIN', valSponsorIRR: 'SPONSOR IRR',
-    valEbitdaYield: 'EBITDA YIELD', valReturnsDetail: 'RETURNS DETAIL',
-    valAfterFlip: 'After TE Flip · Full Life',
-    valFullLife: 'Full Life · Useful Life of Project',
-    valLevered: 'Levered · Pre-Tax',
-    valAfterTaxBeforeNOL: 'After-Tax (Before NOL)',
-    valAfterTaxAfterNOL: 'After-Tax (After NOL)',
-    valProjectIRR: 'PROJECT IRR',
-    valUnleveredPreTax: 'Unlevered · Pre-Tax · ITC 영향 없음',
-    valCapitalCost: 'Capital Cost · Hurdle',
-    valSponsorNPV: 'SPONSOR NPV', valProjectNPV: 'PROJECT NPV',
-    valHurdle: 'Hurdle', valFullLifeSponsorCF: 'Full Life Sponsor CF',
-    valUnleveredProjectCF: 'Unlevered Project CF',
-    valIRRvsNPV: 'IRR vs NPV',
-    valIRRvsNPVDesc: 'IRR은 수익률 (%, 비율), NPV는 금액 규모. 작은 프로젝트 IRR 15%보다 큰 프로젝트 IRR 12%가 절대가치 클 수 있음. IC 의사결정은 둘 다 고려.',
-    valCapitalStructure: 'CAPITAL STRUCTURE',
-    valNPVTitle: 'NPV (NET PRESENT VALUE)',
-    valSizeReference: '규모 비교용 · IRR 보완 지표',
-    valValueCreation: '가치 창출', valLeverageEffect: '레버리지 효과',
-    valNOLDelay: 'NOL 지연 손실',
-    
     // IRR Decomposition
-    valDecompTitle: 'IRR 차이 분석 (Calibration vs Prediction)',
-    valDecompRun: '분석 실행',
-    valDecompReRun: '↻ 재분석',
-    valDecompCalib: '🎯 Calibration',
-    valDecompPredict: '📈 Prediction',
-    valDecompDelta: '총 차이',
-    valDecompExplain: 'AI 자세한 설명 받기',
-    valDecompExplainNote: 'Claude AI 기반',
-    valDecompNeedCalc: '먼저 Calculate를 실행한 후 분석해주세요.',
-    valDecompGenerating: '⏳ 생성 중...',
-    valDecompRegenerate: '↻ 재생성',
   },
   en: {
     total: 'Total', pv: 'PV', ess: 'ESS',
@@ -4418,10 +4284,6 @@ const LANG = {
     valICBtnLabel: 'Model Audit',
     valICChecking: '⏳ Checking...',
     valICReportTitle: '📋 Integrity Report',
-    valICRecommendCalib: '🎯 Recommended Mode:',
-    valICRecommendAuto: '(auto-switched)',
-    valICRecommendPredict: '📈 Recommended Mode: Prediction (default)',
-    
     // Sidebar sections
     valSecProject: 'Project', valSecRevenue: 'Revenue', valSecCapex: 'CAPEX',
     valSecOpex: 'OPEX', valSecBess: 'BESS Augmentation', valSecDebt: 'Debt/Tax',
@@ -4433,38 +4295,13 @@ const LANG = {
     valTabBenchmark: 'Benchmark', valTabIC: 'IC Opinion',
     valExportIC: '✨ Export IC Opinion',
     valUploadParse: 'Upload & Parse', valSaved: 'Saved!',
-    valScenarioName: 'Scenario name',
-    valChangeReason: 'Change reason (e.g., TE market tightening)',
-    valShareTarget: 'Share with (optional)',
     valLive: 'Live · Calculated',
     valNoData: 'No data — upload model',
-    valLoadFailed: 'Load failed',
-    
     // Empty state
     valEmptyTitle: 'Upload a model or run Calculate',
     valEmptySub: 'PF models (.xlsb) are parsed automatically. Or fill in the left inputs and click Calculate for a quick estimate.',
     
     // Result cards
-    valDevMargin: 'DEV MARGIN', valSponsorIRR: 'SPONSOR IRR',
-    valEbitdaYield: 'EBITDA YIELD', valReturnsDetail: 'RETURNS DETAIL',
-    valAfterFlip: 'After TE Flip · Full Life',
-    valFullLife: 'Full Life · Useful Life of Project',
-    valLevered: 'Levered · Pre-Tax',
-    valAfterTaxBeforeNOL: 'After-Tax (Before NOL)',
-    valAfterTaxAfterNOL: 'After-Tax (After NOL)',
-    valProjectIRR: 'PROJECT IRR',
-    valUnleveredPreTax: 'Unlevered · Pre-Tax · No ITC effect',
-    valCapitalCost: 'Capital Cost · Hurdle',
-    valSponsorNPV: 'SPONSOR NPV', valProjectNPV: 'PROJECT NPV',
-    valHurdle: 'Hurdle', valFullLifeSponsorCF: 'Full Life Sponsor CF',
-    valUnleveredProjectCF: 'Unlevered Project CF',
-    valIRRvsNPV: 'IRR vs NPV',
-    valIRRvsNPVDesc: 'IRR is a rate (%, ratio), NPV is absolute dollar value. A 12% IRR on a larger project may be worth more than a 15% IRR on a small one. IC decisions should consider both.',
-    valCapitalStructure: 'CAPITAL STRUCTURE',
-    valNPVTitle: 'NPV (NET PRESENT VALUE)',
-    valSizeReference: 'For size comparison · IRR complementary metric',
-    valValueCreation: 'Value Creation', valLeverageEffect: 'Leverage Effect',
-    valNOLDelay: 'NOL Delay Loss',
   }
 };
 
@@ -4598,7 +4435,7 @@ function applyLang() {
     btn.textContent = currentLang==='en' ? 'Save' : '저장';
   });
   const issuesSaveBtn = document.getElementById('btn-issues-save');
-  if (issuesSaveBtn) issuesSaveBtn.innerHTML = currentLang==='en' ? '💾 Save' : '💾 저장';
+  if (issuesSaveBtn) issuesSaveBtn.innerHTML = currentLang==='en' ? '💾 Save' : '💾 Save';
 
   // BU 탭 라벨
   const buLabels = currentLang==='en'
@@ -4628,7 +4465,7 @@ function applyLang() {
 
 const DIVEST = [
   {name:'Boulder Solar 3', type:'LCC',    buyer:'Morrison',  prob:'H', margin:40,  prog:40,  stage:'NBO',      iso:'WECC',  state:'NV', note:'Morrison 협의 진행 중, ROFO 절차 병행'},
-  {name:'Bonanza Peak',    type:'LCC',    buyer:'Lydian',  prob:'M', margin:50,  prog:20,  stage:'NDA/티저', iso:'CAISO', state:'CA', note:'Lydian 초기 협의 완료, 업데이트 경제성 검토 중'},
+  {name:'Bonanza Peak',    type:'LCC',    buyer:'Lydian',  prob:'M', margin:50,  prog:20,  stage:'NDA/티저', iso:'CAISO', state:'CA', note:'Lydian 초기 협의 완료, Updated 경제성 검토 중'},
   {name:'Oberon II',       type:'운영업체', buyer:'Disney',  prob:'M', margin:5,   prog:20,  stage:'NDA/티저', iso:'ERCOT', state:'TX', note:'Disney COD 연장 논의 중, 3월 NDA 아웃리치 계획'},
   {name:'Oberon III',      type:'운영업체', buyer:'',  prob:'M', margin:10,  prog:20,  stage:'NDA/티저', iso:'ERCOT', state:'TX', note:'Mars 조달 중단, 신규 Offtaker 물색 중'},
   {name:'Oberon IV',       type:'운영업체', buyer:'TTE',  prob:'M', margin:5,   prog:20,  stage:'NDA/티저', iso:'ERCOT', state:'TX', note:'TTE NBO 제출, Premium 재협의 요청 중'},
@@ -4740,7 +4577,7 @@ function renderDivestment() {
       <tbody>${rows}</tbody>
     </table>`;
 
-  // 단계 변경 → 진척도 자동 업데이트
+  // 단계 변경 → 진척도 자동 Updated
   document.querySelectorAll('[data-divest-stage]').forEach(sel => {
     sel.addEventListener('change', () => {
       const d = DIVEST.find(x => x.name === sel.dataset.divestStage);
@@ -4749,7 +4586,7 @@ function renderDivestment() {
       d.prog  = STAGE_PROG[sel.value] ?? d.prog;
       // 색상 즉시 반영
       sel.style.color = STAGE_COLOR[sel.value] || 'var(--t3)';
-      // 진척도 셀 즉시 업데이트
+      // 진척도 셀 즉시 Updated
       const cellId = 'prog-cell-' + d.name.replace(/\s/g,'_');
       const cell = document.getElementById(cellId);
       if (cell) {
@@ -4940,7 +4777,7 @@ function renderLiquidity() {
 // ══ 핵심이슈 전체 저장 (Firebase) ══════════════════════════
 async function saveAllIssueData() {
   const btn = document.getElementById('btn-issues-save');
-  if (btn) { btn.textContent = '저장 중...'; btn.disabled = true; }
+  if (btn) { btn.textContent = 'Saving...'; btn.disabled = true; }
   try {
     const tasks = [];
 
@@ -4977,7 +4814,7 @@ async function saveAllIssueData() {
   } catch(e) {
     showToast('⚠️ 저장 실패: ' + e.message);
   } finally {
-    if (btn) { btn.textContent = '💾 저장'; btn.disabled = false; }
+    if (btn) { btn.textContent = '💾 Save'; btn.disabled = false; }
   }
 }
 
@@ -5901,7 +5738,7 @@ function savePPVSettings(){
     success:document.getElementById('ppv-success').value,
   }));
   closePPVSettings();
-  addPPVLog('가정치 변경', '할인율/ITC/성공률 가정값 업데이트', null);
+  addPPVLog('가정치 변경', '할인율/ITC/성공률 가정값 Updated', null);
   renderPPVPage();
 }
 
@@ -6181,7 +6018,7 @@ function onRFSlider(inp){
   var rfPct = parseInt(inp.value);
   var rf = rfPct/100;
 
-  // 수치 업데이트 (즉시)
+  // 수치 Updated (즉시)
   var valEl = document.querySelector('[data-rf-val="'+projName+'"]');
   if(valEl){
     var rfColor = rfPct>=60?'var(--green)':rfPct>=30?'var(--amber)':'var(--red)';
@@ -6189,7 +6026,7 @@ function onRFSlider(inp){
     valEl.style.color = rfColor;
   }
 
-  // Risked PPV 즉시 업데이트
+  // Risked PPV 즉시 Updated
   var proj = PPV_2026_PROJECTS.find(function(p){return p.name===projName;});
   if(proj){
     var risked = Math.round(proj.ppv_unrisked_m * rf * 10)/10;
@@ -6437,7 +6274,7 @@ function switchFinBU(bu) {
   if (main)   main.style.display = '';
   if (retail) retail.style.display = 'none';
   if (empty)  empty.style.display  = 'none';
-  // 제목 업데이트
+  // 제목 Updated
   const title = document.getElementById('finance-page-title');
   const sub   = document.getElementById('finance-page-sub');
   if (title) title.textContent = '📊 재무 현황 — ' + (names[bu]||bu);
@@ -6677,7 +6514,7 @@ function renderFinanceTable() {
     renderCashChart();
   }
 
-  // KPI 업데이트
+  // KPI Updated
   updateFinKPIs();
 }
 
@@ -6726,7 +6563,7 @@ function renderCashChart() {
     chartSub   = labels[0] + ' ~ ' + labels[labels.length-1];
   }
 
-  // 차트 제목 업데이트
+  // 차트 제목 Updated
   var titleEl = chartWrap.querySelector('div > div');
   if(titleEl) {
     titleEl.innerHTML = '<div style="font-size:12px;font-weight:700;color:var(--t1)">'+chartTitle+'</div>'
@@ -6986,7 +6823,7 @@ function setActiveNav(id) {
 document.getElementById('btn-finance').addEventListener('click', () => {
   openPage('finance');
   setActiveNav('btn-finance');
-  // 기간 버튼 레이블 동적 업데이트
+  // 기간 버튼 레이블 동적 Updated
   (function() {
     var CY = new Date().getFullYear();
     var mb = document.getElementById('fin-btn-monthly');
@@ -7652,23 +7489,7 @@ function valApplyLanguage() {
   if (!L) return;
   
   // 헬퍼: ID 또는 selector로 텍스트/HTML 적용
-  function setText(id, key) {
-    var el = document.getElementById(id);
-    if (el && L[key]) el.textContent = L[key];
-  }
-  function setHTML(id, key) {
-    var el = document.getElementById(id);
-    if (el && L[key]) el.innerHTML = L[key];
-  }
-  function setPlaceholder(id, key) {
-    var el = document.getElementById(id);
-    if (el && L[key]) el.placeholder = L[key];
-  }
-  function setAllText(selector, key) {
-    var els = document.querySelectorAll(selector);
-    els.forEach(function(el) { if (L[key]) el.textContent = L[key]; });
-  }
-  
+          
   // ─── 헤더 ───
   var savedBadge = document.getElementById('val-saved-badge');
   if (savedBadge) {
@@ -7802,10 +7623,10 @@ function valApplyLanguage() {
     }
   }
   
-  // "공유 대상 없음" 정적 옵션
+  // "No recipient" 정적 옵션
   document.querySelectorAll('option').forEach(function(opt) {
-    if (opt.textContent.includes('공유 대상 없음') || opt.textContent.includes('No share target')) {
-      opt.textContent = currentLang === 'en' ? '— No share target —' : '— 공유 대상 없음 —';
+    if (opt.textContent.includes('No recipient') || opt.textContent.includes('No share target')) {
+      opt.textContent = currentLang === 'en' ? '— No share target —' : '— No recipient —';
     }
   });
 }
@@ -7876,13 +7697,13 @@ function valLoadProject(projectId) {
       predBtn.style.color = 'var(--t2)';
       calBtn.style.background = 'linear-gradient(135deg,#7c3aed,#5b21b6)';
       calBtn.style.color = '#fff';
-      if (desc) desc.innerHTML = '<strong>Calibration:</strong> 업로드된 엑셀 모델 재현용. Sculpted debt + NOL 상쇄 + custom Partnership Flip. 원본 모델 ±0.15%p 정확도.';
+      if (desc) desc.innerHTML = '<strong>Calibration:</strong> Replicates uploaded Excel model. Sculpted debt + NOL offset + custom Partnership Flip. Accuracy ±0.15%p vs original.';
     } else {
       predBtn.style.background = 'linear-gradient(135deg,#059669,#10b981)';
       predBtn.style.color = '#fff';
       calBtn.style.background = 'transparent';
       calBtn.style.color = 'var(--t2)';
-      if (desc) desc.innerHTML = '<strong>Prediction:</strong> 모델 준비 전 프로젝트의 간략 사업성 검토. 업계 표준 PF 가정 (99/5 flip + 균등 debt + MACRS 정상 배분) 적용, FMV = CAPEX 합계.';
+      if (desc) desc.innerHTML = '<strong>Prediction:</strong> Preliminary feasibility before Excel model is built. Applies industry-standard PF assumptions (99/5 flip + level debt + MACRS standard allocation). FMV = CAPEX total.';
     }
     // Prediction FMV 경고 박스 (CAPEX 섹션)
     var fmvNote = document.getElementById('vi-prediction-fmv-note');
@@ -8080,7 +7901,7 @@ function valLoadProject(projectId) {
           ? 'Please click Calculate first to run the analysis.' 
           : '먼저 Calculate를 실행한 후 분석해주세요.');
         this.disabled = false;
-        if (runTxt) runTxt.textContent = currentLang === 'en' ? 'Run Analysis' : '분석 실행';
+        if (runTxt) runTxt.textContent = currentLang === 'en' ? 'Run Analysis' : 'Run Analysis';
         return;
       }
       var res = await fetch('https://hwr-api-production.up.railway.app/valuation/decompose-irr', {
@@ -8096,7 +7917,7 @@ function valLoadProject(projectId) {
       if (runTxt) runTxt.textContent = currentLang === 'en' ? '↻ Re-analyze' : '↻ 재분석';
     } catch(e) {
       alert('❌ ' + e.message);
-      if (runTxt) runTxt.textContent = currentLang === 'en' ? 'Run Analysis' : '분석 실행';
+      if (runTxt) runTxt.textContent = currentLang === 'en' ? 'Run Analysis' : 'Run Analysis';
     } finally {
       this.disabled = false;
     }
@@ -8412,7 +8233,7 @@ function valLoadVersion(v, safeId) {
 }
 
 // ── Cash Flow 탭 활성화 (Calculate 완료 후)
-// ── Hurdle Check UI 업데이트 (계산 결과 + 임계값 기반)
+// ── Hurdle Check UI Updated (계산 결과 + 임계값 기반)
 function valUpdateHurdleCheck(r, inputs) {
   if (!r) return;
 
@@ -8482,11 +8303,11 @@ function valUpdateHurdleCheck(r, inputs) {
     if (vCard) vCard.style.borderLeftColor = col;
   }
 
-  // NPV 섹션 업데이트 (있을 때만)
+  // NPV 섹션 Updated (있을 때만)
   valUpdateNPV(r, inputs);
 }
 
-// ── NPV UI 업데이트
+// ── NPV UI Updated
 function valUpdateNPV(r, inputs) {
   if (!r) return;
   var section = document.getElementById('vo-npv-section');
@@ -8565,15 +8386,15 @@ async function valShowSaveModal() {
       var admins = await apiCall('GET', '/auth/admins');
       if (admins && admins.admins && admins.admins.length) {
         var others = admins.admins.filter(function(a){return a !== myEmail;});
-        approverSel.innerHTML = '<option value="">— '+(currentLang==='en'?'No share target':'공유 대상 없음')+' —</option>' +
+        approverSel.innerHTML = '<option value="">— '+(currentLang==='en'?'No share target':'No recipient')+' —</option>' +
           others.map(function(a){
             return '<option value="'+a+'">'+a+'</option>';
           }).join('');
       } else {
-        approverSel.innerHTML = '<option value="">— '+(currentLang==='en'?'No share target':'공유 대상 없음')+' —</option>';
+        approverSel.innerHTML = '<option value="">— '+(currentLang==='en'?'No share target':'No recipient')+' —</option>';
       }
     } catch(e) {
-      approverSel.innerHTML = '<option value="">— '+(currentLang==='en'?'No share target':'공유 대상 없음')+' —</option>';
+      approverSel.innerHTML = '<option value="">— '+(currentLang==='en'?'No share target':'No recipient')+' —</option>';
     }
   }
 
@@ -8595,7 +8416,7 @@ async function valSaveVersion() {
   // approver는 선택 필드 — 검증 제거
 
   var calc = window._lastCalcResult;
-  if (!calc) { alert(currentLang==='en'?'Please run Calculate first.':'먼저 Calculate를 실행하세요.'); return; }
+  if (!calc) { alert(currentLang==='en'?'Please run Calculate first.':'Please run Calculate first.'); return; }
 
   var safeId = calc.projectId.replace(/[/.]/g,'_');
   var payload = {
@@ -8610,7 +8431,7 @@ async function valSaveVersion() {
 
   try {
     var btn = document.querySelector('#val-save-modal button:last-child');
-    if (btn) { btn.textContent = '저장 중...'; btn.disabled = true; }
+    if (btn) { btn.textContent = 'Saving...'; btn.disabled = true; }
 
     await apiCall('POST', '/valuation/'+safeId+'/save', payload);
 
@@ -8631,31 +8452,12 @@ async function valSaveVersion() {
   } catch(e) {
     alert('저장 실패: '+e.message);
     var btn2 = document.querySelector('#val-save-modal button:last-child');
-    if (btn2) { btn2.textContent='💾 저장'; btn2.disabled=false; }
+    if (btn2) { btn2.textContent='💾 Save'; btn2.disabled=false; }
   }
 }
 
 // ── 버전 승인/반려
-async function valApproveVersion(pid, ts, action) {
-  var safeId = pid.replace(/[/.]/g,'_');
-  var endpoint = '/valuation/'+safeId+'/versions/'+ts+'/'+(action==='approve'?'approve':'reject');
-  var body = action==='reject' ? {reason: prompt('반려 사유를 입력하세요:') || ''} : {};
-  try {
-    await apiCall('POST', endpoint, body);
-    // 해당 아이템 UI 갱신
-    var item = document.querySelector('[data-ts="'+ts+'"]');
-    if (item) {
-      var badge = item.querySelector('.val-hi-status');
-      if (badge) {
-        badge.textContent = action==='approve' ? '✅ 승인' : '❌ 반려';
-        badge.style.color = action==='approve' ? 'var(--green)' : 'var(--red)';
-      }
-      var btns = item.querySelector('.val-hi-actions');
-      if (btns) btns.remove();
-    }
-  } catch(e) { alert('처리 실패: '+e.message); }
-}
-
+async 
 // ── History 로드 (재설계: 승인 flow 제거, 깔끔한 타임라인)
 function valLoadHistory(safeId) {
   apiCall('GET', '/valuation/'+safeId+'/versions').then(function(vers) {
@@ -8740,7 +8542,7 @@ function valLoadHistory(safeId) {
 // ── IC Summary PDF Export
 async function valExportPDF() {
   var btn = document.getElementById('val-export-btn');
-  if (btn) { btn.textContent = '⏳ PDF 생성 중...'; btn.disabled = true; btn.style.opacity = '.6'; }
+  if (btn) { btn.textContent = '⏳ Generating PDF...'; btn.disabled = true; btn.style.opacity = '.6'; }
 
   try {
     var projSel = document.getElementById('val-proj-select');
@@ -8952,10 +8754,10 @@ async function valLoadBenchmark() {
     var avgMargin = rows.filter(function(r){return r.dev_margin>0;}).reduce(function(s,r){return s+r.dev_margin;},0) / (rows.filter(function(r){return r.dev_margin>0;}).length||1);
 
     if(statsEl) statsEl.innerHTML = [
-      {lbl:'프로젝트 수', val:rows.length+'개', c:'var(--blue-h)'},
-      {lbl:'평균 Sponsor IRR', val:(avgIRR*100).toFixed(2)+'%', c:'var(--green)'},
-      {lbl:'평균 PPA', val:'$'+avgPPA.toFixed(2)+'/MWh', c:'var(--amber)'},
-      {lbl:'평균 Dev Margin', val:'$'+avgMargin.toFixed(1)+'M', c:'var(--purple)'},
+      {lbl:'Projects', val:rows.length+'개', c:'var(--blue-h)'},
+      {lbl:'Avg Sponsor IRR', val:(avgIRR*100).toFixed(2)+'%', c:'var(--green)'},
+      {lbl:'Avg PPA', val:'$'+avgPPA.toFixed(2)+'/MWh', c:'var(--amber)'},
+      {lbl:'Avg Dev Margin', val:'$'+avgMargin.toFixed(1)+'M', c:'var(--purple)'},
     ].map(function(s){
       return '<div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--r-lg);padding:12px 14px">' +
         '<div style="font-size:9px;color:var(--t3);font-weight:700;letter-spacing:.08em;text-transform:uppercase;margin-bottom:6px">'+s.lbl+'</div>'+
@@ -8994,7 +8796,7 @@ async function valLoadBenchmark() {
     });
     isoTabsHtml += '</div>';
 
-    var cols = ['프로젝트','ISO','PPA ($/MWh)','PPA Term','BESS Toll','CAPEX ($M)','Dev Margin','Sponsor IRR','EBITDA Yield','업로드일'];
+    var cols = ['프로젝트','ISO','PPA ($/MWh)','PPA Term','BESS Toll','CAPEX ($M)','Dev Margin','Sponsor IRR','EBITDA Yield','Upload Date'];
     var html = isoTabsHtml + '<table style="width:100%;border-collapse:collapse;font-size:11px;font-variant-numeric:tabular-nums">';
     html += '<thead><tr style="border-bottom:1px solid var(--border)">';
     cols.forEach(function(col,i){
@@ -9126,60 +8928,8 @@ async function valLoadPeerIRR() {
   if (typeof valRenderVsMarket === 'function') valRenderVsMarket();
 }
 
-function valTogglePeerEdit() {
-  var modal = document.getElementById('bm-peer-modal');
-  if (!modal) return;
-  var peer = window._peerIRR || _defaultPeerIRR;
-  // 입력 필드에 현재값 채우기
-  var fillField = function(id, v) { var el = document.getElementById(id); if (el) el.value = v!=null?v:''; };
-  fillField('bm-peer-solar-min',  peer.solar_min);
-  fillField('bm-peer-solar-max',  peer.solar_max);
-  fillField('bm-peer-hybrid-min', peer.hybrid_min);
-  fillField('bm-peer-hybrid-max', peer.hybrid_max);
-  fillField('bm-peer-wind-min',   peer.wind_min);
-  fillField('bm-peer-wind-max',   peer.wind_max);
-  fillField('bm-peer-note',       peer.note);
-  var statusEl = document.getElementById('bm-peer-status');
-  if (statusEl) statusEl.innerHTML = '';
-  modal.style.display = 'flex';
-}
 
-async function valSavePeerIRR() {
-  var statusEl = document.getElementById('bm-peer-status');
-  var getNum = function(id, def) {
-    var el = document.getElementById(id);
-    var v = parseFloat((el||{}).value);
-    return isNaN(v) ? def : v;
-  };
-  var payload = {
-    solar_min:  getNum('bm-peer-solar-min',  9.5),
-    solar_max:  getNum('bm-peer-solar-max',  12.0),
-    hybrid_min: getNum('bm-peer-hybrid-min', 10.0),
-    hybrid_max: getNum('bm-peer-hybrid-max', 13.0),
-    wind_min:   getNum('bm-peer-wind-min',   9.0),
-    wind_max:   getNum('bm-peer-wind-max',   11.5),
-    note:       ((document.getElementById('bm-peer-note')||{}).value || '').slice(0, 200),
-  };
-
-  // 기본 검증
-  if (payload.solar_min >= payload.solar_max) { if(statusEl) statusEl.innerHTML = '<span style="color:var(--red)">⚠️ Solar Min &lt; Max 이어야 합니다</span>'; return; }
-  if (payload.hybrid_min >= payload.hybrid_max) { if(statusEl) statusEl.innerHTML = '<span style="color:var(--red)">⚠️ Solar+BESS Min &lt; Max 이어야 합니다</span>'; return; }
-  if (payload.wind_min >= payload.wind_max) { if(statusEl) statusEl.innerHTML = '<span style="color:var(--red)">⚠️ Wind Min &lt; Max 이어야 합니다</span>'; return; }
-
-  if (statusEl) statusEl.innerHTML = '<span style="color:var(--t3)">저장 중...</span>';
-  try {
-    await apiCall('POST', '/benchmark/peer-irr', payload);
-    if (statusEl) statusEl.innerHTML = '<span style="color:var(--green)">✓ 저장 완료</span>';
-    setTimeout(function() {
-      document.getElementById('bm-peer-modal').style.display = 'none';
-      valLoadPeerIRR();
-    }, 700);
-  } catch(e) {
-    var safe = String(e.message||'').replace(/</g,'&lt;');
-    if (statusEl) statusEl.innerHTML = '<span style="color:var(--red)">⚠️ 저장 실패: '+safe+'</span>';
-  }
-}
-
+async 
 // ── LevelTen 섹션 접기/펴기 ──────────────────────────
 function valToggleLevelTen() {
   var content = document.getElementById('bm-lt-content');
@@ -9294,7 +9044,7 @@ function valRenderBessResearch(data) {
   function fmt$(v) { return v==null ? '—' : '$' + Number(v).toFixed(2); }
   function confColor(c) { return c==='high' ? 'var(--green)' : c==='low' ? 'var(--red)' : 'var(--amber)'; }
 
-  // 메타 정보 업데이트
+  // 메타 정보 Updated
   if (metaEl) {
     var genDate = data.generated_at ? data.generated_at.slice(0,10) : '—';
     var iso_count = (data.iso_data || []).length;
@@ -9305,7 +9055,7 @@ function valRenderBessResearch(data) {
   var isoData = data.iso_data || [];
   if (!isoData.length) {
     content.innerHTML = '<div style="padding:20px;text-align:center;color:var(--t3);font-size:11px">' +
-      '📭 데이터 없음. ' + (data.caveats || '리서치 결과가 비어있습니다.') +
+      '📭 No data. ' + (data.caveats || '리서치 결과가 비어있습니다.') +
     '</div>';
     return;
   }
@@ -9344,10 +9094,10 @@ function valRenderBessResearch(data) {
   }
   // P25/P75 설명 (교육용)
   html += '<div style="margin-top:8px;padding:6px 10px;background:rgba(37,99,235,.06);border-left:2px solid var(--blue-h);border-radius:4px;font-size:9.5px;color:var(--t2);line-height:1.6">';
-  html += '<b style="color:var(--blue-h)">📊 P25 / P75 읽는 법:</b> LevelTen 방식의 Offer Percentile. ';
-  html += '<b>P25</b>는 시장 제안가의 하위 25%ile (<span style="color:var(--green)">공격적·저가 제안</span>), ';
-  html += '<b>P75</b>는 상위 25%ile (<span style="color:var(--red)">보수적·고가 제안</span>). ';
-  html += '우리가 P25에 가까우면 <b style="color:var(--green)">가격 경쟁력 우수</b>, P75 초과면 <b style="color:var(--red)">과도</b> 신호.';
+  html += '<b style="color:var(--blue-h)">📊 P25 / P75 How to read:</b> LevelTen 방식의 Offer Percentile. ';
+  html += '<b>P25</b>는 Bottom 25%ile of market offers (<span style="color:var(--green)">aggressive / low-priced offer</span>), ';
+  html += '<b>P75</b>는 상위 25%ile (<span style="color:var(--red)">conservative / high-priced offer</span>). ';
+  html += '우리가 P25에 가까우면 <b style="color:var(--green)">competitive pricing</b>, P75 초과면 <b style="color:var(--red)">overpriced</b> 신호.';
   html += '</div>';
   html += '</div>';
 
@@ -9463,10 +9213,10 @@ function valRenderBessResearch(data) {
 
     html += '</div>';
   } else {
-    // 우리 지역 데이터 없음
+    // 우리 지역 No data
     html += '<div style="border:1px dashed var(--amber);border-radius:8px;padding:14px 16px;margin-bottom:14px;background:rgba(245,158,11,.04)">';
-    html += '<div style="font-size:11px;color:var(--amber);font-weight:700">⚠️ '+esc(regionInfo.display||ourISO)+' 데이터 없음</div>';
-    html += '<div style="font-size:10px;color:var(--t3);margin-top:4px">AI 리서치 결과에 해당 지역이 없습니다. 🔄 AI 리서치 버튼을 다시 실행하세요.</div>';
+    html += '<div style="font-size:11px;color:var(--amber);font-weight:700">⚠️ '+esc(regionInfo.display||ourISO)+' No data</div>';
+    html += '<div style="font-size:10px;color:var(--t3);margin-top:4px">No data for this region in AI research result. 🔄 Re-run AI Research button.</div>';
     html += '</div>';
   }
 
@@ -9474,7 +9224,7 @@ function valRenderBessResearch(data) {
   var otherIsos = isoData.filter(function(iso){return (iso.region||'').toUpperCase() !== ourMatchKey;});
   if (otherIsos.length) {
     html += '<details style="border:1px solid var(--border);border-radius:8px;background:var(--surface2);margin-bottom:10px">';
-    html += '<summary style="padding:10px 14px;cursor:pointer;font-size:11px;font-weight:700;color:var(--t2);user-select:none">▶ 다른 지역 비교 보기 ('+otherIsos.length+'개)</summary>';
+    html += '<summary style="padding:10px 14px;cursor:pointer;font-size:11px;font-weight:700;color:var(--t2);user-select:none">▶ Compare Other Regions ('+otherIsos.length+'개)</summary>';
     html += '<div style="padding:4px 14px 14px">';
 
     otherIsos.forEach(function(iso) {
@@ -9602,7 +9352,7 @@ async function valLoadMarketBenchmark(force) {
       // 오늘 날짜 기준으로 "데이터 기준 4/15 · 오늘 4/17" 형식
       var today = new Date();
       var todayStr = (today.getMonth()+1)+'/'+today.getDate();
-      fetchedEl.textContent = fd ? ('조회 ' + fd.toLocaleDateString('ko-KR') + ' · 오늘 ' + todayStr) : '';
+      fetchedEl.textContent = fd ? ('Updated ' + fd.toLocaleDateString('en-US', {year:'numeric',month:'short',day:'numeric'})) : '';
     }
 
     // 컴팩트 카드 빌더 (세로 높이 축소)
@@ -9613,7 +9363,7 @@ async function valLoadMarketBenchmark(force) {
       if (!meta.ok || !d) {
         return '<div style="background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:8px 10px;opacity:.5;min-height:72px">' +
           '<div style="font-size:8.5px;color:var(--t3);font-weight:700;letter-spacing:.05em;text-transform:uppercase;margin-bottom:4px">'+label+'</div>' +
-          '<div style="font-size:10px;color:var(--t3)">데이터 없음</div>' +
+          '<div style="font-size:10px;color:var(--t3)">No data</div>' +
           '</div>';
       }
       var val = d.latest;
@@ -9769,7 +9519,7 @@ async function valLoadLevelTen() {
     var data = await apiCall('GET', '/benchmark/levelten');
     if (!data || !Object.keys(data).length) {
       contentEl.innerHTML = '<div class="val-empty" style="padding:16px"><div class="val-empty-icon" style="font-size:24px">📈</div><div class="val-empty-title" style="font-size:11px">'+(currentLang==='en'?'LevelTen report will appear here after upload':'LevelTen 리포트를 업로드하면 여기에 표시됩니다')+'</div></div>';
-      if (metaEl) metaEl.textContent = '데이터 없음';
+      if (metaEl) metaEl.textContent = 'No data';
       return;
     }
 
@@ -9790,7 +9540,7 @@ async function valLoadLevelTen() {
       '</div>';
     }
 
-    // ═══ B. 우리 PPA vs 시장 비교 카드 (이번 프로젝트 데이터 있을 때만) ═══
+    // ═══ B. Our PPA vs 시장 비교 카드 (이번 프로젝트 데이터 있을 때만) ═══
     var ourPPA = null;
     try {
       var o = (window._lastValData||{}).outputs || {};
@@ -9825,7 +9575,7 @@ async function valLoadLevelTen() {
         var posStatus, posColor;
         if (diffPct >= 15) { posStatus = '시장 최상위'; posColor = 'var(--green)'; }
         else if (diffPct >= 5) { posStatus = '시장 상위'; posColor = 'var(--green)'; }
-        else if (diffPct >= -5) { posStatus = '시장 P25 수준'; posColor = 'var(--amber)'; }
+        else if (diffPct >= -5) { posStatus = 'market P25 level'; posColor = 'var(--amber)'; }
         else if (diffPct >= -15) { posStatus = '시장 하위'; posColor = 'var(--red)'; }
         else { posStatus = '시장 최하위'; posColor = 'var(--red)'; }
 
@@ -9833,7 +9583,7 @@ async function valLoadLevelTen() {
           '<div style="font-size:9px;color:var(--t3);font-weight:700;letter-spacing:.08em;text-transform:uppercase;margin-bottom:8px">🎯 현재 프로젝트 PPA vs LevelTen 벤치마크</div>' +
           '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px">' +
             '<div>' +
-              '<div style="font-size:8.5px;color:var(--t3);margin-bottom:2px">우리 PPA</div>' +
+              '<div style="font-size:8.5px;color:var(--t3);margin-bottom:2px">Our PPA</div>' +
               '<div style="font-size:16px;font-weight:800;color:var(--t1);font-variant-numeric:tabular-nums">$'+Number(ourPPA).toFixed(2)+'</div>' +
               '<div style="font-size:8.5px;color:var(--t3);margin-top:2px">$/MWh</div>' +
             '</div>' +
@@ -9854,7 +9604,7 @@ async function valLoadLevelTen() {
 
     // ═══ C. 분기 / 기술 선택 컨트롤 ═══
     html += '<div style="display:flex;gap:8px;align-items:center;margin-bottom:10px;flex-wrap:wrap">';
-    html += '<label style="font-size:10px;color:var(--t3);font-weight:600">분기:</label>';
+    html += '<label style="font-size:10px;color:var(--t3);font-weight:600">Quarter:</label>';
     html += '<select id="bm-lt-q-sel" onchange="valRenderLevelTenQuarter(this.value)" style="padding:4px 10px;background:var(--surface3);border:1px solid var(--border2);border-radius:var(--r-md);color:var(--t1);font-size:11px;font-family:var(--font)">';
     quarters.forEach(function(q){
       html += '<option value="'+esc(q)+'">'+esc(data[q].quarter||q)+'</option>';
@@ -9988,7 +9738,7 @@ function valRenderLevelTenQuarter(q) {
       var diffCol = diff >= 0 ? 'var(--green)' : 'var(--red)';
       html += '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;padding:10px;background:var(--surface);border-radius:6px">';
       html += '<div><div style="font-size:8px;color:var(--t3);font-weight:700;letter-spacing:.06em;margin-bottom:3px">'+esc(ourISO)+' SOLAR P25</div><div style="font-size:14px;font-weight:800;color:var(--amber)">$'+ourISOSolarP25.toFixed(2)+'</div></div>';
-      html += '<div><div style="font-size:8px;color:var(--t3);font-weight:700;letter-spacing:.06em;margin-bottom:3px">우리 PPA</div><div style="font-size:14px;font-weight:800;color:var(--blue-h)">$'+ourPPA.toFixed(2)+'</div></div>';
+      html += '<div><div style="font-size:8px;color:var(--t3);font-weight:700;letter-spacing:.06em;margin-bottom:3px">Our PPA</div><div style="font-size:14px;font-weight:800;color:var(--blue-h)">$'+ourPPA.toFixed(2)+'</div></div>';
       html += '<div><div style="font-size:8px;color:var(--t3);font-weight:700;letter-spacing:.06em;margin-bottom:3px">시장 대비</div><div style="font-size:14px;font-weight:800;color:'+diffCol+'">'+(diff>=0?'+':'')+'$'+diff.toFixed(2)+' <span style="font-size:10px;font-weight:600">('+(diffPct>=0?'+':'')+diffPct.toFixed(1)+'%)</span></div></div>';
       html += '</div>';
       if (ourISOSolarQoQ != null || ourISOSolarYoY != null) {
@@ -10015,7 +9765,7 @@ function valRenderLevelTenQuarter(q) {
       '<th style="padding:6px 10px;text-align:right;font-size:9px;color:var(--t3);font-weight:700">P25 ($/MWh)</th>' +
       '<th style="padding:6px 10px;text-align:right;font-size:9px;color:var(--t3);font-weight:700">QoQ</th>' +
       '<th style="padding:6px 10px;text-align:right;font-size:9px;color:var(--t3);font-weight:700">YoY</th>' +
-      '<th style="padding:6px 10px;text-align:right;font-size:9px;color:var(--t3);font-weight:700">우리 PPA</th>' +
+      '<th style="padding:6px 10px;text-align:right;font-size:9px;color:var(--t3);font-weight:700">Our PPA</th>' +
       '</tr></thead><tbody>';
     solarISO.slice().sort(function(a,b){return (a.p25||999)-(b.p25||999);}).forEach(function(e){
       var isOurISO = e.region && ourISO && e.region.toUpperCase() === ourISO;
@@ -10360,11 +10110,11 @@ function valRenderVsMarket() {
       val: (sirr*100).toFixed(2) + '%  vs  ' + tenY.toFixed(2) + '% 10Y',
       delta: '+' + sprd.toFixed(0) + ' bp',
       col: col,
-      hint: sprd >= 600 ? '양호한 risk premium' : sprd >= 400 ? '적정' : '타이트'
+      hint: sprd >= 600 ? '양호한 risk premium' : sprd >= 400 ? 'fair' : '타이트'
     });
   }
 
-  // 4. LevelTen vs 우리 PPA
+  // 4. LevelTen vs Our PPA
   var lt = window._levelTenData;
   if (lt && ppa > 0) {
     var quarters = Object.keys(lt).sort().reverse();
@@ -10380,7 +10130,7 @@ function valRenderVsMarket() {
           val: '$' + ppa.toFixed(2) + '/MWh  vs  $' + avgP25.toFixed(2) + '/MWh',
           delta: (diff >= 0 ? '+' : '') + diff.toFixed(2) + ' $/MWh',
           col: col,
-          hint: diff >= 5 ? '프리미엄 확보' : diff >= 0 ? '시장 평균' : '시장 하회'
+          hint: diff >= 5 ? '프리미엄 확보' : diff >= 0 ? 'market avg' : '시장 하회'
         });
       }
     }
@@ -10468,7 +10218,7 @@ function valApplySensPreset(kind) {
   set('sens-capex-up', p.capex_up);
   set('sens-capex-dn', p.capex_dn);
 
-  // 버튼 스타일 업데이트
+  // 버튼 스타일 Updated
   ['mild','moderate','severe'].forEach(function(k) {
     var btns = document.querySelectorAll('[onclick*="valApplySensPreset(\''+k+'\')"]');
     btns.forEach(function(btn) {
@@ -10512,7 +10262,7 @@ async function valRunBreakEven() {
   var baseInputs = window._valBaseInputs || {};
 
   if (!baseInputs.ppa_price) {
-    alert(currentLang==='en'?'Please run Calculate first.':'먼저 Calculate를 실행하세요.');
+    alert(currentLang==='en'?'Please run Calculate first.':'Please run Calculate first.');
     return;
   }
 
@@ -10540,10 +10290,10 @@ async function valRunBreakEven() {
     console.error('[BreakEven] Error:', e);
     if (resultEl) {
       resultEl.style.display = 'block';
-      resultEl.innerHTML = '<div style="padding:16px;background:rgba(239,68,68,.1);border:1px solid var(--red);border-radius:8px;color:var(--red);font-size:11px">⚠️ 분석 실패: ' + (e.message || e) + '</div>';
+      resultEl.innerHTML = '<div style="padding:16px;background:rgba(239,68,68,.1);border:1px solid var(--red);border-radius:8px;color:var(--red);font-size:11px">⚠️ Analysis failed: ' + (e.message || e) + '</div>';
     }
   } finally {
-    if (btn) { btn.textContent = '▶ 분석 실행'; btn.style.opacity='1'; btn.style.pointerEvents='auto'; }
+    if (btn) { btn.textContent = '▶ Run Analysis'; btn.style.opacity='1'; btn.style.pointerEvents='auto'; }
   }
 }
 
@@ -10561,22 +10311,27 @@ function valRenderBreakEven(data, targetIrr) {
 
   // 상태 → 색상/아이콘
   var statusMap = {
-    'converged': {color:'var(--green)', icon:'✓', label:'수렴'},
-    'max_iter_reached': {color:'var(--amber)', icon:'⚠', label:'최대 반복 도달'},
-    'target_below_range': {color:'var(--amber)', icon:'⚠', label:'Target이 ±25% 범위 하단'},
-    'target_above_range': {color:'var(--amber)', icon:'⚠', label:'Target이 ±25% 범위 상단'},
-    'flat_derivative': {color:'var(--red)', icon:'⚠', label:'기울기 평탄 — 해 없음'},
-    'iterating': {color:'var(--blue-h)', icon:'…', label:'진행중'}
+    'converged':          {color:'var(--green)', icon:'✓', label:'Converged'},
+    'max_iter_reached':   {color:'var(--red)',   icon:'⚠', label:'No solution found'},
+    'target_below_range': {color:'var(--amber)', icon:'⚠', label:'Target below ±25% range'},
+    'target_above_range': {color:'var(--amber)', icon:'⚠', label:'Target above ±25% range'},
+    'flat_derivative':    {color:'var(--red)',   icon:'⚠', label:'Flat slope — no solution'},
+    'iterating':          {color:'var(--blue-h)',icon:'…', label:'In progress'}
   };
   var sInfo = statusMap[status] || {color:'var(--t3)', icon:'?', label:status};
 
   var html = '';
 
-  // ═══ 솔루션 카드 (맨 위, 가장 중요) ═══
-  html += '<div style="padding:16px 18px;background:linear-gradient(135deg,rgba(37,99,235,.08) 0%,rgba(139,92,246,.05) 100%);border:2px solid var(--blue-h);border-radius:12px;margin-bottom:14px">';
+  // ═══ 솔루션 카드 ═══
+  // 헤더 색조: 수렴 실패면 경고 톤
+  var headerGrad = converged
+    ? 'linear-gradient(135deg,rgba(37,99,235,.08) 0%,rgba(139,92,246,.05) 100%)'
+    : 'linear-gradient(135deg,rgba(239,68,68,.08) 0%,rgba(245,158,11,.05) 100%)';
+  var headerBorder = converged ? 'var(--blue-h)' : 'var(--red)';
+  html += '<div style="padding:16px 18px;background:'+headerGrad+';border:2px solid '+headerBorder+';border-radius:12px;margin-bottom:14px">';
   html += '<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px">';
-  html += '<div><div style="font-size:9px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:var(--blue-h);margin-bottom:4px">🎯 Newton-Raphson 정밀 역산 결과</div>';
-  html += '<div style="font-size:9.5px;color:var(--t2)">Target IRR <strong style="color:var(--t1)">' + targetIrr.toFixed(2) + '%</strong> 달성 PPA</div></div>';
+  html += '<div><div style="font-size:9px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:'+headerBorder+';margin-bottom:4px">🎯 Break-Even Solver Result</div>';
+  html += '<div style="font-size:9.5px;color:var(--t2)">Target Sponsor IRR <strong style="color:var(--t1)">' + targetIrr.toFixed(2) + '%</strong></div></div>';
   html += '<div style="padding:3px 10px;background:' + sInfo.color + ';color:#fff;border-radius:10px;font-size:9px;font-weight:800;letter-spacing:.04em">' + sInfo.icon + ' ' + sInfo.label.toUpperCase() + '</div>';
   html += '</div>';
 
@@ -10584,50 +10339,60 @@ function valRenderBreakEven(data, targetIrr) {
     var diffVsBase = sol.ppa - basePPA;
     var diffPct = (diffVsBase / basePPA) * 100;
     var diffColor = diffVsBase >= 0 ? 'var(--red)' : 'var(--green)';
+    var finalIrrColor = converged ? 'var(--green)' : 'var(--amber)';
+    
+    // 수렴 실패 시 레이블 변경 — "Target 달성 PPA" → "Best-fit PPA"
+    var ppaLabel = converged ? 'PPA at Target' : 'Closest PPA';
+    var irrLabel = converged ? 'Final IRR' : 'Achieved IRR';
 
     html += '<div style="display:grid;grid-template-columns:1.6fr 1fr 1fr 1fr;gap:10px">';
     html += '<div style="padding:10px;background:var(--surface);border-radius:6px">';
-    html += '<div style="font-size:8.5px;color:var(--t3);letter-spacing:.08em;font-weight:700;text-transform:uppercase">Target 달성 PPA</div>';
-    html += '<div style="font-size:22px;font-weight:900;color:var(--blue-h);font-variant-numeric:tabular-nums;margin-top:2px">$' + sol.ppa.toFixed(2) + '</div>';
+    html += '<div style="font-size:8.5px;color:var(--t3);letter-spacing:.08em;font-weight:700;text-transform:uppercase">'+ppaLabel+'</div>';
+    html += '<div style="font-size:22px;font-weight:900;color:'+(converged?'var(--blue-h)':'var(--amber)')+';font-variant-numeric:tabular-nums;margin-top:2px">$' + sol.ppa.toFixed(2) + '</div>';
     html += '<div style="font-size:9px;color:var(--t3);margin-top:1px">/MWh</div></div>';
 
     html += '<div style="padding:10px;background:var(--surface);border-radius:6px">';
-    html += '<div style="font-size:8.5px;color:var(--t3);letter-spacing:.08em;font-weight:700;text-transform:uppercase">현재 대비</div>';
+    html += '<div style="font-size:8.5px;color:var(--t3);letter-spacing:.08em;font-weight:700;text-transform:uppercase">vs Current</div>';
     html += '<div style="font-size:16px;font-weight:800;color:' + diffColor + ';font-variant-numeric:tabular-nums;margin-top:2px">' + (diffVsBase >= 0 ? '+' : '') + '$' + diffVsBase.toFixed(2) + '</div>';
     html += '<div style="font-size:9px;color:' + diffColor + ';margin-top:1px">' + (diffPct >= 0 ? '+' : '') + diffPct.toFixed(2) + '%</div></div>';
 
     html += '<div style="padding:10px;background:var(--surface);border-radius:6px">';
-    html += '<div style="font-size:8.5px;color:var(--t3);letter-spacing:.08em;font-weight:700;text-transform:uppercase">최종 IRR</div>';
-    html += '<div style="font-size:16px;font-weight:800;color:var(--green);font-variant-numeric:tabular-nums;margin-top:2px">' + sol.irr_pct.toFixed(4) + '%</div>';
-    html += '<div style="font-size:9px;color:var(--t3);margin-top:1px">오차 ±' + Math.abs(sol.error_pct).toFixed(4) + '%</div></div>';
+    html += '<div style="font-size:8.5px;color:var(--t3);letter-spacing:.08em;font-weight:700;text-transform:uppercase">'+irrLabel+'</div>';
+    html += '<div style="font-size:16px;font-weight:800;color:'+finalIrrColor+';font-variant-numeric:tabular-nums;margin-top:2px">' + sol.irr_pct.toFixed(2) + '%</div>';
+    html += '<div style="font-size:9px;color:var(--t3);margin-top:1px">Error ±' + Math.abs(sol.error_pct).toFixed(2) + '%p</div></div>';
 
     html += '<div style="padding:10px;background:var(--surface);border-radius:6px">';
-    html += '<div style="font-size:8.5px;color:var(--t3);letter-spacing:.08em;font-weight:700;text-transform:uppercase">수렴</div>';
-    html += '<div style="font-size:16px;font-weight:800;color:var(--t1);font-variant-numeric:tabular-nums;margin-top:2px">' + sol.iterations + '회</div>';
-    html += '<div style="font-size:9px;color:var(--t3);margin-top:1px">반복</div></div>';
+    html += '<div style="font-size:8.5px;color:var(--t3);letter-spacing:.08em;font-weight:700;text-transform:uppercase">Iterations</div>';
+    html += '<div style="font-size:16px;font-weight:800;color:var(--t1);font-variant-numeric:tabular-nums;margin-top:2px">' + sol.iterations + '</div>';
+    html += '<div style="font-size:9px;color:var(--t3);margin-top:1px">steps</div></div>';
 
     html += '</div>';
 
-    if (status === 'target_above_range' || status === 'target_below_range') {
-      html += '<div style="margin-top:10px;padding:8px 12px;background:rgba(245,158,11,.1);border-left:3px solid var(--amber);border-radius:4px;font-size:10px;color:var(--t2)">⚠️ Target IRR이 ±25% PPA 범위를 벗어났습니다. Newton-Raphson이 해를 찾았지만 현실성을 확인하세요.</div>';
-    } else if (!converged) {
-      html += '<div style="margin-top:10px;padding:8px 12px;background:rgba(239,68,68,.1);border-left:3px solid var(--red);border-radius:4px;font-size:10px;color:var(--t2)">⚠️ 수렴 실패 — 마지막 iteration 값 표시. IRR 곡선이 비선형이거나 해가 존재하지 않을 수 있습니다.</div>';
+    // 상태별 경고
+    if (!converged) {
+      // 수렴 실패 — 명확한 메시지
+      html += '<div style="margin-top:10px;padding:10px 14px;background:rgba(239,68,68,.12);border-left:3px solid var(--red);border-radius:4px;font-size:11px;color:var(--t2);line-height:1.5">';
+      html += '<strong style="color:var(--red)">⚠ No valid solution</strong>. Newton-Raphson did not converge to the target IRR within ' + sol.iterations + ' iterations. The best approximation achieves <strong>' + sol.irr_pct.toFixed(2) + '%</strong> vs target <strong>' + targetIrr.toFixed(2) + '%</strong> (gap <strong>' + Math.abs(sol.error_pct).toFixed(2) + '%p</strong>). ';
+      html += 'This typically indicates that PPA price alone cannot reach the target — consider adjusting CAPEX, Debt structure, or Tax Equity terms.';
+      html += '</div>';
+    } else if (status === 'target_above_range' || status === 'target_below_range') {
+      html += '<div style="margin-top:10px;padding:8px 12px;background:rgba(245,158,11,.1);border-left:3px solid var(--amber);border-radius:4px;font-size:10px;color:var(--t2)">⚠ Target IRR is outside the ±25% PPA range. Solution found by Newton-Raphson but verify feasibility in real deal context.</div>';
     }
 
-    // Newton-Raphson 수렴 요약 한 줄 (converged 상태만)
+    // Newton-Raphson 수렴 요약 (converged일 때만)
     if (converged && iters.length > 0) {
       var finalIter = iters[iters.length - 1];
       var iterCount = finalIter.iter || (iters.length - 1);
-      html += '<div style="margin-top:8px;padding-top:8px;border-top:1px solid rgba(255,255,255,.04);font-size:9.5px;color:var(--t3);font-style:italic">Newton-Raphson ' + iterCount + '회 반복 수렴 · 오차 ' + Math.abs(finalIter.error_pct).toFixed(4) + '% (tolerance ' + (data.tolerance_pct || 0.01).toFixed(2) + '%)</div>';
+      html += '<div style="margin-top:8px;padding-top:8px;border-top:1px solid rgba(255,255,255,.04);font-size:9.5px;color:var(--t3);font-style:italic">Newton-Raphson converged in ' + iterCount + ' iterations · error ' + Math.abs(finalIter.error_pct).toFixed(4) + '% (tolerance ' + (data.tolerance_pct || 0.01).toFixed(2) + '%)</div>';
     }
   }
   html += '</div>';
 
-  // ═══ Phase 1: 민감도 스캔 (접기) ═══
-  html += '<details style="padding:10px 14px;background:var(--surface);border:1px solid var(--border);border-radius:10px"><summary style="cursor:pointer;font-size:10px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:var(--t2)">📊 Phase 1 — 민감도 스캔 (±25% 11개 점)</summary>';
+  // ═══ Phase 1: Sensitivity Scan ═══
+  html += '<details style="padding:10px 14px;background:var(--surface);border:1px solid var(--border);border-radius:10px"><summary style="cursor:pointer;font-size:10px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:var(--t2)">📊 Phase 1 — Sensitivity Scan (±25%, 11 points)</summary>';
   html += '<table style="width:100%;border-collapse:collapse;font-size:11px;font-variant-numeric:tabular-nums;margin-top:10px">';
   html += '<thead><tr style="background:var(--surface2);border-bottom:1px solid var(--border)">';
-  html += '<th style="padding:6px 10px;text-align:left;font-size:9px;color:var(--t3);font-weight:700">PPA 변동</th>';
+  html += '<th style="padding:6px 10px;text-align:left;font-size:9px;color:var(--t3);font-weight:700">PPA Shift</th>';
   html += '<th style="padding:6px 10px;text-align:right;font-size:9px;color:var(--t3);font-weight:700">PPA ($/MWh)</th>';
   html += '<th style="padding:6px 10px;text-align:right;font-size:9px;color:var(--t3);font-weight:700">Sponsor IRR</th>';
   html += '<th style="padding:6px 10px;text-align:right;font-size:9px;color:var(--t3);font-weight:700">vs Target</th>';
@@ -10637,7 +10402,7 @@ function valRenderBreakEven(data, targetIrr) {
     var diff = s.irr_pct - targetIrr;
     var diffColor = Math.abs(diff) < 0.5 ? 'var(--green)' : (diff > 0 ? 'var(--blue-h)' : 'var(--amber)');
     html += '<tr style="border-bottom:1px solid rgba(255,255,255,.04);' + (isBase?'background:rgba(37,99,235,.08)':'') + '">';
-    html += '<td style="padding:5px 10px;color:' + (isBase?'var(--blue-h)':'var(--t2)') + ';font-weight:' + (isBase?'800':'600') + '">' + (s.pct>=0?'+':'') + s.pct + '%' + (isBase?' (현재)':'') + '</td>';
+    html += '<td style="padding:5px 10px;color:' + (isBase?'var(--blue-h)':'var(--t2)') + ';font-weight:' + (isBase?'800':'600') + '">' + (s.pct>=0?'+':'') + s.pct + '%' + (isBase?' (current)':'') + '</td>';
     html += '<td style="padding:5px 10px;text-align:right;color:var(--t1);font-weight:600">$' + s.ppa.toFixed(2) + '</td>';
     html += '<td style="padding:5px 10px;text-align:right;color:var(--amber);font-weight:700">' + s.irr_pct.toFixed(2) + '%</td>';
     html += '<td style="padding:5px 10px;text-align:right;color:' + diffColor + ';font-weight:600">' + (diff>=0?'+':'') + diff.toFixed(2) + '%</td>';
@@ -10974,7 +10739,7 @@ document.addEventListener('DOMContentLoaded', function() {
         // ✅ Sponsor IRR 메인 표시 = Full Life (sponsor_irr), contract term 값은 보조
         setIRR('vo-sirr','vo-sirr-bar',r.sponsor_irr||r.sponsor_irr_contract,10,7);
 
-        // ── Hurdle Check UI 업데이트
+        // ── Hurdle Check UI Updated
         valUpdateHurdleCheck(r, inputs);
         // EBITDA Yield bar
         var yb=document.getElementById('vo-yield-bar');
@@ -11445,7 +11210,7 @@ function valBuildMarketContextCard(isEn) {
   else if (!isLTCovered && solarPSV.length) {
     var psvSorted = solarPSV.slice().sort(function(a,b){return (b.psv_median||-999)-(a.psv_median||-999);});
     var psvLines = [];
-    psvLines.push('⚠️ '+regionDisplay+' 직접 PSV 데이터 없음 — 인접 ISO 참고');
+    psvLines.push('⚠️ '+regionDisplay+' 직접 PSV No data — 인접 ISO 참고');
     // 상위 2개 + 하위 1개만 보여줌
     var topPSV = psvSorted.filter(function(e){return e.psv_median != null;}).slice(0, 3);
     if (topPSV.length) {
@@ -11498,7 +11263,7 @@ function valBuildMarketContextCard(isEn) {
   // [Case 3] 둘 다 없음 — 안내만
   else if (!isLTCovered && ourBessToll) {
     bessLines.push('우리 $'+ourBessToll.toFixed(2)+'/kW-mo');
-    bessLines.push('⚠️ '+regionDisplay+' Storage 벤치마크 데이터 없음 — External 탭에서 AI 리서치 실행 권장');
+    bessLines.push('⚠️ '+regionDisplay+' Storage 벤치마크 No data — External 탭에서 AI 리서치 실행 권장');
   }
   if (bessLines.length) {
     sections.push({
@@ -11779,7 +11544,7 @@ async function valRunCFInterp() {
   var resEl  = document.getElementById('cf-interp-result');
   var body   = document.getElementById('cf-interp-body');
   if (!detail || !vals || !vals.length) {
-    if (body) body.innerHTML = '<span style="color:var(--t3)">'+(currentLang==='en'?'Please run Calculate first.':'먼저 Calculate를 실행하세요.')+'</span>';
+    if (body) body.innerHTML = '<span style="color:var(--t3)">'+(currentLang==='en'?'Please run Calculate first.':'Please run Calculate first.')+'</span>';
     if (resEl) resEl.style.display = 'block';
     return;
   }
@@ -11799,7 +11564,7 @@ async function valRunCFInterp() {
       mode: 'interp',
       lang: (window._cfLang || 'kr')
     });
-    if (!data || !data.ok) throw new Error('분석 실패');
+    if (!data || !data.ok) throw new Error('Analysis failed');
     // 응답 파싱
     var raw = data.result || '';
     var parsed = null;
@@ -11838,7 +11603,7 @@ async function valRunCFAnalysis(lang) {
   var btn = document.getElementById('cf-ai-btn');
   var res = document.getElementById('cf-ai-result');
   if (btn) { btn.textContent = '⏳ Analyzing...'; btn.disabled = true; btn.style.opacity = '.6'; }
-  if (res) res.innerHTML = '<span style="color:var(--t3)">Claude가 분석 중...</span>';
+  if (res) res.innerHTML = '<span style="color:var(--t3)">Claude is analyzing...</span>';
 
   var cfText = detail.map(function(d, i) {
     return 'Y' + d.yr
@@ -12067,7 +11832,7 @@ async function valRunCFAnalysis(lang) {
     valRenderCFAnalysis(parsed, lang);
     if (btn) { btn.textContent = '↻ Refresh'; btn.disabled = false; btn.style.opacity = '1'; btn.style.cursor = 'pointer'; }
   } catch(e) {
-    if (res) res.innerHTML = '<span style="color:var(--red)">⚠️ 분석 실패: ' + e.message + '</span>';
+    if (res) res.innerHTML = '<span style="color:var(--red)">⚠️ Analysis failed: ' + e.message + '</span>';
     if (btn) { btn.textContent = '↻ 재시도'; btn.disabled = false; btn.style.opacity = '1'; btn.style.cursor = 'pointer'; }
   }
 }
@@ -12116,193 +11881,16 @@ function valDrawIRRGauge(canvasId, value, label, min, max, good, ok) {
   ctx.fillText(label, cx, cy + 10);
 }
 
-function valUpdateGauges(r) {
-  if (!r) return;
-  setTimeout(function() {
-    valDrawIRRGauge('gauge-lirr',  r.levered_irr||0,  'Levered IRR',    -0.05, 0.15, 0.09, 0.06);
-    valDrawIRRGauge('gauge-uirr',  r.unlevered_irr||0,'Unlevered IRR',  -0.05, 0.12, 0.07, 0.04);
-    valDrawIRRGauge('gauge-sirr',  r.sponsor_irr||r.sponsor_irr_contract||0, 'Sponsor IRR', -0.05, 0.18, 0.10, 0.07);
-  }, 50);
-}
 
 // ── 2. Capital Structure 워터폴
-function valDrawWaterfall(r) {
-  if (!r) return;
-  var sec = document.getElementById('vo-waterfall');
-  if (!sec) return;
-  sec.style.display = 'block';
-
-  var canvas = document.getElementById('vo-wf-canvas');
-  if (!canvas) return;
-
-  var items = [
-    { label: 'Capex', value: r.capex_total, color: '#888780', type: 'total' },
-    { label: 'Debt',   value: -r.debt,         color: '#185FA5', type: 'sub' },
-    { label: 'Tax Eq.', value: -(r.te_invest||0), color: '#534AB7', type: 'sub' },
-    { label: 'Eq.', value: r.sponsor_equity||r.equity, color: '#BA7517', type: 'result' },
-  ];
-
-  var W = canvas.offsetWidth || 300, H = 160;
-  canvas.width = W; canvas.height = H;
-  var ctx = canvas.getContext('2d');
-  var pad = { t:16, r:12, b:32, l:52 };
-  var maxV = r.capex_total * 1.1;
-  var bW = (W - pad.l - pad.r) / items.length * 0.6;
-  var gap = (W - pad.l - pad.r) / items.length;
-
-  // Y axis
-  [0, 0.25, 0.5, 0.75, 1].forEach(function(f) {
-    var y = pad.t + (1-f)*(H-pad.t-pad.b);
-    ctx.strokeStyle = 'rgba(128,128,128,0.1)';
-    ctx.lineWidth = 0.5;
-    ctx.beginPath(); ctx.moveTo(pad.l, y); ctx.lineTo(W-pad.r, y); ctx.stroke();
-    ctx.fillStyle = 'rgba(128,128,128,0.6)';
-    ctx.font = '9px sans-serif'; ctx.textAlign = 'right';
-    ctx.fillText('$'+(f*maxV/1000/1000).toFixed(0)+'B', pad.l-4, y+3);
-  });
-
-  var running = 0;
-  items.forEach(function(item, i) {
-    var x = pad.l + i*gap + (gap-bW)/2;
-    var v = Math.abs(item.value);
-    var barH = (v/maxV)*(H-pad.t-pad.b);
-    var baseY;
-
-    if (item.type === 'total') {
-      baseY = H - pad.b - barH; running = v;
-    } else if (item.type === 'sub') {
-      running -= Math.abs(item.value);
-      baseY = H - pad.b - (running + Math.abs(item.value)) * (H-pad.t-pad.b)/maxV;
-    } else {
-      baseY = H - pad.b - v*(H-pad.t-pad.b)/maxV;
-    }
-
-    ctx.fillStyle = item.color;
-    ctx.globalAlpha = 0.85;
-    if (ctx.roundRect) ctx.roundRect(x, baseY, bW, barH, 3);
-    else ctx.rect(x, baseY, bW, barH);
-    ctx.fill();
-    ctx.globalAlpha = 1;
-
-    // Value label
-    ctx.fillStyle = item.color;
-    ctx.font = 'bold 10px sans-serif'; ctx.textAlign = 'center';
-    ctx.fillText('$'+(v/1000).toFixed(0)+'M', x+bW/2, baseY - 4);
-
-    // X label (multi-line)
-    var lines = item.label.split('\n');
-    ctx.fillStyle = 'rgba(128,128,128,0.8)';
-    ctx.font = '9px sans-serif';
-    lines.forEach(function(line, li) {
-      ctx.fillText(line, x+bW/2, H-pad.b+11+li*10);
-    });
-  });
-}
 
 // ── 3. Sensitivity 히트맵 (PPA × CAPEX)
-async function valRunHeatmap(projectId, baseInputs) {
-  var heatSec = document.getElementById('vo-heatmap-section');
-  var heatEl  = document.getElementById('vo-heatmap');
-  if (!heatSec || !heatEl) return;
-  heatSec.style.display = 'block';
-  heatEl.innerHTML = '<div style="font-size:11px;color:var(--t3);padding:8px">Building heatmap...</div>';
-
-  var token = window._authToken || localStorage.getItem('hwr_token');
-  var basePPA = baseInputs.ppa_price || 68.82;
-  var baseCAP = (baseInputs.capex_total_override || 836.7);
-
-  var ppas = [-4,-2,0,2,4].map(function(d){ return Math.round((basePPA+d)*100)/100; });
-  var caps = [-10,-5,0,5,10].map(function(d){ return Math.round((baseCAP+d)*10)/10; });
-
-  var promises = [];
-  ppas.forEach(function(ppa) {
-    caps.forEach(function(cap) {
-      var inp = Object.assign({}, baseInputs, { ppa_price: ppa, capex_total_override: cap });
-      inp.calibration_mode = window._calibrationMode || 'calibration';
-      promises.push(
-        fetch('https://hwr-api-production.up.railway.app/valuation/calculate', {
-          method:'POST',
-          headers:{'Authorization':'Bearer '+token,'Content-Type':'application/json'},
-          body: JSON.stringify({ project_id: projectId, inputs: inp })
-        }).then(function(r){ return r.json(); }).then(function(d){ return { ppa, cap, r: d.result }; })
-      );
-    });
-  });
-
-  try {
-    var results = await Promise.all(promises);
-    var grid = {};
-    results.forEach(function(item) {
-      grid[item.ppa+'_'+item.cap] = item.r;
-    });
-
-    // Build HTML table
-    var html = '<div style="font-size:9px;color:var(--t3);margin-bottom:6px">Dev Margin ($M) — PPA vs CAPEX</div>';
-    html += '<table style="width:100%;border-collapse:collapse;font-size:10px">';
-
-    // Header row (CAPEX)
-    html += '<tr><th style="padding:4px;color:var(--t3);text-align:center">PPA \ CAPEX</th>';
-    caps.forEach(function(cap) {
-      var delta = cap - baseCAP;
-      html += '<th style="padding:4px;color:var(--t3);text-align:center">'+(delta>=0?'+':'')+delta+'M</th>';
-    });
-    html += '</tr>';
-
-    // Data rows (PPA)
-    ppas.forEach(function(ppa) {
-      var ppaDelta = Math.round((ppa - basePPA)*100)/100;
-      var isBasePPA = Math.abs(ppaDelta) < 0.01;
-      html += '<tr>';
-      html += '<td style="padding:4px 6px;color:var(--t3);font-weight:'+(isBasePPA?'700':'400')+'">'+(ppaDelta>=0?'+':'')+ppaDelta+'$/MWh</td>';
-
-      caps.forEach(function(cap) {
-        var r = grid[ppa+'_'+cap];
-        var margin = r ? r.total_margin/1000 : null;
-        var sirr = r ? (r.sponsor_irr || r.sponsor_irr_contract) : null;
-        var isBase = Math.abs(ppa - basePPA) < 0.01 && Math.abs(cap - baseCAP) < 0.1;
-
-        var bg = 'var(--surface3)';
-        if (margin) {
-          if (margin >= 80) bg = 'rgba(29,158,117,0.25)';
-          else if (margin >= 70) bg = 'rgba(29,158,117,0.12)';
-          else if (margin >= 60) bg = 'rgba(186,117,23,0.15)';
-          else bg = 'rgba(226,75,74,0.12)';
-        }
-        if (isBase) bg = 'rgba(83,74,183,0.2)';
-
-        html += '<td style="padding:4px;text-align:center;background:'+bg+';border-radius:4px;'+(isBase?'border:1px solid var(--blue);':'')+'font-weight:'+(isBase?'700':'400')+'">';
-        if (margin) {
-          html += '<div style="font-weight:700;color:var(--t1)">$'+margin.toFixed(1)+'M</div>';
-          if (sirr) html += '<div style="font-size:9px;color:var(--t3)">'+((sirr)*100).toFixed(1)+'%</div>';
-        } else {
-          html += '—';
-        }
-        html += '</td>';
-      });
-      html += '</tr>';
-    });
-
-    html += '</table>';
-    heatEl.innerHTML = html;
-  } catch(e) {
-    heatEl.innerHTML = '<div style="font-size:11px;color:var(--t3)">Heatmap failed: '+e.message+'</div>';
-  }
-}
-
-// ── 4. Debounce auto-recalc
-var _valDebounceTimer = null;
-function valScheduleRecalc() {
-  if (_valDebounceTimer) clearTimeout(_valDebounceTimer);
-  _valDebounceTimer = setTimeout(function() {
-    var calcBtn = document.getElementById('val-calc-btn');
-    if (calcBtn && !calcBtn.disabled) calcBtn.click();
-  }, 1200);
-}
-
+async 
+// ── 4. Input change tracking (auto-recalc disabled — button-driven only)
+// 인풋 변경 시 Calculate 버튼에 'dirty' 표시만. 실제 계산은 버튼 클릭으로만 실행.
 function valAttachDebounce() {
   document.querySelectorAll('.vi').forEach(function(el) {
     el.addEventListener('input', function() {
-      valScheduleRecalc();
       var btn=document.getElementById('val-calc-btn');
       if(btn) btn.classList.add('dirty');
     });
@@ -12311,17 +11899,6 @@ function valAttachDebounce() {
 
 
 // Valuation page section toggle
-function vpToggle(hd) {
-  var body = hd.nextElementSibling;
-  var chev = hd.querySelector('.vp-section-chevron');
-  if (body.style.display === 'none') {
-    body.style.display = 'block';
-    if(chev) { chev.classList.add('open'); }
-  } else {
-    body.style.display = 'none';
-    if(chev) { chev.classList.remove('open'); }
-  }
-}
 
 
 function valToggleSec(hd) {
@@ -12750,7 +12327,6 @@ function valSwitchTab(name, btn) {
 
   <!-- 🔍 Integrity Check: 파일 선택 시 자동 실행 -->
   <label id="val-ic-label" title="Run integrity check before upload" style="display:flex;align-items:center;gap:6px;padding:5px 12px;background:linear-gradient(135deg,rgba(124,58,237,0.15),rgba(91,33,182,0.1));border:1px solid rgba(124,58,237,0.4);border-radius:var(--r-md);color:#c4b5fd;font-size:11px;font-weight:600;cursor:pointer;height:32px;box-sizing:border-box;white-space:nowrap">
-    <span id="val-ic-icon">🔍</span>
     <span id="val-ic-btn-text">Model Audit</span>
     <input type="file" id="vl-check-file" accept=".xlsb,.xlsx" style="display:none">
   </label>
@@ -12773,7 +12349,7 @@ function valSwitchTab(name, btn) {
 <div id="val-ic-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.7);backdrop-filter:blur(8px);z-index:200;align-items:center;justify-content:center;padding:24px">
   <div style="max-width:720px;width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:14px;padding:24px;box-shadow:0 20px 50px rgba(0,0,0,0.5);max-height:85vh;overflow-y:auto">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
-      <div style="font-size:14px;font-weight:800;color:var(--t1)">🔍 <span id="val-ic-modal-title">Model Audit</span></div>
+      <div style="font-size:14px;font-weight:800;color:var(--t1)"><span id="val-ic-modal-title">Model Audit</span></div>
       <button onclick="document.getElementById('val-ic-modal').style.display='none'" style="background:transparent;border:none;color:var(--t3);font-size:20px;cursor:pointer">✕</button>
     </div>
     <div id="val-ic-modal-filename" style="font-size:10px;color:var(--t3);margin-bottom:12px;word-break:break-all"></div>
@@ -12845,7 +12421,7 @@ function valSwitchTab(name, btn) {
           </button>
         </div>
         <div id="vl-mode-desc" style="font-size:9px;color:var(--t3);line-height:1.4">
-          <strong>Calibration:</strong> 엑셀 모델 재현용. 업로드한 PF 모델과 동일한 IRR 재현.
+          <strong>Calibration:</strong> Replicates uploaded Excel model. Reproduces the same IRR as the PF model.
         </div>
       </div>
     </div>
@@ -13511,7 +13087,7 @@ function valSwitchTab(name, btn) {
         </div>
 
         <div id="be-empty" style="padding:28px 16px;text-align:center;background:var(--surface2);border:1px dashed var(--border2);border-radius:var(--r-md);font-size:10px;color:var(--t3)">
-          Target IRR 달성을 위해 필요한 PPA 가격 / Dev Margin / CAPEX 여유를 계산합니다. Calculate 완료 후 분석 실행.
+          Calculates required PPA price / Dev Margin / CAPEX headroom to achieve target IRR. Run after Calculate completes.
         </div>
 
         <div id="be-result" style="display:none">
