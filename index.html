@@ -6773,33 +6773,33 @@ document.addEventListener('DOMContentLoaded', function() {
     </div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px">
       <div style="padding:14px;background:rgba(124,58,237,0.06);border:1px solid rgba(124,58,237,0.2);border-radius:10px">
-        <div style="font-size:13px;font-weight:800;margin-bottom:8px;color:#c4b5fd">🎯 Calibration</div>
+        <div style="font-size:13px;font-weight:800;margin-bottom:8px;color:#c4b5fd">📊 Actual Model</div>
         <div style="font-size:10px;color:var(--t2);line-height:1.7">
-          <strong>Use case:</strong> Replicate & verify Excel model<br>
-          <strong>Debt Structure:</strong> Sculpted (DSCR-based)<br>
-          <strong>Partnership Flip:</strong> 25.5/7<br>
-          <strong>Tax:</strong> NOL carryforward (Y1–9 offset)<br>
-          <strong>CAPEX:</strong> FMV ≠ Construction<br>
-          <strong>Accuracy:</strong> Uploaded Model ±0.15%p
+          <strong>Use case:</strong> Replicate actual Excel model + what-if analysis<br>
+          <strong>Debt Structure:</strong> Actual (Sculpted DSCR-based)<br>
+          <strong>Partnership Flip:</strong> Actual (e.g. 9.2% Pay-Go)<br>
+          <strong>Tax:</strong> Actual NOL offset (Y1–9)<br>
+          <strong>CAPEX:</strong> Actual FMV step-up (e.g. 23%)<br>
+          <strong>Accuracy:</strong> Replicates uploaded model ±0.15%p
         </div>
       </div>
       <div style="padding:14px;background:rgba(16,185,129,0.06);border:1px solid rgba(16,185,129,0.2);border-radius:10px">
-        <div style="font-size:13px;font-weight:800;margin-bottom:8px;color:#6ee7b7">📈 Prediction</div>
+        <div style="font-size:13px;font-weight:800;margin-bottom:8px;color:#6ee7b7">🔮 Scenario Analysis</div>
         <div style="font-size:10px;color:var(--t2);line-height:1.7">
-          <strong>Use case:</strong> New project estimation<br>
-          <strong>Debt Structure:</strong> Level amortization<br>
-          <strong>Partnership Flip:</strong> 99/5 (standard)<br>
-          <strong>Tax:</strong> MACRS standard Sponsor allocation<br>
-          <strong>CAPEX:</strong> FMV = Construction<br>
-          <strong>Accuracy:</strong> Industry Standard Approximation
+          <strong>Use case:</strong> New deal feasibility analysis<br>
+          <strong>Debt Structure:</strong> DSCR 1.30 Sculpted (industry)<br>
+          <strong>Partnership Flip:</strong> 99/5 standard (dynamic flip)<br>
+          <strong>Tax:</strong> Immediate MACRS benefit (corp. sponsor)<br>
+          <strong>CAPEX:</strong> 17.5% FMV Step-up (industry mid-range)<br>
+          <strong>Accuracy:</strong> Industry-benchmarked approximation
         </div>
       </div>
     </div>
     <div style="padding:12px;background:rgba(0,0,0,0.25);border-radius:8px;font-size:11px;color:var(--t2);line-height:1.6">
       <strong style="color:var(--t1)">💡 Which mode should I use?</strong><br>
-      • <strong>Upload Excel</strong>then <strong>match the same numbers</strong> → use Calibration <strong style="color:#c4b5fd">Calibration</strong><br>
-      • <strong>New project</strong> with parameters only, <strong>IRR estimation</strong>→ use Prediction <strong style="color:#6ee7b7">Prediction</strong><br><br>
-      <span style="font-size:10px;color:var(--t3)">※ After uploading the Excel, run Model Audit to get an automatic mode recommendation.</span>
+      • <strong>Excel model built</strong> → use <strong style="color:#c4b5fd">📊 Actual Model</strong> (replicate + tweak for what-if)<br>
+      • <strong>New deal, no Excel yet</strong> → use <strong style="color:#6ee7b7">🔮 Scenario Analysis</strong> (pre-IC feasibility)<br><br>
+      <span style="font-size:10px;color:var(--t3)">※ After uploading Excel, run Model Audit for automatic mode recommendation.</span>
     </div>
   </div>
 </div>
@@ -6821,14 +6821,14 @@ document.addEventListener('DOMContentLoaded', function() {
       <div class="val-sec-body">
         <div style="display:flex;gap:4px;padding:3px;background:rgba(0,0,0,0.3);border-radius:6px;margin-bottom:6px">
           <button id="vl-mode-predict" data-mode="prediction" style="flex:1;padding:6px 4px;border:none;border-radius:4px;font-size:10px;font-weight:700;cursor:pointer;background:transparent;color:var(--t2);font-family:var(--font)">
-            📈 Prediction
+            🔮 Scenario
           </button>
           <button id="vl-mode-calib" data-mode="calibration" style="flex:1;padding:6px 4px;border:none;border-radius:4px;font-size:10px;font-weight:700;cursor:pointer;background:linear-gradient(135deg,#7c3aed,#5b21b6);color:#fff;font-family:var(--font)">
-            🎯 Calibration
+            📊 Actual
           </button>
         </div>
         <div id="vl-mode-desc" style="font-size:9px;color:var(--t3);line-height:1.4">
-          <strong>Calibration:</strong> Replicates uploaded Excel model. Reproduces the same IRR as the PF model.
+          <strong>Actual Model:</strong> Replicates uploaded Excel model. Tweak parameters for what-if scenarios.
         </div>
       </div>
     </div>
@@ -6900,9 +6900,9 @@ document.addEventListener('DOMContentLoaded', function() {
           <div class="vf"><label>Dev Cost ($M)</label><input class="vi" id="vi-dev-cost" type="number" step="0.5" placeholder="20"></div>
           <div class="vf" style="grid-column:span 2"><label>CAPEX Other ($M)</label><input class="vi" id="vi-capex-etc" type="number" step="0.5" placeholder="0"></div>
         </div>
-        <!-- ⚠️ Prediction FMV 경고 -->
+        <!-- ⚠️ Scenario Analysis FMV Note -->
         <div id="vi-prediction-fmv-note" style="display:none;margin-top:8px;padding:8px;background:rgba(245,158,11,0.08);border:1px solid rgba(245,158,11,0.3);border-radius:6px;font-size:9px;color:#fbbf24;line-height:1.5">
-          💡 <strong>Prediction mode:</strong> The CAPEX total above equals <strong>FMV</strong>; Dev Margin / EPC Margin are booked as Y0 Sponsor cash inflow.
+          💡 <strong>Scenario Analysis mode:</strong> CAPEX total above = <strong>FMV</strong>. A 17.5% step-up is applied to derive Construction Cost (industry mid-range, Norton Rose 2021).
         </div>
       </div>
     </div>
@@ -7225,10 +7225,10 @@ document.addEventListener('DOMContentLoaded', function() {
           </div>
         </div>
 
-        <!-- IRR Decomposition (Calibration vs Prediction) -->
+        <!-- IRR Decomposition (Actual Model vs Scenario Analysis) -->
         <div id="vo-decomp-section" style="background:linear-gradient(135deg, rgba(124,58,237,0.04), rgba(59,130,246,0.03));border:1px solid rgba(124,58,237,0.2);border-radius:var(--r-lg);padding:14px 16px;margin-bottom:16px;display:none">
           <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
-            <div style="font-size:11px;font-weight:800;color:#c4b5fd">🔍 <span id="vo-decomp-title">IRR Diff Analysis (Calibration vs Prediction)</span></div>
+            <div style="font-size:11px;font-weight:800;color:#c4b5fd">🔍 <span id="vo-decomp-title">IRR Diff Analysis (Actual vs Scenario)</span></div>
             <button id="vo-decomp-run-btn" style="padding:5px 12px;background:linear-gradient(135deg,#7c3aed,#5b21b6);color:#fff;border:none;border-radius:6px;font-size:10px;font-weight:700;cursor:pointer;font-family:var(--font)">
               <span id="vo-decomp-run-txt">Run Analysis</span>
             </button>
