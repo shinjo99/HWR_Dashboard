@@ -1,0 +1,129 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  # ═══════════════════════════════════════════════════════
+  # Job 1: JavaScript 문법 검증
+  # ═══════════════════════════════════════════════════════
+  validate-js:
+    name: JavaScript Syntax Check
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install acorn (JS parser)
+        run: npm install -g acorn
+
+      - name: JavaScript syntax check (all .js files)
+        run: |
+          echo "=== JavaScript 파일 syntax 검증 ==="
+          FAILED=0
+          
+          for f in $(find . -name "*.js" \
+                       -not -path "./.git/*" \
+                       -not -path "./node_modules/*"); do
+            if acorn --ecma2022 --silent "$f" 2>&1; then
+              echo "  ✓ $f"
+            else
+              echo "  ❌ $f"
+              FAILED=1
+            fi
+          done
+          
+          if [ $FAILED -eq 1 ]; then
+            echo "❌ JavaScript syntax 에러 발견"
+            exit 1
+          fi
+          echo "✓ 모든 JS 파일 syntax OK"
+
+  # ═══════════════════════════════════════════════════════
+  # Job 2: HTML 파싱 체크
+  # ═══════════════════════════════════════════════════════
+  validate-html:
+    name: HTML Structure Check
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install html5lib
+        run: pip install html5lib
+
+      - name: HTML parse check
+        run: |
+          echo "=== HTML 파싱 검증 ==="
+          python -c "
+          import html5lib
+          import sys
+          
+          files = ['index.html']
+          errors = []
+          
+          for fname in files:
+              try:
+                  with open(fname, 'r', encoding='utf-8') as f:
+                      parser = html5lib.HTMLParser(strict=False)
+                      parser.parse(f)
+                  print(f'  ✓ {fname}')
+              except Exception as e:
+                  print(f'  ❌ {fname}: {e}')
+                  errors.append((fname, e))
+          
+          if errors:
+              print(f'❌ HTML 파싱 에러 {len(errors)}개')
+              sys.exit(1)
+          print('✓ HTML 구조 정상')
+          "
+
+  # ═══════════════════════════════════════════════════════
+  # Job 3: API_URL 중앙화 검증 (하드코딩 방지)
+  # ═══════════════════════════════════════════════════════
+  validate-api-url:
+    name: API_URL Centralization Check
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Check for hardcoded Railway URLs
+        run: |
+          echo "=== 하드코딩된 Railway URL 체크 ==="
+          # js/pages/valuation/core.js 외의 파일에서 하드코딩 URL 찾기
+          HARDCODED=$(grep -rn "hwr-api-production.up.railway.app" \
+                        --include="*.html" \
+                        --include="*.js" \
+                        --include="*.css" \
+                        --exclude-dir=".git" \
+                        --exclude-dir="node_modules" . \
+                        | grep -v "js/pages/valuation/core.js" \
+                        | grep -v "README.md" \
+                        || true)
+          
+          if [ -n "$HARDCODED" ]; then
+            echo "❌ 하드코딩된 Railway URL 발견 (core.js 외):"
+            echo "$HARDCODED"
+            echo ""
+            echo "→ js/pages/valuation/core.js 의 window.API_URL 을 사용하세요"
+            exit 1
+          fi
+          
+          echo "✓ API_URL 중앙화 OK (core.js만 선언)"
