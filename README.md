@@ -1,6 +1,6 @@
 # HWR_Dashboard
 
-**Hanwha Energy USA Holdings — Dashboard 프론트엔드**
+**Hanwha Renewables USA — Dashboard 프론트엔드**
 
 순수 HTML/CSS/JS 기반 SPA. GitHub Pages 호스팅. 백엔드: [HWR-api](https://github.com/shinjo99/HWR-api) (Railway).
 
