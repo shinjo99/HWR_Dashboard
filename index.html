@@ -6460,7 +6460,7 @@ document.addEventListener('DOMContentLoaded', function() {
         debt_ratio: gv('vi-debt-r', 47.6),
         int_rate:   gv('vi-int-r', 5.5),
         loan_term:  gv('vi-loan-t', 18),
-        dscr:       gv('vi-dscr', 1.3),
+        dscr_target: gv('vi-dscr', 1.3),  // 엔진 파라미터명 일치 (이전 'dscr' → 엔진 전달 실패 버그)
         // Tax Equity
         flip_yield: gv('vi-flip-y', 8.75),
         flip_term:  gv('vi-flip-t', 7),
@@ -6983,9 +6983,9 @@ document.addEventListener('DOMContentLoaded', function() {
         <div class="val-grid2">
           <div class="vf"><label>Aug. Price ($/kWh)</label><input class="vi" id="vi-aug-price" type="number" step="5" placeholder="150"></div>
           <div class="vf"><label>Aug. MWh (%)</label><input class="vi" id="vi-aug-mwh" type="number" step="0.5" placeholder="18.8"></div>
-          <div class="vf"><label>Aug. Y1 (MWh)</label><input class="vi" id="vi-aug-y1" type="number" step="1" placeholder="4"></div>
-          <div class="vf"><label>Aug. Y2 (MWh)</label><input class="vi" id="vi-aug-y2" type="number" step="1" placeholder="8"></div>
-          <div class="vf" style="grid-column:span 2"><label>Aug. Y3 (MWh)</label><input class="vi" id="vi-aug-y3" type="number" step="1" placeholder="12"></div>
+          <div class="vf"><label>1st Aug. Year</label><input class="vi" id="vi-aug-y1" type="number" step="1" placeholder="4" title="Year when 1st BESS augmentation occurs (industry: Y4-Y7)"></div>
+          <div class="vf"><label>2nd Aug. Year</label><input class="vi" id="vi-aug-y2" type="number" step="1" placeholder="8" title="Year when 2nd BESS augmentation occurs (industry: Y8-Y10)"></div>
+          <div class="vf" style="grid-column:span 2"><label>3rd Aug. Year</label><input class="vi" id="vi-aug-y3" type="number" step="1" placeholder="12" title="Year when 3rd BESS augmentation occurs (industry: Y12-Y15, Neptune: Y14)"></div>
         </div>
       </div>
     </div>
