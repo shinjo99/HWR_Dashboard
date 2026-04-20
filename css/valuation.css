@@ -73,7 +73,7 @@
 /* .val-left는 flex 컨테이너 (세로) — 내부 .val-left-scroll이 실제 스크롤 담당
    .val-calc-wrap은 flex 흐름 밖처럼 하단 고정되어 스크롤 안 됨 */
 .val-left {
-  width:220px; flex-shrink:0; overflow:hidden;
+  width:280px; flex-shrink:0; overflow:hidden;
   border-right:1px solid var(--border);
   display:flex; flex-direction:column;
   background:var(--surface);
