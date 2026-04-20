@@ -107,23 +107,24 @@ jobs:
       - name: Check for hardcoded Railway URLs
         run: |
           echo "=== 하드코딩된 Railway URL 체크 ==="
-          # js/pages/valuation/core.js 외의 파일에서 하드코딩 URL 찾기
+          # 유일한 선언 위치: index.html (window.API_URL 전역 선언)
+          # 다른 파일들은 window.API_URL 을 참조만 해야 함 → 하드코딩 금지
           HARDCODED=$(grep -rn "hwr-api-production.up.railway.app" \
                         --include="*.html" \
                         --include="*.js" \
                         --include="*.css" \
                         --exclude-dir=".git" \
                         --exclude-dir="node_modules" . \
-                        | grep -v "js/pages/valuation/core.js" \
+                        | grep -v "^./index.html:" \
                         | grep -v "README.md" \
                         || true)
           
           if [ -n "$HARDCODED" ]; then
-            echo "❌ 하드코딩된 Railway URL 발견 (core.js 외):"
+            echo "❌ 하드코딩된 Railway URL 발견 (index.html 외):"
             echo "$HARDCODED"
             echo ""
-            echo "→ js/pages/valuation/core.js 의 window.API_URL 을 사용하세요"
+            echo "→ window.API_URL (index.html에 선언됨) 을 사용하세요"
             exit 1
           fi
           
-          echo "✓ API_URL 중앙화 OK (core.js만 선언)"
+          echo "✓ API_URL 중앙화 OK (index.html만 선언)"
