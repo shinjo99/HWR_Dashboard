@@ -54,35 +54,35 @@ const LANG = {
     issuesTitle: '🔥 핵심 이슈', issuesSub: '매각현황 · PPA · Atlas North M1',
     issuesBtn: '🔥 핵심 이슈', reportBtn: '📋 보고', financeBtn: '📊 재무',
     
-    // ═══ VALUATION 페이지 ═══
-    valCalcMode: '계산 모드',
+    // ═══ VALUATION page (English-only; Korean retained only inside IC Opinion via _cfLang) ═══
+    valCalcMode: 'Calculation Mode',
     valModePredict: '📈 Prediction', valModeCalib: '🎯 Calibration',
-    valModePredictDesc: '<strong>Prediction:</strong> Preliminary feasibility before Excel model is built. Applies industry-standard PF assumptions (99/5 flip + level debt + MACRS standard allocation). FMV = CAPEX total (incl. Dev/EPC Margin).',
-    valModeCalibDesc: '<strong>Calibration:</strong> Replicates uploaded Excel model. Sculpted debt + NOL offset + custom Partnership Flip. Accuracy ±0.15%p vs original.',
-    valModeInfoTitle: '⚙️ 계산 모드 비교',
-    valModeInfoUsage: '용도', valModeInfoDebt: 'Debt 구조', valModeInfoFlip: 'Partnership Flip',
-    valModeInfoTax: 'Tax', valModeInfoCapex: 'CAPEX', valModeInfoAccuracy: '정확도',
-    valModeCalibUsage: '엑셀 모델 재현·검증',
-    valModePredictUsage: '신규 프로젝트 예측',
-    valModeInfoHelp: '💡 어떤 걸 써야 하나요?',
-    valModeInfoHelpCalib: '• <strong>엑셀 업로드</strong>해서 <strong>같은 숫자</strong> 확인하고 싶으면 → <strong style="color:#c4b5fd">Calibration</strong>',
-    valModeInfoHelpPredict: '• <strong>새 프로젝트</strong> 파라미터만 있고 <strong>IRR 예측</strong>하려면 → <strong style="color:#6ee7b7">Prediction</strong>',
-    valModeInfoNote: '※ 엑셀 업로드 후 Integrity Check를 돌리면 자동으로 권장 모드를 제안합니다.',
-    
+    valModePredictDesc: '<strong>Prediction:</strong> Quick feasibility check for projects without a full model. Uses industry-standard PF assumptions (99/5 flip + level debt + MACRS allocation); FMV = sum of CAPEX inputs (includes Dev/EPC Margin).',
+    valModeCalibDesc: '<strong>Calibration:</strong> For replicating uploaded Excel models. Sculpted debt + NOL offset + custom Partnership Flip. ±0.15%p accuracy vs original model.',
+    valModeInfoTitle: '⚙️ Calculation Mode Comparison',
+    valModeInfoUsage: 'Usage', valModeInfoDebt: 'Debt Structure', valModeInfoFlip: 'Partnership Flip',
+    valModeInfoTax: 'Tax', valModeInfoCapex: 'CAPEX', valModeInfoAccuracy: 'Accuracy',
+    valModeCalibUsage: 'Excel model replication/verification',
+    valModePredictUsage: 'New project prediction',
+    valModeInfoHelp: '💡 Which one should I use?',
+    valModeInfoHelpCalib: '• To <strong>upload Excel</strong> and verify <strong>same numbers</strong> → <strong style="color:#c4b5fd">Calibration</strong>',
+    valModeInfoHelpPredict: '• For <strong>new project</strong> with parameters only, to <strong>predict IRR</strong> → <strong style="color:#6ee7b7">Prediction</strong>',
+    valModeInfoNote: '※ After Excel upload, run Integrity Check to get an automatic mode recommendation.',
+
     // Integrity Check
     valICTitle: 'Model Audit',
-    valICDesc: '엑셀 모델 정합성 체크 (수식 오류, Capital Stack, IRR, Debt, Revenue).',
-    valICFilePick: '.xlsb / .xlsx 파일 선택',
-    valICRunBtn: '🔍 정합성 체크 실행',
+    valICDesc: 'Excel model integrity check (formula errors, Capital Stack, IRR, Debt, Revenue).',
+    valICFilePick: 'Select .xlsb / .xlsx file',
+    valICRunBtn: '🔍 Run Integrity Check',
     valICBtnLabel: 'Model Audit',
     valICChecking: '⏳ Checking...',
-    valICReportTitle: '📋 정합성 리포트',
-    // 사이드바 섹션
+    valICReportTitle: '📋 Integrity Report',
+    // Sidebar sections
     valSecProject: 'Project', valSecRevenue: 'Revenue', valSecCapex: 'CAPEX',
     valSecOpex: 'OPEX', valSecBess: 'BESS Augmentation', valSecDebt: 'Debt/Tax',
     valSecCredit: 'Credit (ITC/PTC)', valSecAdvanced: 'Advanced',
-    
-    // 헤더/탭
+
+    // Header/tabs
     valTabOverview: 'Overview', valTabSensitivity: 'Sensitivity',
     valTabCashFlow: 'Cash Flow', valTabHistory: 'History',
     valTabBenchmark: 'Benchmark', valTabIC: 'IC Opinion',
@@ -91,10 +91,10 @@ const LANG = {
     valLive: 'Live · Calculated',
     valNoData: 'No data — upload model',
     // Empty state
-    valEmptyTitle: '모델을 업로드하거나 Calculate를 실행하세요',
-    valEmptySub: 'PF 모델(.xlsb)을 업로드하면 자동 파싱됩니다. 또는 좌측 인풋을 채우고 Calculate를 눌러 빠른 추정값을 확인할 수 있습니다.',
-    
-    // 결과 카드
+    valEmptyTitle: 'Upload a model or run Calculate',
+    valEmptySub: 'PF models (.xlsb) are parsed automatically. Or fill in the left inputs and click Calculate for a quick estimate.',
+
+    // Result cards
     // IRR Decomposition
   },
   en: {
