@@ -104,7 +104,7 @@ function valApplyLanguage() {
     var mode = window._calibrationMode || 'calibration';
     desc.innerHTML = (mode === 'calibration') ? L.valModeCalibDesc : L.valModePredictDesc;
   }
-  // ─── Prediction FMV 경고 박스 (CAPEX 섹션) ───
+  // ─── Scenario Analysis FMV Note (CAPEX 섹션) ───
   var fmvNote = document.getElementById('vi-prediction-fmv-note');
   if (fmvNote) {
     var curMode = window._calibrationMode || 'calibration';
@@ -134,25 +134,25 @@ function valApplyLanguage() {
     if (infoGrid) {
       infoGrid.innerHTML = 
         '<div style="padding:14px;background:rgba(124,58,237,0.06);border:1px solid rgba(124,58,237,0.2);border-radius:10px">' +
-          '<div style="font-size:13px;font-weight:800;margin-bottom:8px;color:#c4b5fd">🎯 Calibration</div>' +
+          '<div style="font-size:13px;font-weight:800;margin-bottom:8px;color:#c4b5fd">📊 Actual Model</div>' +
           '<div style="font-size:10px;color:var(--t2);line-height:1.7">' +
             '<strong>' + L.valModeInfoUsage + ':</strong> ' + L.valModeCalibUsage + '<br>' +
-            '<strong>' + L.valModeInfoDebt + ':</strong> Sculpted (DSCR-based)<br>' +
-            '<strong>' + L.valModeInfoFlip + ':</strong> 25.5/7<br>' +
-            '<strong>' + L.valModeInfoTax + ':</strong> NOL carryforward (Y1~9 offset)<br>' +
-            '<strong>' + L.valModeInfoCapex + ':</strong> FMV ≠ Construction<br>' +
-            '<strong>' + L.valModeInfoAccuracy + ':</strong> Uploaded Model ±0.15%p' +
+            '<strong>' + L.valModeInfoDebt + ':</strong> Actual (Sculpted DSCR-based)<br>' +
+            '<strong>' + L.valModeInfoFlip + ':</strong> Actual (e.g. 9.2% Pay-Go)<br>' +
+            '<strong>' + L.valModeInfoTax + ':</strong> Actual NOL offset (Y1–9)<br>' +
+            '<strong>' + L.valModeInfoCapex + ':</strong> Actual FMV step-up (e.g. 23%)<br>' +
+            '<strong>' + L.valModeInfoAccuracy + ':</strong> Replicates uploaded model ±0.15%p' +
           '</div>' +
         '</div>' +
         '<div style="padding:14px;background:rgba(16,185,129,0.06);border:1px solid rgba(16,185,129,0.2);border-radius:10px">' +
-          '<div style="font-size:13px;font-weight:800;margin-bottom:8px;color:#6ee7b7">📈 Prediction</div>' +
+          '<div style="font-size:13px;font-weight:800;margin-bottom:8px;color:#6ee7b7">🔮 Scenario Analysis</div>' +
           '<div style="font-size:10px;color:var(--t2);line-height:1.7">' +
             '<strong>' + L.valModeInfoUsage + ':</strong> ' + L.valModePredictUsage + '<br>' +
-            '<strong>' + L.valModeInfoDebt + ':</strong> Level amortization<br>' +
-            '<strong>' + L.valModeInfoFlip + ':</strong> 99/5 (standard)<br>' +
-            '<strong>' + L.valModeInfoTax + ':</strong> MACRS normal Sponsor allocation<br>' +
-            '<strong>' + L.valModeInfoCapex + ':</strong> FMV = Construction<br>' +
-            '<strong>' + L.valModeInfoAccuracy + ':</strong> Industry standard approximation' +
+            '<strong>' + L.valModeInfoDebt + ':</strong> DSCR 1.30 Sculpted (industry)<br>' +
+            '<strong>' + L.valModeInfoFlip + ':</strong> 99/5 standard (dynamic flip)<br>' +
+            '<strong>' + L.valModeInfoTax + ':</strong> Immediate MACRS benefit<br>' +
+            '<strong>' + L.valModeInfoCapex + ':</strong> 17.5% FMV Step-up (Norton Rose)<br>' +
+            '<strong>' + L.valModeInfoAccuracy + ':</strong> Industry-benchmarked' +
           '</div>' +
         '</div>';
     }
@@ -242,8 +242,10 @@ function valLoadProject(projectId) {
     }
   });
 
-  // ══════ MODE 토글 (Prediction vs Calibration) ══════
-  // 기본값 'calibration' (엑셀 검증이 주 용도)
+  // ══════ MODE 토글 (Actual Model vs Scenario Analysis) ══════
+  // 기본값 'calibration' (= Actual Model, 엑셀 검증이 주 용도)
+  // 내부 값은 'calibration' | 'prediction' 유지 (백엔드 호환)
+  // UI 라벨만 Actual Model / Scenario Analysis로 표시
   // localStorage에 사용자 선택 저장 → 이후 방문 시 재사용
   var savedMode = localStorage.getItem('val_calc_mode');
   window._calibrationMode = savedMode || 'calibration';
@@ -260,15 +262,15 @@ function valLoadProject(projectId) {
       predBtn.style.color = 'var(--t2)';
       calBtn.style.background = 'linear-gradient(135deg,#7c3aed,#5b21b6)';
       calBtn.style.color = '#fff';
-      if (desc) desc.innerHTML = '<strong>Calibration:</strong> Replicates uploaded Excel model. Sculpted debt + NOL offset + custom Partnership Flip. Accuracy ±0.15%p vs original.';
+      if (desc) desc.innerHTML = '<strong>📊 Actual Model:</strong> Replicates uploaded Excel model (e.g. Neptune FMV 23%, Pay-Go 9.2%, NOL offset). 💡 Tweak parameters for what-if scenarios from the actual baseline.';
     } else {
       predBtn.style.background = 'linear-gradient(135deg,#059669,#10b981)';
       predBtn.style.color = '#fff';
       calBtn.style.background = 'transparent';
       calBtn.style.color = 'var(--t2)';
-      if (desc) desc.innerHTML = '<strong>Prediction:</strong> Preliminary feasibility before Excel model is built. Applies industry-standard PF assumptions (99/5 flip + level debt + MACRS standard allocation). FMV = CAPEX total.';
+      if (desc) desc.innerHTML = '<strong>🔮 Scenario Analysis:</strong> New deal feasibility using industry standards (FMV Step-up 17.5%, DSCR 1.30, 99/5 Partnership Flip). 💡 Quick IC hurdle decision before Excel model is built.';
     }
-    // Prediction FMV 경고 박스 (CAPEX 섹션)
+    // Scenario Analysis FMV note (CAPEX 섹션)
     var fmvNote = document.getElementById('vi-prediction-fmv-note');
     if (fmvNote) fmvNote.style.display = (mode === 'prediction') ? 'block' : 'none';
   }
@@ -517,8 +519,8 @@ function valLoadProject(projectId) {
       html += '</div>';
       // Detail
       html += '<div style="font-size:9px;color:var(--t3);line-height:1.5">';
-      html += '<div>🎯 <span style="color:#c4b5fd">Calibration:</span> ' + fromC + '</div>';
-      html += '<div>📈 <span style="color:#6ee7b7">Prediction:</span> ' + toP + '</div>';
+      html += '<div>📊 <span style="color:#c4b5fd">Actual:</span> ' + fromC + '</div>';
+      html += '<div>🔮 <span style="color:#6ee7b7">Scenario:</span> ' + toP + '</div>';
       html += '</div>';
       html += '</div>';
       container.innerHTML += html;
@@ -608,40 +610,100 @@ function valDisplayData(data, safeId) {
   el = document.getElementById('vo-sirr'); if(el) el.textContent = fmtPct(o.sponsor_irr || o.sponsor_irr_contract);
 
   // ── Returns Detail 5 카드 (Levered Pre-Tax / AT Before NOL / AT After NOL / Unlevered / WACC)
+  // ════════════════════════════════════════════════════════════════════
+  // 모드별 필드 소스 분기 (Phase F-1):
+  //   📊 Actual Model (calibration):
+  //     - Excel 파싱 값 우선 (업로드된 PF 모델의 실측 IRR)
+  //   🔮 Scenario Analysis (prediction):
+  //     - 엔진 계산 값 사용 (levered_irr, sponsor_irr, unlevered_irr)
+  //     - After NOL 박스는 N/A (Prediction은 Immediate benefit mode)
+  // ════════════════════════════════════════════════════════════════════
   var irrPct = function(v) { return (v != null && !isNaN(v)) ? (v * 100).toFixed(2) + '%' : '—'; };
-  el = document.getElementById('vo-irr-lev-pretax');         if(el) el.textContent = irrPct(o.sponsor_irr_levered_pretax);
-  el = document.getElementById('vo-irr-lev-aftertax-before'); if(el) el.textContent = irrPct(o.sponsor_irr_aftertax_before_nol);
-  el = document.getElementById('vo-irr-lev-aftertax-after');  if(el) el.textContent = irrPct(o.sponsor_irr_aftertax_after_nol);
-  el = document.getElementById('vo-irr-unlev-pretax');        if(el) el.textContent = irrPct(o.sponsor_irr_unlevered_pretax || o.unlevered_irr);
-  el = document.getElementById('vo-wacc');                    if(el) el.textContent = irrPct(o.wacc);
+  var isScenarioMode = (window._calibrationMode === 'prediction');
+  
+  // Lev Pre-Tax
+  el = document.getElementById('vo-irr-lev-pretax');
+  if(el) el.textContent = irrPct(
+    isScenarioMode ? o.levered_irr : (o.sponsor_irr_levered_pretax || o.levered_irr)
+  );
+  
+  // AT Before NOL — Scenario에선 Sponsor IRR (After-Tax 단일 값)
+  el = document.getElementById('vo-irr-lev-aftertax-before');
+  if(el) el.textContent = irrPct(
+    isScenarioMode ? o.sponsor_irr : o.sponsor_irr_aftertax_before_nol
+  );
+  
+  // AT After NOL — Scenario 모드에선 N/A (Immediate benefit, NOL 구분 없음)
+  el = document.getElementById('vo-irr-lev-aftertax-after');
+  if(el) el.textContent = isScenarioMode 
+    ? 'N/A' 
+    : irrPct(o.sponsor_irr_aftertax_after_nol);
+  
+  // Unlevered
+  el = document.getElementById('vo-irr-unlev-pretax');
+  if(el) el.textContent = irrPct(
+    isScenarioMode ? o.unlevered_irr : (o.sponsor_irr_unlevered_pretax || o.unlevered_irr)
+  );
+  
+  // WACC
+  el = document.getElementById('vo-wacc');
+  if(el) el.textContent = irrPct(o.wacc);
+
+  // After NOL 박스의 부제도 모드별 조정
+  var atAfterBox = document.getElementById('vo-irr-lev-aftertax-after');
+  if (atAfterBox) {
+    var subtitle = atAfterBox.parentElement.querySelector('div:last-child');
+    if (subtitle) {
+      subtitle.innerHTML = isScenarioMode
+        ? '<span style="color:var(--t3);opacity:.7">Immediate Benefit · N/A</span>'
+        : 'After-Tax (After NOL)';
+    }
+  }
 
   // 비교 인사이트 자동 생성
   var insightEl = document.getElementById('vo-irr-insights');
   var insightTxt = document.getElementById('vo-irr-insight-text');
   if (insightEl && insightTxt) {
     var insights = [];
-    var uPre = o.sponsor_irr_unlevered_pretax || o.unlevered_irr;
-    var wacc = o.wacc;
-    var lPre = o.sponsor_irr_levered_pretax || o.sponsor_irr;
-    var atBefore = o.sponsor_irr_aftertax_before_nol;
-    var atAfter = o.sponsor_irr_aftertax_after_nol;
+    // 모드별 소스 선택
+    var uPre, wacc_v, lPre, atBefore, atAfter;
+    if (isScenarioMode) {
+      uPre = o.unlevered_irr;
+      wacc_v = o.wacc;
+      lPre = o.levered_irr;
+      atBefore = o.sponsor_irr;  // Scenario: single after-tax
+      atAfter = null;              // Scenario: no NOL distinction
+    } else {
+      uPre = o.sponsor_irr_unlevered_pretax || o.unlevered_irr;
+      wacc_v = o.wacc;
+      lPre = o.sponsor_irr_levered_pretax || o.sponsor_irr;
+      atBefore = o.sponsor_irr_aftertax_before_nol;
+      atAfter = o.sponsor_irr_aftertax_after_nol;
+    }
 
     // 1. Unlevered vs WACC — 가치 창출 여부
-    if (uPre && wacc) {
-      var spread = (uPre - wacc) * 100;
+    if (uPre && wacc_v) {
+      var spread = (uPre - wacc_v) * 100;
       var verdict = spread > 0 ? 'Value Creation' : 'Value Destruction';
       var col = spread > 0 ? 'var(--green)' : 'var(--red)';
-      insights.push('Unlevered '+(uPre*100).toFixed(2)+'% '+(spread>0?'>':'<')+' WACC '+(wacc*100).toFixed(2)+'% → <strong style="color:'+col+'">'+verdict+' '+(spread>0?'+':'')+spread.toFixed(2)+'%p</strong>');
+      insights.push('Unlevered '+(uPre*100).toFixed(2)+'% '+(spread>0?'>':'<')+' WACC '+(wacc_v*100).toFixed(2)+'% → <strong style="color:'+col+'">'+verdict+' '+(spread>0?'+':'')+spread.toFixed(2)+'%p</strong>');
     }
     // 2. Levered vs Unlevered — 레버리지 효과
     if (lPre && uPre) {
       var lev = (lPre - uPre) * 100;
-      insights.push('Leverage Effect: <strong>+'+lev.toFixed(2)+'%p</strong>');
+      var sign = lev >= 0 ? '+' : '';
+      var levCol = lev >= 0 ? 'var(--green)' : 'var(--amber)';
+      var levNote = lev < 0 ? ' <span style="opacity:.6">(debt burden > returns)</span>' : '';
+      insights.push('Leverage Effect: <strong style="color:'+levCol+'">'+sign+lev.toFixed(2)+'%p</strong>'+levNote);
     }
-    // 3. NOL 지연 손실
-    if (atBefore && atAfter) {
+    // 3. NOL 지연 손실 (Actual Model only)
+    if (!isScenarioMode && atBefore && atAfter) {
       var nolLoss = (atBefore - atAfter) * 100;
       insights.push('NOL Deferral Loss: <strong style="color:var(--amber)">-'+nolLoss.toFixed(2)+'%p</strong>');
+    }
+    // 4. Scenario 모드 표시
+    if (isScenarioMode) {
+      insights.push('<span style="color:var(--t3);opacity:.7">🔮 Scenario mode · Immediate benefit (NOL not applicable)</span>');
     }
 
     if (insights.length) {
