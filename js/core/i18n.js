@@ -56,17 +56,17 @@ const LANG = {
     
     // ═══ VALUATION page (English-only; Korean retained only inside IC Opinion via _cfLang) ═══
     valCalcMode: 'Calculation Mode',
-    valModePredict: '📈 Prediction', valModeCalib: '🎯 Calibration',
-    valModePredictDesc: '<strong>Prediction:</strong> Quick feasibility check for projects without a full model. Uses industry-standard PF assumptions (99/5 flip + level debt + MACRS allocation); FMV = sum of CAPEX inputs (includes Dev/EPC Margin).',
-    valModeCalibDesc: '<strong>Calibration:</strong> For replicating uploaded Excel models. Sculpted debt + NOL offset + custom Partnership Flip. ±0.15%p accuracy vs original model.',
+    valModePredict: '🔮 Scenario Analysis', valModeCalib: '📊 Actual Model',
+    valModePredictDesc: '<strong>Scenario Analysis:</strong> Feasibility check for new deals using industry-standard assumptions (FMV Step-up 17.5%, DSCR 1.30, standard 99/5 Partnership Flip). 💡 Quick IC hurdle decision before Excel model is built.',
+    valModeCalibDesc: '<strong>Actual Model:</strong> Replicates a constructed Excel PF model. Reflects actual deal structure (e.g. Neptune: FMV Step-up 23%, Pay-Go 9.2%, NOL offset). 💡 Parameter tweaks enable "what-if" analysis from the actual baseline.',
     valModeInfoTitle: '⚙️ Calculation Mode Comparison',
     valModeInfoUsage: 'Usage', valModeInfoDebt: 'Debt Structure', valModeInfoFlip: 'Partnership Flip',
     valModeInfoTax: 'Tax', valModeInfoCapex: 'CAPEX', valModeInfoAccuracy: 'Accuracy',
-    valModeCalibUsage: 'Excel model replication/verification',
-    valModePredictUsage: 'New project prediction',
+    valModeCalibUsage: 'Excel model replication + what-if analysis',
+    valModePredictUsage: 'New deal feasibility analysis',
     valModeInfoHelp: '💡 Which one should I use?',
-    valModeInfoHelpCalib: '• To <strong>upload Excel</strong> and verify <strong>same numbers</strong> → <strong style="color:#c4b5fd">Calibration</strong>',
-    valModeInfoHelpPredict: '• For <strong>new project</strong> with parameters only, to <strong>predict IRR</strong> → <strong style="color:#6ee7b7">Prediction</strong>',
+    valModeInfoHelpCalib: '• Uploaded Excel model + verify/analyze → <strong style="color:#c4b5fd">Actual Model</strong>',
+    valModeInfoHelpPredict: '• New deal with parameters only → <strong style="color:#6ee7b7">Scenario Analysis</strong>',
     valModeInfoNote: '※ After Excel upload, run Integrity Check to get an automatic mode recommendation.',
 
     // Integrity Check
@@ -147,17 +147,17 @@ const LANG = {
     
     // ═══ VALUATION page ═══
     valCalcMode: 'Calculation Mode',
-    valModePredict: '📈 Prediction', valModeCalib: '🎯 Calibration',
-    valModePredictDesc: '<strong>Prediction:</strong> Quick feasibility check for projects without a full model. Uses industry-standard PF assumptions (99/5 flip + level debt + MACRS allocation); FMV = sum of CAPEX inputs (includes Dev/EPC Margin).',
-    valModeCalibDesc: '<strong>Calibration:</strong> For replicating uploaded Excel models. Sculpted debt + NOL offset + custom Partnership Flip. ±0.15%p accuracy vs original model.',
+    valModePredict: '🔮 Scenario Analysis', valModeCalib: '📊 Actual Model',
+    valModePredictDesc: '<strong>Scenario Analysis:</strong> Feasibility check for new deals using industry-standard assumptions (FMV Step-up 17.5%, DSCR 1.30, standard 99/5 Partnership Flip). 💡 Quick IC hurdle decision before Excel model is built.',
+    valModeCalibDesc: '<strong>Actual Model:</strong> Replicates a constructed Excel PF model. Reflects actual deal structure (e.g. Neptune: FMV Step-up 23%, Pay-Go 9.2%, NOL offset). 💡 Parameter tweaks enable "what-if" analysis from the actual baseline.',
     valModeInfoTitle: '⚙️ Calculation Mode Comparison',
     valModeInfoUsage: 'Usage', valModeInfoDebt: 'Debt Structure', valModeInfoFlip: 'Partnership Flip',
     valModeInfoTax: 'Tax', valModeInfoCapex: 'CAPEX', valModeInfoAccuracy: 'Accuracy',
-    valModeCalibUsage: 'Excel model replication/verification',
-    valModePredictUsage: 'New project prediction',
+    valModeCalibUsage: 'Excel model replication + what-if analysis',
+    valModePredictUsage: 'New deal feasibility analysis',
     valModeInfoHelp: '💡 Which one should I use?',
-    valModeInfoHelpCalib: '• To <strong>upload Excel</strong> and verify <strong>same numbers</strong> → <strong style="color:#c4b5fd">Calibration</strong>',
-    valModeInfoHelpPredict: '• For <strong>new project</strong> with parameters only, to <strong>predict IRR</strong> → <strong style="color:#6ee7b7">Prediction</strong>',
+    valModeInfoHelpCalib: '• Uploaded Excel model + verify/analyze → <strong style="color:#c4b5fd">Actual Model</strong>',
+    valModeInfoHelpPredict: '• New deal with parameters only → <strong style="color:#6ee7b7">Scenario Analysis</strong>',
     valModeInfoNote: '※ After Excel upload, run Integrity Check to get an automatic mode recommendation.',
     
     // Integrity Check
