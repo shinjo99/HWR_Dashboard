@@ -89,11 +89,11 @@ function valApplyLanguage() {
   
   // ─── 좌측 사이드바 섹션 제목 ───
   var secTitles = document.querySelectorAll('.val-sec-title');
-  // 순서: 계산 모드, Project, Revenue, CAPEX, OPEX, BESS, Debt, Credit, Advanced
-  // (Integrity Check는 상단바로 이관됨 — secMap에서 제외)
+  // 실제 HTML DOM 순서 (index.html L6815 이후):
+  // Calc Mode → Project → Revenue → Deal Structure → CAPEX → OPEX → Debt → Credit → BESS Augmentation
   var secMap = ['valCalcMode', 'valSecProject', 'valSecRevenue',
-                'valSecCapex', 'valSecOpex', 'valSecBess', 'valSecDebt',
-                'valSecCredit', 'valSecAdvanced'];
+                'valSecDealStructure', 'valSecCapex', 'valSecOpex',
+                'valSecDebt', 'valSecCredit', 'valSecBess'];
   secTitles.forEach(function(el, i) {
     if (secMap[i] && L[secMap[i]]) el.textContent = L[secMap[i]];
   });
