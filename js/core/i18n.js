@@ -78,7 +78,9 @@ const LANG = {
     valICChecking: '⏳ Checking...',
     valICReportTitle: '📋 Integrity Report',
     // Sidebar sections
-    valSecProject: 'Project', valSecRevenue: 'Revenue', valSecCapex: 'CAPEX',
+    valSecProject: 'Project', valSecRevenue: 'Revenue',
+    valSecDealStructure: 'Deal Structure',
+    valSecCapex: 'CAPEX',
     valSecOpex: 'OPEX', valSecBess: 'BESS Augmentation', valSecDebt: 'Debt/Tax',
     valSecCredit: 'Credit (ITC/PTC)', valSecAdvanced: 'Advanced',
 
@@ -169,7 +171,9 @@ const LANG = {
     valICChecking: '⏳ Checking...',
     valICReportTitle: '📋 Integrity Report',
     // Sidebar sections
-    valSecProject: 'Project', valSecRevenue: 'Revenue', valSecCapex: 'CAPEX',
+    valSecProject: 'Project', valSecRevenue: 'Revenue',
+    valSecDealStructure: 'Deal Structure',
+    valSecCapex: 'CAPEX',
     valSecOpex: 'OPEX', valSecBess: 'BESS Augmentation', valSecDebt: 'Debt/Tax',
     valSecCredit: 'Credit (ITC/PTC)', valSecAdvanced: 'Advanced',
     
