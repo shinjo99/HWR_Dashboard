@@ -6780,7 +6780,7 @@ document.addEventListener('DOMContentLoaded', function() {
           <strong>Partnership Flip:</strong> 25.5/7<br>
           <strong>Tax:</strong> NOL carryforward (Y1–9 offset)<br>
           <strong>CAPEX:</strong> FMV ≠ Construction<br>
-          <strong>Accuracy:</strong> 업로드 모델 ±0.15%p
+          <strong>Accuracy:</strong> Uploaded Model ±0.15%p
         </div>
       </div>
       <div style="padding:14px;background:rgba(16,185,129,0.06);border:1px solid rgba(16,185,129,0.2);border-radius:10px">
@@ -6791,7 +6791,7 @@ document.addEventListener('DOMContentLoaded', function() {
           <strong>Partnership Flip:</strong> 99/5 (standard)<br>
           <strong>Tax:</strong> MACRS standard Sponsor allocation<br>
           <strong>CAPEX:</strong> FMV = Construction<br>
-          <strong>Accuracy:</strong> 업계 표준 근사
+          <strong>Accuracy:</strong> Industry Standard Approximation
         </div>
       </div>
     </div>
@@ -6902,7 +6902,7 @@ document.addEventListener('DOMContentLoaded', function() {
         </div>
         <!-- ⚠️ Prediction FMV 경고 -->
         <div id="vi-prediction-fmv-note" style="display:none;margin-top:8px;padding:8px;background:rgba(245,158,11,0.08);border:1px solid rgba(245,158,11,0.3);border-radius:6px;font-size:9px;color:#fbbf24;line-height:1.5">
-          💡 <strong>Prediction mode:</strong> The CAPEX total above equals <strong>FMV</strong>이며, Dev Margin/EPC Margin이 Y0 Sponsor 현금유입으로 반영됩니다.
+          💡 <strong>Prediction mode:</strong> The CAPEX total above equals <strong>FMV</strong>; Dev Margin / EPC Margin are booked as Y0 Sponsor cash inflow.
         </div>
       </div>
     </div>
@@ -7003,7 +7003,7 @@ document.addEventListener('DOMContentLoaded', function() {
       <button id="val-calc-btn" class="val-calc-btn">Calculate IRR / Margin</button>
       <div id="val-calc-msg" class="val-calc-msg"></div>
       <button id="val-save-version-btn" onclick="valShowSaveModal()" style="display:none;margin-top:8px;width:100%;padding:8px;border:1px solid var(--blue-h);border-radius:8px;background:rgba(37,99,235,.08);color:var(--blue-h);font-size:11px;font-weight:700;cursor:pointer;font-family:var(--font);align-items:center;justify-content:center;gap:6px">
-        💾 버전 저장
+        💾 Save Version
       </button>
     </div>
 
@@ -7632,7 +7632,7 @@ document.addEventListener('DOMContentLoaded', function() {
             <div>
               <div style="font-size:12px;font-weight:700;color:var(--t1)">🔋 BESS Tolling Price (AI Research)</div>
               <div style="font-size:9px;color:var(--t3);margin-top:1px">
-                공식 index 없음 · <span id="bm-bess-meta" style="color:var(--t2)">Research not run</span>
+                No official index · <span id="bm-bess-meta" style="color:var(--t2)">Research not run</span>
               </div>
             </div>
           </div>
@@ -7714,10 +7714,10 @@ document.addEventListener('DOMContentLoaded', function() {
           <!-- Divider -->
           <div style="width:1px;height:20px;background:var(--border);margin:0 4px"></div>
 
-          <!-- 언어 토글 (segmented control) — 처음부터 노출, 기본 KO -->
+          <!-- 언어 토글 (segmented control) — 처음부터 노출, 기본 EN (Valuation = English-only; IC Opinion can toggle to KO) -->
           <div id="cf-lang-toggle" style="display:flex;align-items:center;height:32px;background:var(--surface);border:1px solid var(--border2);border-radius:8px;padding:3px;box-sizing:border-box;gap:2px;position:relative">
-            <button onclick="valCFLang('kr')" data-l="kr" id="cf-lang-kr" style="position:relative;z-index:1;padding:0 14px;height:24px;border:none;background:var(--blue-d);border-radius:6px;font-size:10px;font-weight:700;cursor:pointer;font-family:var(--font);color:#fff;letter-spacing:.04em;transition:all .15s;box-shadow:0 1px 3px rgba(0,0,0,.25)">한국어</button>
-            <button onclick="valCFLang('en')" data-l="en" id="cf-lang-en" style="position:relative;z-index:1;padding:0 14px;height:24px;border:none;background:transparent;border-radius:6px;font-size:10px;font-weight:600;cursor:pointer;font-family:var(--font);color:var(--t3);letter-spacing:.04em;transition:all .15s">English</button>
+            <button onclick="valCFLang('kr')" data-l="kr" id="cf-lang-kr" style="position:relative;z-index:1;padding:0 14px;height:24px;border:none;background:transparent;border-radius:6px;font-size:10px;font-weight:600;cursor:pointer;font-family:var(--font);color:var(--t3);letter-spacing:.04em;transition:all .15s">한국어</button>
+            <button onclick="valCFLang('en')" data-l="en" id="cf-lang-en" style="position:relative;z-index:1;padding:0 14px;height:24px;border:none;background:var(--blue-d);border-radius:6px;font-size:10px;font-weight:700;cursor:pointer;font-family:var(--font);color:#fff;letter-spacing:.04em;transition:all .15s;box-shadow:0 1px 3px rgba(0,0,0,.25)">English</button>
           </div>
 
           <!-- Run AI Analysis 버튼 -->
