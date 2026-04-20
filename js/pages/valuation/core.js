@@ -617,9 +617,19 @@ function valDisplayData(data, safeId) {
   //   🔮 Scenario Analysis (prediction):
   //     - 엔진 계산 값 사용 (levered_irr, sponsor_irr, unlevered_irr)
   //     - After NOL 박스는 N/A (Prediction은 Immediate benefit mode)
+  //
+  // state 결정 로직 (하드닝):
+  //   우선순위: outputs.calibration_mode (계산 시 실제로 사용된 모드)
+  //           → window._calibrationMode (UI state)
+  //           → localStorage (fallback)
+  //   이유: 계산 후 재렌더링 시 UI state가 리셋되는 엣지 케이스 대응
   // ════════════════════════════════════════════════════════════════════
   var irrPct = function(v) { return (v != null && !isNaN(v)) ? (v * 100).toFixed(2) + '%' : '—'; };
-  var isScenarioMode = (window._calibrationMode === 'prediction');
+  var modeNow = (o && o.calibration_mode) 
+             || window._calibrationMode 
+             || localStorage.getItem('val_calc_mode') 
+             || 'calibration';
+  var isScenarioMode = (modeNow === 'prediction');
   
   // Lev Pre-Tax
   el = document.getElementById('vo-irr-lev-pretax');
