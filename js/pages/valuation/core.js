@@ -52,7 +52,7 @@ function valGetThresholds() {
 
 function valApplyLanguage() {
   // Valuation 페이지 전체 한글/영어 텍스트 동적 적용
-  var L = LANG[currentLang];
+  var L = LANG.en;  // Valuation is English-only (see PR: feat/valuation-english-only)
   if (!L) return;
   
   // 헬퍼: ID 또는 selector로 텍스트/HTML 적용
@@ -141,7 +141,7 @@ function valApplyLanguage() {
             '<strong>' + L.valModeInfoFlip + ':</strong> 25.5/7<br>' +
             '<strong>' + L.valModeInfoTax + ':</strong> NOL carryforward (Y1~9 offset)<br>' +
             '<strong>' + L.valModeInfoCapex + ':</strong> FMV ≠ Construction<br>' +
-            '<strong>' + L.valModeInfoAccuracy + ':</strong> 업로드 모델 ±0.15%p' +
+            '<strong>' + L.valModeInfoAccuracy + ':</strong> Uploaded Model ±0.15%p' +
           '</div>' +
         '</div>' +
         '<div style="padding:14px;background:rgba(16,185,129,0.06);border:1px solid rgba(16,185,129,0.2);border-radius:10px">' +
@@ -179,21 +179,17 @@ function valApplyLanguage() {
     dataBadge.textContent = L.valNoData;
   }
   
-  // ─── 추가 한글 텍스트들 ───
+  // ─── Upload button label (English-only) ───
   // Upload fname
   var uploadFname = document.getElementById('val-upload-fname');
   if (uploadFname) {
-    if (currentLang === 'en' && uploadFname.textContent.includes('업로드')) {
-      uploadFname.textContent = 'PF Model Upload (.xlsb / .xlsx)';
-    } else if (currentLang === 'ko' && uploadFname.textContent.includes('Upload')) {
-      uploadFname.textContent = 'PF Model 업로드 (.xlsb / .xlsx)';
-    }
+    uploadFname.textContent = 'PF Model Upload (.xlsb / .xlsx)';
   }
-  
+
   // "No recipient" 정적 옵션
   document.querySelectorAll('option').forEach(function(opt) {
     if (opt.textContent.includes('No recipient') || opt.textContent.includes('No share target')) {
-      opt.textContent = currentLang === 'en' ? '— No share target —' : '— No recipient —';
+      opt.textContent = '— No share target —';
     }
   });
 }
@@ -242,7 +238,7 @@ function valLoadProject(projectId) {
       tab.style.opacity = '.35';
       tab.style.cursor = 'not-allowed';
       tab.style.pointerEvents = 'none';
-      tab.title = '저장된 Valuation 데이터가 있거나 Calculate 후 활성화됩니다';
+      tab.title = 'Activates when saved Valuation data exists or after Calculate';
     }
   });
 
@@ -296,14 +292,14 @@ function valLoadProject(projectId) {
   if (checkFile) checkFile.onchange = async function() {
     var file = this.files[0]; if (!file) return;
     var result = document.getElementById('vl-check-result');
-    var L = (typeof LANG !== 'undefined' && LANG[currentLang]) || {};
+    var L = (typeof LANG !== 'undefined' && LANG.en) || {};  // Valuation = English-only
     if (icIcon) icIcon.textContent = '⏳';
     if (icBtnText) icBtnText.textContent = L.valICChecking || 'Checking...';
     if (icLabel) icLabel.style.pointerEvents = 'none';
     try {
       var token = window._authToken || localStorage.getItem('hwr_token');
       var form = new FormData(); form.append('file', file);
-      var res = await fetch(window.API_URL + '/valuation/integrity-check?lang=' + (currentLang || 'ko'), {
+      var res = await fetch(window.API_URL + '/valuation/integrity-check?lang=en', {
         method: 'POST', headers: {'Authorization': 'Bearer '+token}, body: form
       });
       var data = await res.json();
@@ -332,7 +328,7 @@ function valLoadProject(projectId) {
     var s = data.summary || {};
     var checks = data.checks || [];
     var meta = data.metadata || {};
-    var L = LANG[currentLang] || LANG.ko;
+    var L = LANG.en;  // Valuation = English-only (Integrity Report)
     // 절제된 tone: 화려한 이모지 대신 단색 dot + 한 글자 라벨
     var sevConfig = {
       'HIGH':   {dot:'#ef4444', label:'HIGH',   accent:'rgba(239,68,68,0.3)',  textColor:'#fca5a5'},
@@ -456,7 +452,7 @@ function valLoadProject(projectId) {
   if (decompRunBtn) decompRunBtn.onclick = async function() {
     var runTxt = document.getElementById('vo-decomp-run-txt');
     var content = document.getElementById('vo-decomp-content');
-    if (runTxt) runTxt.textContent = currentLang === 'en' ? '⏳ Analyzing...' : '⏳ 분석 중...';
+    if (runTxt) runTxt.textContent = '⏳ Analyzing...';
     this.disabled = true;
     try {
       var token = window._authToken || localStorage.getItem('hwr_token');
@@ -464,11 +460,9 @@ function valLoadProject(projectId) {
       // 최신 inputs 수집 (Calculate 실행된 결과 기준)
       var inputs = window._lastValInputs || {};
       if (!inputs || Object.keys(inputs).length === 0) {
-        alert(currentLang === 'en' 
-          ? 'Please click Calculate first to run the analysis.' 
-          : '먼저 Calculate를 실행한 후 분석해주세요.');
+        alert('Please click Calculate first to run the analysis.');
         this.disabled = false;
-        if (runTxt) runTxt.textContent = currentLang === 'en' ? 'Run Analysis' : 'Run Analysis';
+        if (runTxt) runTxt.textContent = 'Run Analysis';
         return;
       }
       var res = await fetch(window.API_URL + '/valuation/decompose-irr', {
@@ -481,10 +475,10 @@ function valLoadProject(projectId) {
       window._lastDecomposition = data.result;
       voRenderDecomposition(data.result);
       if (content) content.style.display = 'block';
-      if (runTxt) runTxt.textContent = currentLang === 'en' ? '↻ Re-analyze' : '↻ 재분석';
+      if (runTxt) runTxt.textContent = '↻ Re-analyze';
     } catch(e) {
       alert('❌ ' + e.message);
-      if (runTxt) runTxt.textContent = currentLang === 'en' ? 'Run Analysis' : 'Run Analysis';
+      if (runTxt) runTxt.textContent = 'Run Analysis';
     } finally {
       this.disabled = false;
     }
@@ -503,7 +497,7 @@ function valLoadProject(projectId) {
     container.innerHTML = '';
     var factors = d.factors || [];
     factors.forEach(function(f) {
-      var name = currentLang === 'en' ? f.name_en : f.name_ko;
+      var name = f.name_en;  // Valuation = English-only; backend still returns both
       var fromC = f.from_calib;
       var toP = f.to_predict;
       var sign2 = f.delta_pp >= 0 ? '+' : '';
@@ -537,10 +531,10 @@ function valLoadProject(projectId) {
     var txt = document.getElementById('vo-decomp-explain-txt');
     var result = document.getElementById('vo-decomp-explanation');
     if (!window._lastDecomposition) {
-      alert(currentLang === 'en' ? 'Run analysis first.' : '먼저 분석을 실행해주세요.');
+      alert('Run analysis first.');
       return;
     }
-    if (txt) txt.textContent = currentLang === 'en' ? '⏳ Generating...' : '⏳ 생성 중...';
+    if (txt) txt.textContent = '⏳ Generating...';
     this.disabled = true;
     try {
       var token = window._authToken || localStorage.getItem('hwr_token');
@@ -550,7 +544,7 @@ function valLoadProject(projectId) {
         body: JSON.stringify({
           project_id: (document.getElementById('val-proj-select')||{}).value || '',
           decomposition: window._lastDecomposition,
-          lang: currentLang || 'ko'
+          lang: 'en'
         })
       });
       var data = await res.json();
@@ -559,10 +553,10 @@ function valLoadProject(projectId) {
         result.textContent = data.explanation || '';
         result.style.display = 'block';
       }
-      if (txt) txt.textContent = currentLang === 'en' ? '↻ Regenerate' : '↻ 재생성';
+      if (txt) txt.textContent = '↻ Regenerate';
     } catch(e) {
       alert('❌ ' + e.message);
-      if (txt) txt.textContent = currentLang === 'en' ? 'Get AI Explanation' : 'AI 자세한 설명 받기';
+      if (txt) txt.textContent = 'Get AI Explanation';
     } finally {
       this.disabled = false;
     }
@@ -635,19 +629,19 @@ function valDisplayData(data, safeId) {
     // 1. Unlevered vs WACC — 가치 창출 여부
     if (uPre && wacc) {
       var spread = (uPre - wacc) * 100;
-      var verdict = spread > 0 ? '가치 창출' : '가치 파괴';
+      var verdict = spread > 0 ? 'Value Creation' : 'Value Destruction';
       var col = spread > 0 ? 'var(--green)' : 'var(--red)';
       insights.push('Unlevered '+(uPre*100).toFixed(2)+'% '+(spread>0?'>':'<')+' WACC '+(wacc*100).toFixed(2)+'% → <strong style="color:'+col+'">'+verdict+' '+(spread>0?'+':'')+spread.toFixed(2)+'%p</strong>');
     }
     // 2. Levered vs Unlevered — 레버리지 효과
     if (lPre && uPre) {
       var lev = (lPre - uPre) * 100;
-      insights.push('레버리지 효과: <strong>+'+lev.toFixed(2)+'%p</strong>');
+      insights.push('Leverage Effect: <strong>+'+lev.toFixed(2)+'%p</strong>');
     }
     // 3. NOL 지연 손실
     if (atBefore && atAfter) {
       var nolLoss = (atBefore - atAfter) * 100;
-      insights.push('NOL 지연 손실: <strong style="color:var(--amber)">-'+nolLoss.toFixed(2)+'%p</strong>');
+      insights.push('NOL Deferral Loss: <strong style="color:var(--amber)">-'+nolLoss.toFixed(2)+'%p</strong>');
     }
 
     if (insights.length) {
@@ -761,7 +755,7 @@ function valDisplayData(data, safeId) {
           ? '<div style="margin-top:5px;padding:4px 8px;background:rgba(255,255,255,.03);border-left:2px solid var(--border2);border-radius:0 4px 4px 0;font-size:10px;color:var(--t3);">📝 '+reason+(approver?' · ✅ '+approver:'')+'</div>'
           : (approver ? '<div style="font-size:10px;color:var(--green);margin-top:2px">✅ '+approver+'</div>' : '');
         var vEnc = encodeURIComponent(JSON.stringify(v));
-        return '<div class="val-history-item" onclick="valLoadVersionEncoded(this)" data-ver="'+vEnc+'" data-sid="'+safeId+'" title="클릭하여 로드" style="flex-direction:column;align-items:stretch">' +
+        return '<div class="val-history-item" onclick="valLoadVersionEncoded(this)" data-ver="'+vEnc+'" data-sid="'+safeId+'" title="Click to load" style="flex-direction:column;align-items:stretch">' +
           '<div style="display:flex;justify-content:space-between;align-items:flex-start">' +
             '<div style="flex:1;min-width:0">' +
               '<div class="val-hi-name">'+name+scenario+'</div>' +
@@ -797,7 +791,7 @@ function valLoadVersion(v, safeId) {
   var btn = document.querySelector('.val-tab');
   if (btn) valSwitchTab('overview', btn);
   var msg = document.getElementById('val-calc-msg');
-  if (msg) { msg.textContent = '✓ 버전 로드됨: ' + (v.filename||''); msg.style.color='var(--green)'; }
+  if (msg) { msg.textContent = '✓ Version loaded: ' + (v.filename||''); msg.style.color='var(--green)'; }
 }
 
 // ── Hurdle Check UI Updated (계산 결과 + 임계값 기반)
@@ -816,14 +810,14 @@ function valUpdateHurdleCheck(r, inputs) {
 
   // IRR 4단계 평가 (9/10/11%)
   function irrTier(v) {
-    if (v == null) return { emoji: '—', txt: '계산 필요', col: 'var(--t3)', bg: 'var(--surface2)' };
+    if (v == null) return { emoji: '—', txt: 'Needs calc', col: 'var(--t3)', bg: 'var(--surface2)' };
     if (v >= 11.0) return { emoji: '✅', txt: 'EXCELLENT', col: '#10B981', bg: 'rgba(16,185,129,.15)' };
     if (v >= 10.0) return { emoji: '🟢', txt: 'STRONG', col: '#10B981', bg: 'rgba(16,185,129,.10)' };
     if (v >= irrHurdle) return { emoji: '🟡', txt: 'MARGINAL', col: 'var(--amber)', bg: 'rgba(245,158,11,.12)' };
     return { emoji: '🔴', txt: 'BELOW THRESHOLD', col: 'var(--red)', bg: 'rgba(239,68,68,.12)' };
   }
   function marginTier(v) {
-    if (v == null) return { emoji: '—', txt: '계산 필요', col: 'var(--t3)', bg: 'var(--surface2)' };
+    if (v == null) return { emoji: '—', txt: 'Needs calc', col: 'var(--t3)', bg: 'var(--surface2)' };
     if (v >= marginHurdle * 1.2) return { emoji: '✅', txt: 'EXCELLENT', col: '#10B981', bg: 'rgba(16,185,129,.15)' };
     if (v >= marginHurdle) return { emoji: '🟢', txt: 'PASS', col: '#10B981', bg: 'rgba(16,185,129,.10)' };
     if (v >= marginHurdle * 0.9) return { emoji: '🟡', txt: 'MARGINAL', col: 'var(--amber)', bg: 'rgba(245,158,11,.12)' };
@@ -947,21 +941,21 @@ async function valShowSaveModal() {
   // 공유 대상 드롭다운 — 전체 사용자 목록 (admin 엔드포인트 재활용, 본인 제외)
   var approverSel = document.getElementById('vsm-approver');
   if (approverSel) {
-    approverSel.innerHTML = '<option value="">— 로드 중... —</option>';
+    approverSel.innerHTML = '<option value="">— Loading... —</option>';
     var myEmail = (window.HWR_AUTH||{}).email || '';
     try {
       var admins = await apiCall('GET', '/auth/admins');
       if (admins && admins.admins && admins.admins.length) {
         var others = admins.admins.filter(function(a){return a !== myEmail;});
-        approverSel.innerHTML = '<option value="">— '+(currentLang==='en'?'No share target':'No recipient')+' —</option>' +
+        approverSel.innerHTML = '<option value="">— No share target —</option>' +
           others.map(function(a){
             return '<option value="'+a+'">'+a+'</option>';
           }).join('');
       } else {
-        approverSel.innerHTML = '<option value="">— '+(currentLang==='en'?'No share target':'No recipient')+' —</option>';
+        approverSel.innerHTML = '<option value="">— No share target —</option>';
       }
     } catch(e) {
-      approverSel.innerHTML = '<option value="">— '+(currentLang==='en'?'No share target':'No recipient')+' —</option>';
+      approverSel.innerHTML = '<option value="">— No share target —</option>';
     }
   }
 
@@ -981,11 +975,11 @@ async function valSaveVersion() {
   var reason = (document.getElementById('vsm-reason')||{}).value||'';
   var approver = (document.getElementById('vsm-approver')||{}).value||'';  // 이제는 "공유 대상" (선택)
   var scenario = (document.getElementById('vsm-scenario')||{}).value||'';
-  if (!reason.trim()) { alert('변경 요약을 입력하세요.'); return; }
+  if (!reason.trim()) { alert('Enter change summary.'); return; }
   // approver는 선택 필드 — 검증 제거
 
   var calc = window._lastCalcResult;
-  if (!calc) { alert(currentLang==='en'?'Please run Calculate first.':'Please run Calculate first.'); return; }
+  if (!calc) { alert('Please run Calculate first.'); return; }
 
   var safeId = calc.projectId.replace(/[/.]/g,'_');
   var payload = {
@@ -1006,7 +1000,7 @@ async function valSaveVersion() {
 
     valCloseSaveModal();
     var saveBtn = document.getElementById('val-save-version-btn');
-    if (saveBtn) { saveBtn.textContent = '✓ 저장됨'; saveBtn.style.borderColor='var(--green)'; saveBtn.style.color='var(--green)'; saveBtn.style.background='rgba(16,185,129,.08)'; saveBtn.style.pointerEvents='none'; }
+    if (saveBtn) { saveBtn.textContent = '✓ Saved'; saveBtn.style.borderColor='var(--green)'; saveBtn.style.color='var(--green)'; saveBtn.style.background='rgba(16,185,129,.08)'; saveBtn.style.pointerEvents='none'; }
 
     // History 탭 갱신
     var histEl = document.getElementById('vo-history-list');
@@ -1019,7 +1013,7 @@ async function valSaveVersion() {
       var el = document.getElementById(id); if(el) el.value='';
     });
   } catch(e) {
-    alert('저장 실패: '+e.message);
+    alert('Save failed: '+e.message);
     var btn2 = document.querySelector('#val-save-modal button:last-child');
     if (btn2) { btn2.textContent='💾 Save'; btn2.disabled=false; }
   }
@@ -1080,10 +1074,10 @@ function valLoadHistory(safeId) {
       html += '<span style="color:var(--t2)">👤 '+savedByShort+'</span>';
       if (sharedWith) {
         html += '<span style="color:var(--t3)">·</span>';
-        html += '<span style="color:'+(isSharedToMe?'var(--blue-h)':'var(--t3)')+';'+(isSharedToMe?'font-weight:700':'')+'">🔗 '+sharedWithShort+(isSharedToMe?' (나에게 공유됨)':'')+'</span>';
+        html += '<span style="color:'+(isSharedToMe?'var(--blue-h)':'var(--t3)')+';'+(isSharedToMe?'font-weight:700':'')+'">🔗 '+sharedWithShort+(isSharedToMe?' (shared with me)':'')+'</span>';
       }
       if (legacyRejected) {
-        html += '<span style="color:var(--red);font-weight:600">· 폐기</span>';
+        html += '<span style="color:var(--red);font-weight:600">· Discarded</span>';
       }
       html += '</div>';
       html += '</div>';

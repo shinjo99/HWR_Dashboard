@@ -35,7 +35,7 @@ async function valExportPDF() {
 
     // IC Opinion AI 분석 결과 (있으면 포함)
     var icAnalysis = {};
-    var lang = window._cfLang || 'kr';
+    var lang = window._cfLang || 'en';  // Default English (IC Opinion toggle overrides)
     var cached = lang === 'en' ? window._cfAnalysisEn : window._cfAnalysisKr;
     if (cached) {
       icAnalysis = {
@@ -118,7 +118,7 @@ async function valExportPDF() {
     setTimeout(function(){ URL.revokeObjectURL(url); }, 3000);
 
     if (btn) {
-      btn.textContent = '✓ 다운로드 완료';
+      btn.textContent = '✓ Downloaded';
       setTimeout(function() {
         btn.textContent = '✨ Export IC Opinion';
         btn.disabled = false;
@@ -126,7 +126,7 @@ async function valExportPDF() {
       }, 2500);
     }
   } catch(e) {
-    alert('IC Summary PDF 생성 실패: ' + e.message);
+    alert('IC Summary PDF generation failed: ' + e.message);
     if (btn) { btn.textContent = '✨ Export IC Opinion'; btn.disabled = false; btn.style.opacity = '1'; }
   }
 }

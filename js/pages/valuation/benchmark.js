@@ -101,7 +101,7 @@ async function valLoadBenchmark() {
     window._bmIsoCounts = isoCounts;
 
     if (!rows.length) {
-      if(loadEl) loadEl.innerHTML='<div class="val-empty-icon">📭</div><div class="val-empty-title">'+(currentLang==='en'?'No Valuation data uploaded yet':'아직 업로드된 Valuation 데이터가 없습니다')+'</div>';
+      if(loadEl) loadEl.innerHTML='<div class="val-empty-icon">📭</div><div class="val-empty-title">'+(currentLang==='en'?'No Valuation data uploaded yet':'No Valuation data uploaded yet')+'</div>';
       return;
     }
 
@@ -116,7 +116,7 @@ async function valLoadBenchmark() {
     var avgMargin = rows.filter(function(r){return r.dev_margin>0;}).reduce(function(s,r){return s+r.dev_margin;},0) / (rows.filter(function(r){return r.dev_margin>0;}).length||1);
 
     if(statsEl) statsEl.innerHTML = [
-      {lbl:'Projects', val:rows.length+'개', c:'var(--blue-h)'},
+      {lbl:'Projects', val:rows.length, c:'var(--blue-h)'},
       {lbl:'Avg Sponsor IRR', val:(avgIRR*100).toFixed(2)+'%', c:'var(--green)'},
       {lbl:'Avg PPA', val:'$'+avgPPA.toFixed(2)+'/MWh', c:'var(--amber)'},
       {lbl:'Avg Dev Margin', val:'$'+avgMargin.toFixed(1)+'M', c:'var(--purple)'},
@@ -130,7 +130,7 @@ async function valLoadBenchmark() {
     // Mini IRR bar chart
     if(chartEl && irrs.length) {
       var maxVal = Math.max(maxIRR*100, 15);
-      chartEl.innerHTML = '<div style="font-size:9px;color:var(--t3);font-weight:700;letter-spacing:.08em;text-transform:uppercase;margin-bottom:8px">Sponsor IRR 분포</div>' +
+      chartEl.innerHTML = '<div style="font-size:9px;color:var(--t3);font-weight:700;letter-spacing:.08em;text-transform:uppercase;margin-bottom:8px">Sponsor IRR Distribution</div>' +
         rows.filter(function(r){return r.sponsor_irr>0;}).map(function(r){
           var pct = (r.sponsor_irr*100/maxVal*100).toFixed(1);
           var col = r.sponsor_irr>=0.10?'var(--green)':r.sponsor_irr>=0.07?'var(--amber)':'var(--red)';
@@ -153,12 +153,12 @@ async function valLoadBenchmark() {
       var cnt = isoCounts[iso] || 0;
       if (iso !== 'ALL' && !cnt) return;
       var isActive = iso === isoFilter;
-      var lbl = iso === 'ALL' ? '전체' : iso === '—' ? 'ISO 미지정' : iso;
+      var lbl = iso === 'ALL' ? 'All' : iso === '—' ? 'No ISO' : iso;
       isoTabsHtml += '<button onclick="valFilterByISO(\''+iso+'\')" style="padding:4px 10px;background:'+(isActive?'var(--blue-d)':'transparent')+';border:1px solid '+(isActive?'var(--blue-d)':'var(--border2)')+';border-radius:14px;font-size:10px;color:'+(isActive?'#fff':'var(--t2)')+';cursor:pointer;font-family:var(--font);font-weight:'+(isActive?'700':'500')+'">'+lbl+' ('+cnt+')</button>';
     });
     isoTabsHtml += '</div>';
 
-    var cols = ['프로젝트','ISO','PPA ($/MWh)','PPA Term','BESS Toll','CAPEX ($M)','Dev Margin','Sponsor IRR','EBITDA Yield','Upload Date'];
+    var cols = ['Project','ISO','PPA ($/MWh)','PPA Term','BESS Toll','CAPEX ($M)','Dev Margin','Sponsor IRR','EBITDA Yield','Upload Date'];
     var html = isoTabsHtml + '<table style="width:100%;border-collapse:collapse;font-size:11px;font-variant-numeric:tabular-nums">';
     html += '<thead><tr style="border-bottom:1px solid var(--border)">';
     cols.forEach(function(col,i){
@@ -172,7 +172,7 @@ async function valLoadBenchmark() {
       var isCur = r.isCurrent;
       var bg = isCur ? 'background:rgba(37,99,235,.08);' : '';
       var sirrColor = r.sponsor_irr>=0.10?'var(--green)':r.sponsor_irr>=0.07?'var(--amber)':'var(--red)';
-      html += '<tr style="border-bottom:1px solid rgba(255,255,255,.04);'+bg+'cursor:pointer" onclick="valLoadBenchmarkProject(this.dataset.pid)" data-pid="'+r.pid+'" title="클릭하여 로드">';
+      html += '<tr style="border-bottom:1px solid rgba(255,255,255,.04);'+bg+'cursor:pointer" onclick="valLoadBenchmarkProject(this.dataset.pid)" data-pid="'+r.pid+'" title="Click to load">';
       html += '<td style="padding:8px 12px;font-weight:'+(isCur?'700':'400')+';color:var(--t1)">'+r.name+(isCur?' ◀':'')+'</td>';
       html += '<td style="padding:8px 12px;color:var(--t3);font-size:10px;font-weight:600">'+r.iso+'</td>';
       html += '<td style="padding:8px 12px;text-align:right;color:var(--t2)">'+(r.ppa?'$'+r.ppa.toFixed(2):'—')+'</td>';
@@ -199,7 +199,7 @@ async function valLoadBenchmark() {
 
     // 20개 초과 시 힌트
     if (rows.length > 20) {
-      html += '<div style="font-size:9px;color:var(--t3);margin-top:6px;text-align:center;font-style:italic">총 '+rows.length+'개 중 IRR 상위 20개 표시 (ISO 필터 또는 검색으로 세분화)</div>';
+      html += '<div style="font-size:9px;color:var(--t3);margin-top:6px;text-align:center;font-style:italic">Total '+rows.length+' · Top 20 by IRR shown (refine via ISO filter or search)</div>';
     }
 
     tableEl.innerHTML = html;
@@ -207,7 +207,7 @@ async function valLoadBenchmark() {
     if(tableEl) tableEl.style.display='block';
     _bmLoaded = true;
   } catch(e) {
-    if(loadEl) loadEl.innerHTML='<div class="val-empty-icon">⚠️</div><div class="val-empty-title">'+(currentLang==='en'?'Load failed: ':'로드 실패: ')+e.message+'</div>';
+    if(loadEl) loadEl.innerHTML='<div class="val-empty-icon">⚠️</div><div class="val-empty-title">'+(currentLang==='en'?'Load failed: ':'Load failed: ')+e.message+'</div>';
   }
 }
 
@@ -306,9 +306,9 @@ function valOpenLevelTenModal() {
     }
     // 업로드된 분기는 제외 (이미 있는 것 → '(업로드됨)' 마크)
     var existing = window._levelTenData || {};
-    qSel.innerHTML = '<option value="">— 분기 선택 —</option>' +
+    qSel.innerHTML = '<option value="">— Select Quarter —</option>' +
       quarters.map(function(q) {
-        var already = existing[q] ? ' ✓ 업로드됨' : '';
+        var already = existing[q] ? ' ✓ Uploaded' : '';
         return '<option value="'+q+'">'+q+already+'</option>';
       }).join('');
   }
@@ -338,31 +338,31 @@ async function valRunBessResearch() {
   var content = document.getElementById('bm-bess-content');
   if (!btn || !content) return;
 
-  if (!confirm('AI가 웹서치로 ISO별 BESS tolling 가격을 조사합니다. (30-60초 소요, Claude API 호출)\n\n진행할까요?')) return;
+  if (!confirm('AI will research BESS tolling prices by ISO via web search. (30-60s, Claude API call)\n\nProceed?')) return;
 
-  btn.textContent = '⏳ 리서치 중...';
+  btn.textContent = '⏳ Researching...';
   btn.disabled = true;
   btn.style.opacity = '.6';
 
   content.style.display = 'block';
   content.innerHTML = '<div style="padding:40px 20px;text-align:center;color:var(--t3);font-size:11px">' +
     '<div style="font-size:28px;margin-bottom:10px">🔍</div>' +
-    '<div style="font-weight:700;color:var(--t2);margin-bottom:4px">AI 웹서치 진행 중</div>' +
-    '<div>Wood Mackenzie, BloombergNEF, ERCOT/CAISO 리포트, 업계 뉴스를 조사 중...</div>' +
-    '<div style="margin-top:8px;font-size:10px">최대 3분 소요 · 완료되면 자동 저장됩니다</div>' +
+    '<div style="font-weight:700;color:var(--t2);margin-bottom:4px">AI web search in progress</div>' +
+    '<div>Researching Wood Mackenzie, BloombergNEF, ERCOT/CAISO reports, industry news...</div>' +
+    '<div style="margin-top:8px;font-size:10px">Takes up to 3 minutes · Saved automatically when complete</div>' +
   '</div>';
 
   try {
     var data = await apiCall('POST', '/benchmark/bess-tolling/research', {});
-    if (!data || !data.ok) throw new Error('API 오류');
+    if (!data || !data.ok) throw new Error('API error');
     window._bessResearch = data.data;
     valRenderBessResearch(data.data);
   } catch(e) {
     content.innerHTML = '<div style="padding:20px;text-align:center;color:var(--red);font-size:11px">' +
-      '⚠️ 리서치 실패: ' + (e.message || 'Unknown error') +
+      '⚠️ Research failed: ' + (e.message || 'Unknown error') +
     '</div>';
   } finally {
-    btn.textContent = '🔍 AI 리서치';
+    btn.textContent = '🔍 AI Research';
     btn.disabled = false;
     btn.style.opacity = '1';
   }
@@ -396,13 +396,13 @@ function valRenderBessResearch(data) {
     var genDate = data.generated_at ? data.generated_at.slice(0,10) : '—';
     var iso_count = (data.iso_data || []).length;
     var confOverall = data.confidence_overall || 'medium';
-    metaEl.innerHTML = '리서치 ' + genDate + ' · ' + iso_count + '개 ISO · 전체 신뢰도: <span style="color:' + confColor(confOverall) + ';font-weight:700">' + confOverall.toUpperCase() + '</span>';
+    metaEl.innerHTML = 'Research ' + genDate + ' · ' + iso_count + ' ISOs · Overall confidence: <span style="color:' + confColor(confOverall) + ';font-weight:700">' + confOverall.toUpperCase() + '</span>';
   }
 
   var isoData = data.iso_data || [];
   if (!isoData.length) {
     content.innerHTML = '<div style="padding:20px;text-align:center;color:var(--t3);font-size:11px">' +
-      '📭 No data. ' + (data.caveats || '리서치 결과가 비어있습니다.') +
+      '📭 No data. ' + (data.caveats || 'Research results are empty.') +
     '</div>';
     return;
   }
@@ -417,7 +417,7 @@ function valRenderBessResearch(data) {
   var ourISO = (projMeta.iso||'').toUpperCase();
   var ourMatchKey = (regionInfo.levelten_region || regionInfo.sub_region || ourISO).toUpperCase();
 
-  // 우리 프로젝트 Toll + duration 추정
+  // Our Project Toll + duration 추정
   var ourToll = parseFloat((document.getElementById('vi-toll-p')||{}).value) || null;
   var bessMW = parseFloat((document.getElementById('vi-ess-p')||{}).value) || 0;
   var bessMWh = parseFloat((document.getElementById('vi-ess-eq')||{}).value) || 0;
@@ -441,10 +441,10 @@ function valRenderBessResearch(data) {
   }
   // P25/P75 설명 (교육용)
   html += '<div style="margin-top:8px;padding:6px 10px;background:rgba(37,99,235,.06);border-left:2px solid var(--blue-h);border-radius:4px;font-size:9.5px;color:var(--t2);line-height:1.6">';
-  html += '<b style="color:var(--blue-h)">📊 P25 / P75 How to read:</b> LevelTen 방식의 Offer Percentile. ';
-  html += '<b>P25</b>는 Bottom 25%ile of market offers (<span style="color:var(--green)">aggressive / low-priced offer</span>), ';
-  html += '<b>P75</b>는 상위 25%ile (<span style="color:var(--red)">conservative / high-priced offer</span>). ';
-  html += '우리가 P25에 가까우면 <b style="color:var(--green)">competitive pricing</b>, P75 초과면 <b style="color:var(--red)">overpriced</b> 신호.';
+  html += '<b style="color:var(--blue-h)">📊 P25 / P75 How to read:</b> LevelTen Offer Percentile. ';
+  html += '<b>P25</b> is the Bottom 25%ile of market offers (<span style="color:var(--green)">aggressive / low-priced offer</span>), ';
+  html += '<b>P75</b> is the Top 25%ile (<span style="color:var(--red)">conservative / high-priced offer</span>). ';
+  html += 'Near P25 is <b style="color:var(--green)">competitive pricing</b>; above P75 signals <b style="color:var(--red)">overpriced</b>.';
   html += '</div>';
   html += '</div>';
 
@@ -467,12 +467,12 @@ function valRenderBessResearch(data) {
     html += '<div style="font-size:10px;color:var(--t3);margin-top:2px">'+esc(regionInfo.display||ourIsoData.region)+'</div>';
     html += '</div>';
     html += '<div style="text-align:right">';
-    html += '<div style="font-size:9px;color:var(--t3)">우리 프로젝트</div>';
+    html += '<div style="font-size:9px;color:var(--t3)">Our Project</div>';
     if (ourToll) {
       html += '<div style="font-size:18px;font-weight:800;color:var(--amber);font-variant-numeric:tabular-nums">$'+ourToll.toFixed(2)+'</div>';
       html += '<div style="font-size:9.5px;color:var(--t3)">/kW-mo · '+ourDur+'h</div>';
     } else {
-      html += '<div style="font-size:13px;color:var(--t3);font-style:italic">Toll 입력 없음</div>';
+      html += '<div style="font-size:13px;color:var(--t3);font-style:italic">No Toll input</div>';
     }
     html += '</div>';
     html += '</div>';
@@ -482,22 +482,22 @@ function valRenderBessResearch(data) {
       var cmp, cmpCol, cmpIcon;
       if (ourToll < ourDurData.p25) {
         cmpCol = 'var(--green)'; cmpIcon = '✓';
-        cmp = '<b>시장 하단</b> (하위 25%ile 아래) · 보수적·저평가';
+        cmp = '<b>Market Bottom</b> (below 25%ile) · Conservative / underpriced';
       } else if (ourToll > ourDurData.p75) {
         cmpCol = 'var(--red)'; cmpIcon = '⚠️';
-        cmp = '<b>시장 상단 초과</b> (상위 25%ile 위) · 재협상 여지';
+        cmp = '<b>Above Market Top</b> (above 75%ile) · Room to renegotiate';
       } else {
         cmpCol = 'var(--amber)'; cmpIcon = '·';
         var pos = ((ourToll - ourDurData.p25) / (ourDurData.p75 - ourDurData.p25) * 100);
-        cmp = '<b>시장 범위 내</b> P25-P75 사이 · 상위 ' + pos.toFixed(0) + '%ile 위치';
+        cmp = '<b>Within Market Range</b> P25-P75 · Top ' + pos.toFixed(0) + '%ile position';
       }
       html += '<div style="padding:10px 14px;background:rgba(255,255,255,.04);border-left:3px solid '+cmpCol+';border-radius:0 6px 6px 0;margin-bottom:10px">';
-      html += '<div style="font-size:9px;color:var(--t3);font-weight:700;letter-spacing:.06em;margin-bottom:2px">💡 비교 결과 ('+ourIsoData.region+' '+ourDurData.hours+'h 기준)</div>';
+      html += '<div style="font-size:9px;color:var(--t3);font-weight:700;letter-spacing:.06em;margin-bottom:2px">💡 Comparison Result ('+ourIsoData.region+' '+ourDurData.hours+'h basis)</div>';
       html += '<div style="font-size:11.5px;color:'+cmpCol+'">'+cmpIcon+' '+cmp+'</div>';
       // 수치 상세
       var diff = ourToll - ((ourDurData.p25 + ourDurData.p75) / 2);
       var diffPct = (diff / ((ourDurData.p25 + ourDurData.p75) / 2)) * 100;
-      html += '<div style="font-size:10px;color:var(--t2);margin-top:4px;font-variant-numeric:tabular-nums">우리 <b>$'+ourToll.toFixed(2)+'</b> vs 중앙값 <b>$'+((ourDurData.p25+ourDurData.p75)/2).toFixed(2)+'</b> → '+(diff>=0?'+':'')+'$'+diff.toFixed(2)+' ('+(diffPct>=0?'+':'')+diffPct.toFixed(1)+'%)</div>';
+      html += '<div style="font-size:10px;color:var(--t2);margin-top:4px;font-variant-numeric:tabular-nums">Ours <b>$'+ourToll.toFixed(2)+'</b> vs Median <b>$'+((ourDurData.p25+ourDurData.p75)/2).toFixed(2)+'</b> → '+(diff>=0?'+':'')+'$'+diff.toFixed(2)+' ('+(diffPct>=0?'+':'')+diffPct.toFixed(1)+'%)</div>';
       html += '</div>';
     }
 
@@ -506,16 +506,16 @@ function valRenderBessResearch(data) {
       html += '<table style="width:100%;border-collapse:collapse;font-size:11px;font-variant-numeric:tabular-nums">';
       html += '<thead><tr style="background:var(--surface3)">' +
         '<th style="padding:6px 10px;text-align:left;font-size:9px;color:var(--t3);font-weight:700">Duration</th>' +
-        '<th style="padding:6px 10px;text-align:right;font-size:9px;color:var(--t3);font-weight:700">P25 (하위)</th>' +
-        '<th style="padding:6px 10px;text-align:right;font-size:9px;color:var(--t3);font-weight:700">P75 (상위)</th>' +
+        '<th style="padding:6px 10px;text-align:right;font-size:9px;color:var(--t3);font-weight:700">P25 (Low)</th>' +
+        '<th style="padding:6px 10px;text-align:right;font-size:9px;color:var(--t3);font-weight:700">P75 (High)</th>' +
         '<th style="padding:6px 10px;text-align:center;font-size:9px;color:var(--t3);font-weight:700">Confidence</th>' +
-        '<th style="padding:6px 10px;text-align:right;font-size:9px;color:var(--t3);font-weight:700">우리 Toll 대비</th>' +
+        '<th style="padding:6px 10px;text-align:right;font-size:9px;color:var(--t3);font-weight:700">vs Our Toll</th>' +
       '</tr></thead><tbody>';
       durs.forEach(function(d) {
         var isOurDur = ourDurData && d.hours === ourDurData.hours;
         var rowBg = isOurDur ? 'background:rgba(37,99,235,.08)' : '';
         html += '<tr style="border-bottom:1px solid rgba(255,255,255,.04);'+rowBg+'">';
-        html += '<td style="padding:7px 10px;color:'+(isOurDur?'var(--blue-h)':'var(--t1)')+';font-weight:'+(isOurDur?'800':'700')+'">'+d.hours+'h'+(isOurDur?' ← 우리':'')+'</td>';
+        html += '<td style="padding:7px 10px;color:'+(isOurDur?'var(--blue-h)':'var(--t1)')+';font-weight:'+(isOurDur?'800':'700')+'">'+d.hours+'h'+(isOurDur?' ← Ours':'')+'</td>';
         html += '<td style="padding:7px 10px;text-align:right;color:var(--green);font-weight:700">$'+Number(d.p25).toFixed(2)+'</td>';
         html += '<td style="padding:7px 10px;text-align:right;color:var(--amber);font-weight:700">$'+Number(d.p75).toFixed(2)+'</td>';
         html += '<td style="padding:7px 10px;text-align:center"><span style="font-size:8px;font-weight:700;color:'+confColor(d.confidence)+';padding:2px 6px;border:1px solid '+confColor(d.confidence)+';border-radius:8px">'+(d.confidence||'med').toUpperCase()+'</span></td>';
@@ -524,13 +524,13 @@ function valRenderBessResearch(data) {
         var cmpCell = '—', cmpCellCol = 'var(--t3)';
         if (ourToll && d.p25 && d.p75) {
           if (ourToll < d.p25) {
-            cmpCellCol = 'var(--green)'; cmpCell = '시장 하단 (저가)';
+            cmpCellCol = 'var(--green)'; cmpCell = 'Market Bottom (Low)';
           } else if (ourToll > d.p75) {
-            cmpCellCol = 'var(--red)'; cmpCell = '⚠️ 시장 상단 초과';
+            cmpCellCol = 'var(--red)'; cmpCell = '⚠️ Above Market Top';
           } else {
             cmpCellCol = 'var(--amber)';
             var posT = ((ourToll - d.p25) / (d.p75 - d.p25) * 100);
-            cmpCell = '범위 내 (' + posT.toFixed(0) + '%ile)';
+            cmpCell = 'Within range (' + posT.toFixed(0) + '%ile)';
           }
         }
         html += '<td style="padding:7px 10px;text-align:right;color:'+cmpCellCol+';font-weight:'+(isOurDur?'700':'400')+'">'+cmpCell+'</td>';
@@ -546,7 +546,7 @@ function valRenderBessResearch(data) {
 
     // 출처
     if ((ourIsoData.sources||[]).length) {
-      html += '<details style="margin-top:8px"><summary style="font-size:10px;color:var(--blue-h);cursor:pointer;font-weight:600">📚 출처 보기 ('+ourIsoData.sources.length+')</summary>';
+      html += '<details style="margin-top:8px"><summary style="font-size:10px;color:var(--blue-h);cursor:pointer;font-weight:600">📚 View Sources ('+ourIsoData.sources.length+')</summary>';
       html += '<div style="margin-top:4px;padding:8px 10px;background:var(--surface);border-radius:4px">';
       ourIsoData.sources.forEach(function(s) {
         html += '<div style="font-size:10px;color:var(--t3);line-height:1.5;margin-bottom:4px">';
@@ -571,7 +571,7 @@ function valRenderBessResearch(data) {
   var otherIsos = isoData.filter(function(iso){return (iso.region||'').toUpperCase() !== ourMatchKey;});
   if (otherIsos.length) {
     html += '<details style="border:1px solid var(--border);border-radius:8px;background:var(--surface2);margin-bottom:10px">';
-    html += '<summary style="padding:10px 14px;cursor:pointer;font-size:11px;font-weight:700;color:var(--t2);user-select:none">▶ Compare Other Regions ('+otherIsos.length+'개)</summary>';
+    html += '<summary style="padding:10px 14px;cursor:pointer;font-size:11px;font-weight:700;color:var(--t2);user-select:none">▶ Compare Other Regions ('+otherIsos.length+')</summary>';
     html += '<div style="padding:4px 14px 14px">';
 
     otherIsos.forEach(function(iso) {
@@ -661,13 +661,13 @@ async function valLoadMarketBenchmark(force) {
   var ratesEl = document.getElementById('bm-ext-rates');
   var othersEl = document.getElementById('bm-ext-others');
   var fetchedEl = document.getElementById('bm-ext-fetched');
-  if (ratesEl) ratesEl.innerHTML = '<div style="grid-column:span 4;color:var(--t3);font-size:11px;padding:16px;text-align:center">📡 시장 데이터 로딩 중...</div>';
+  if (ratesEl) ratesEl.innerHTML = '<div style="grid-column:span 4;color:var(--t3);font-size:11px;padding:16px;text-align:center">📡 Loading market data...</div>';
   if (othersEl) othersEl.innerHTML = '';
 
   try {
     var qs = force ? '?force=1' : '';
     var data = await apiCall('GET', '/benchmark/market' + qs);
-    if (!data || !data.series) throw new Error('응답 없음');
+    if (!data || !data.series) throw new Error('No response');
 
     if (fetchedEl) {
       var fd = data.fetched_at ? new Date(data.fetched_at + 'Z') : null;
@@ -822,7 +822,7 @@ async function valLoadMarketBenchmark(force) {
 
   } catch(e) {
     var safeMsg = String(e.message||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
-    if (ratesEl) ratesEl.innerHTML = '<div style="grid-column:span 4;color:var(--red);font-size:11px;padding:20px;text-align:center">⚠️ 로드 실패: '+safeMsg+'</div>';
+    if (ratesEl) ratesEl.innerHTML = '<div style="grid-column:span 4;color:var(--red);font-size:11px;padding:20px;text-align:center">⚠️ Load failed: '+safeMsg+'</div>';
   }
 }
 
@@ -840,7 +840,7 @@ async function valLoadLevelTen() {
   try {
     var data = await apiCall('GET', '/benchmark/levelten');
     if (!data || !Object.keys(data).length) {
-      contentEl.innerHTML = '<div class="val-empty" style="padding:16px"><div class="val-empty-icon" style="font-size:24px">📈</div><div class="val-empty-title" style="font-size:11px">'+(currentLang==='en'?'LevelTen report will appear here after upload':'LevelTen 리포트를 업로드하면 여기에 표시됩니다')+'</div></div>';
+      contentEl.innerHTML = '<div class="val-empty" style="padding:16px"><div class="val-empty-icon" style="font-size:24px">📈</div><div class="val-empty-title" style="font-size:11px">'+(currentLang==='en'?'LevelTen report will appear here after upload':'LevelTen report will appear here after upload')+'</div></div>';
       if (metaEl) metaEl.textContent = 'No data';
       return;
     }
@@ -848,7 +848,7 @@ async function valLoadLevelTen() {
     var quarters = Object.keys(data).sort().reverse();
     var latest = data[quarters[0]];
     if (metaEl) {
-      metaEl.textContent = quarters.length + '개 분기 · 최신: ' + (latest.quarter||'—') + ' (업로드 ' + (latest.uploaded_at||'').substring(0,10) + ')';
+      metaEl.textContent = quarters.length + ' quarters · Latest: ' + (latest.quarter||'—') + ' (uploaded ' + (latest.uploaded_at||'').substring(0,10) + ')';
     }
 
     // 최신 분기 엔트리 테이블
@@ -857,7 +857,7 @@ async function valLoadLevelTen() {
     // ═══ A. 시장 핵심 메시지 배너 (Executive Summary 자동 요약) ═══
     if (latest.notes) {
       html += '<div style="margin-bottom:14px;padding:10px 12px;background:linear-gradient(135deg,rgba(37,99,235,.08) 0%,rgba(139,92,246,.04) 100%);border:1px solid rgba(37,99,235,.2);border-radius:var(--r-md)">' +
-        '<div style="font-size:9px;color:var(--blue-h);font-weight:700;letter-spacing:.08em;text-transform:uppercase;margin-bottom:6px">📰 '+esc(latest.quarter||quarters[0])+' 핵심 시장 메시지</div>' +
+        '<div style="font-size:9px;color:var(--blue-h);font-weight:700;letter-spacing:.08em;text-transform:uppercase;margin-bottom:6px">📰 '+esc(latest.quarter||quarters[0])+' Key Market Messages</div>' +
         '<div style="font-size:10.5px;color:var(--t1);line-height:1.7">' + esc(latest.notes) + '</div>' +
       '</div>';
     }
@@ -895,14 +895,14 @@ async function valLoadLevelTen() {
         var diff = ourPPA - benchP25;
         var diffPct = (diff / benchP25 * 100);
         var posStatus, posColor;
-        if (diffPct >= 15) { posStatus = '시장 최상위'; posColor = 'var(--green)'; }
-        else if (diffPct >= 5) { posStatus = '시장 상위'; posColor = 'var(--green)'; }
+        if (diffPct >= 15) { posStatus = 'Top of market'; posColor = 'var(--green)'; }
+        else if (diffPct >= 5) { posStatus = 'Upper market'; posColor = 'var(--green)'; }
         else if (diffPct >= -5) { posStatus = 'market P25 level'; posColor = 'var(--amber)'; }
-        else if (diffPct >= -15) { posStatus = '시장 하위'; posColor = 'var(--red)'; }
-        else { posStatus = '시장 최하위'; posColor = 'var(--red)'; }
+        else if (diffPct >= -15) { posStatus = 'Lower market'; posColor = 'var(--red)'; }
+        else { posStatus = 'Bottom of market'; posColor = 'var(--red)'; }
 
         html += '<div style="margin-bottom:14px;padding:12px 14px;background:var(--surface2);border:1px solid var(--border);border-left:3px solid '+posColor+';border-radius:var(--r-md)">' +
-          '<div style="font-size:9px;color:var(--t3);font-weight:700;letter-spacing:.08em;text-transform:uppercase;margin-bottom:8px">🎯 현재 프로젝트 PPA vs LevelTen 벤치마크</div>' +
+          '<div style="font-size:9px;color:var(--t3);font-weight:700;letter-spacing:.08em;text-transform:uppercase;margin-bottom:8px">🎯 Current Project PPA vs LevelTen Benchmark</div>' +
           '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px">' +
             '<div>' +
               '<div style="font-size:8.5px;color:var(--t3);margin-bottom:2px">Our PPA</div>' +
@@ -915,7 +915,7 @@ async function valLoadLevelTen() {
               '<div style="font-size:8.5px;color:var(--t3);margin-top:2px">LevelTen '+esc(latest.quarter||'')+'</div>' +
             '</div>' +
             '<div>' +
-              '<div style="font-size:8.5px;color:var(--t3);margin-bottom:2px">P25 대비 Gap</div>' +
+              '<div style="font-size:8.5px;color:var(--t3);margin-bottom:2px">Gap vs P25</div>' +
               '<div style="font-size:16px;font-weight:800;color:'+posColor+';font-variant-numeric:tabular-nums">'+(diff>=0?'+':'')+diff.toFixed(2)+' ('+(diffPct>=0?'+':'')+diffPct.toFixed(1)+'%)</div>' +
               '<div style="font-size:8.5px;color:'+posColor+';margin-top:2px;font-weight:600">'+posStatus+'</div>' +
             '</div>' +
@@ -933,7 +933,7 @@ async function valLoadLevelTen() {
     });
     html += '</select>';
     html += '<span style="flex:1"></span>';
-    html += '<span style="font-size:9px;color:var(--t3)">$/MWh · P25(하단 25%) / P50(중앙) / P75(상단 25%)</span>';
+    html += '<span style="font-size:9px;color:var(--t3)">$/MWh · P25 (Low 25%) / P50 (Median) / P75 (Top 25%)</span>';
     html += '</div>';
 
     html += '<div id="bm-lt-table-wrap"></div>';
@@ -944,7 +944,7 @@ async function valLoadLevelTen() {
     valRenderVsMarket();
 
   } catch(e) {
-    contentEl.innerHTML = '<div style="color:var(--red);font-size:11px;padding:20px;text-align:center">⚠️ 로드 실패: '+esc(e.message)+'</div>';
+    contentEl.innerHTML = '<div style="color:var(--red);font-size:11px;padding:20px;text-align:center">⚠️ Load failed: '+esc(e.message)+'</div>';
   }
 }
 
@@ -960,7 +960,7 @@ function valRenderLevelTenQuarter(q) {
   function fmtPct(v) { return v==null ? '' : (v>=0?'+':'') + Number(v).toFixed(1) + '%'; }
   function pctColor(v) { return v==null ? 'var(--t3)' : v>0 ? 'var(--green)' : v<0 ? 'var(--red)' : 'var(--t3)'; }
 
-  // 우리 프로젝트의 현재 PPA + ISO 추출 (비교용)
+  // Our Project의 현재 PPA + ISO 추출 (비교용)
   var ourData = window._lastValData || {};
   var ourOut = ourData.outputs || {};
   var ourAssum = ourData.assumptions || {};
@@ -996,7 +996,7 @@ function valRenderLevelTenQuarter(q) {
   }
 
   if (!solarISO.length && !storageISO.length) {
-    wrap.innerHTML = '<div style="color:var(--t3);font-size:11px;padding:12px;text-align:center">해당 분기 데이터가 없습니다</div>';
+    wrap.innerHTML = '<div style="color:var(--t3);font-size:11px;padding:12px;text-align:center">No data for this quarter</div>';
     return;
   }
 
@@ -1017,7 +1017,7 @@ function valRenderLevelTenQuarter(q) {
   if (ourPPA && ourISO) {
     html += '<div style="padding:14px 16px;background:linear-gradient(135deg,rgba(37,99,235,.08) 0%,rgba(139,92,246,.05) 100%);border:1px solid rgba(37,99,235,.2);border-radius:10px;margin-bottom:14px">';
     html += '<div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:10px">';
-    html += '<div style="font-size:11px;font-weight:800;color:var(--blue-h);letter-spacing:.04em">🎯 ' + esc(projMeta.name||'Project') + '의 ' + esc(ourISO) + ' 시장 포지션</div>';
+    html += '<div style="font-size:11px;font-weight:800;color:var(--blue-h);letter-spacing:.04em">🎯 ' + esc(projMeta.name||'Project') + ' — Market Position in ' + esc(ourISO) + '</div>';
     html += '<div style="font-size:9px;color:var(--t3)">' + esc(q) + '</div>';
     html += '</div>';
 
@@ -1040,16 +1040,16 @@ function valRenderLevelTenQuarter(q) {
       // Our position marker
       html += '<div style="position:absolute;top:2px;bottom:14px;left:calc(6px + (100% - 12px) * ' + ourPos.toFixed(1) + '/100);transform:translateX(-50%);z-index:2">';
       html += '<div style="width:3px;height:100%;background:var(--blue-h);box-shadow:0 0 8px var(--blue-h);border-radius:2px"></div>';
-      html += '<div style="position:absolute;bottom:100%;left:50%;transform:translateX(-50%);background:var(--blue-h);color:#fff;font-size:9px;font-weight:800;padding:2px 6px;border-radius:3px;white-space:nowrap;margin-bottom:2px">우리 $'+ourPPA.toFixed(2)+'</div>';
+      html += '<div style="position:absolute;bottom:100%;left:50%;transform:translateX(-50%);background:var(--blue-h);color:#fff;font-size:9px;font-weight:800;padding:2px 6px;border-radius:3px;white-space:nowrap;margin-bottom:2px">Ours $'+ourPPA.toFixed(2)+'</div>';
       html += '</div>';
       html += '</div>';
       // Position interpretation
       var percentileDesc = '';
-      if (ourPos <= 25) percentileDesc = '시장 하위 25%ile (경쟁력 있는 가격)';
-      else if (ourPos <= 50) percentileDesc = '시장 중간 하위 (평균 이하)';
-      else if (ourPos <= 75) percentileDesc = '시장 중간 상위 (평균 이상 프리미엄)';
-      else percentileDesc = '시장 상위 25%ile (최고가 구간)';
-      html += '<div style="font-size:10px;color:var(--t2);margin-top:6px;text-align:center">📊 <b style="color:var(--blue-h)">'+percentileDesc+'</b> · 전 대륙 Solar PPA offer 분포 기준</div>';
+      if (ourPos <= 25) percentileDesc = 'Lower 25%ile (competitive pricing)';
+      else if (ourPos <= 50) percentileDesc = 'Middle-Lower (below avg)';
+      else if (ourPos <= 75) percentileDesc = 'Middle-Upper (above avg, premium)';
+      else percentileDesc = 'Top 25%ile (highest price range)';
+      html += '<div style="font-size:10px;color:var(--t2);margin-top:6px;text-align:center">📊 <b style="color:var(--blue-h)">'+percentileDesc+'</b> · based on continental Solar PPA offer distribution</div>';
       html += '</div>';
     }
 
@@ -1061,17 +1061,17 @@ function valRenderLevelTenQuarter(q) {
       html += '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;padding:10px;background:var(--surface);border-radius:6px">';
       html += '<div><div style="font-size:8px;color:var(--t3);font-weight:700;letter-spacing:.06em;margin-bottom:3px">'+esc(ourISO)+' SOLAR P25</div><div style="font-size:14px;font-weight:800;color:var(--amber)">$'+ourISOSolarP25.toFixed(2)+'</div></div>';
       html += '<div><div style="font-size:8px;color:var(--t3);font-weight:700;letter-spacing:.06em;margin-bottom:3px">Our PPA</div><div style="font-size:14px;font-weight:800;color:var(--blue-h)">$'+ourPPA.toFixed(2)+'</div></div>';
-      html += '<div><div style="font-size:8px;color:var(--t3);font-weight:700;letter-spacing:.06em;margin-bottom:3px">시장 대비</div><div style="font-size:14px;font-weight:800;color:'+diffCol+'">'+(diff>=0?'+':'')+'$'+diff.toFixed(2)+' <span style="font-size:10px;font-weight:600">('+(diffPct>=0?'+':'')+diffPct.toFixed(1)+'%)</span></div></div>';
+      html += '<div><div style="font-size:8px;color:var(--t3);font-weight:700;letter-spacing:.06em;margin-bottom:3px">vs Market</div><div style="font-size:14px;font-weight:800;color:'+diffCol+'">'+(diff>=0?'+':'')+'$'+diff.toFixed(2)+' <span style="font-size:10px;font-weight:600">('+(diffPct>=0?'+':'')+diffPct.toFixed(1)+'%)</span></div></div>';
       html += '</div>';
       if (ourISOSolarQoQ != null || ourISOSolarYoY != null) {
         var trendLine = [];
-        if (ourISOSolarQoQ != null) trendLine.push(esc(ourISO)+' 시장 QoQ <span style="color:'+pctColor(ourISOSolarQoQ)+';font-weight:700">'+fmtPct(ourISOSolarQoQ)+'</span>');
+        if (ourISOSolarQoQ != null) trendLine.push(esc(ourISO)+' Market QoQ <span style="color:'+pctColor(ourISOSolarQoQ)+';font-weight:700">'+fmtPct(ourISOSolarQoQ)+'</span>');
         if (ourISOSolarYoY != null) trendLine.push('YoY <span style="color:'+pctColor(ourISOSolarYoY)+';font-weight:700">'+fmtPct(ourISOSolarYoY)+'</span>');
         html += '<div style="font-size:9.5px;color:var(--t3);margin-top:8px;text-align:center">'+trendLine.join(' · ')+'</div>';
       }
     }
 
-    html += '<div style="font-size:8.5px;color:var(--t3);margin-top:8px;padding-top:8px;border-top:1px solid rgba(255,255,255,.06);line-height:1.5">💡 P25 = 하위 25%ile 호가 (개발자 ask price) · LevelTen 리포트의 모든 가격은 <b>offer 가격</b>이며 실제 체결가 아님</div>';
+    html += '<div style="font-size:8.5px;color:var(--t3);margin-top:8px;padding-top:8px;border-top:1px solid rgba(255,255,255,.06);line-height:1.5">💡 P25 = Low 25%ile offers (developer ask price) · All prices in LevelTen reports are <b>offer prices</b>, not actual contract prices</div>';
     html += '</div>';
   }
 
@@ -1118,7 +1118,7 @@ function valRenderLevelTenQuarter(q) {
     var ourHubs = solarHub.filter(function(h){ return h.region && h.region.toUpperCase() === ourISO; });
     if (ourHubs.length) {
       html += '<div style="margin-bottom:14px;padding:10px 12px;background:var(--surface2);border:1px solid var(--border);border-left:3px solid var(--blue-h);border-radius:6px">';
-      html += '<div style="font-size:10px;font-weight:700;color:var(--blue-h);margin-bottom:8px">📍 '+esc(ourISO)+' Hub-level Solar P25 (프로젝트 지역 상세)</div>';
+      html += '<div style="font-size:10px;font-weight:700;color:var(--blue-h);margin-bottom:8px">📍 '+esc(ourISO)+' Hub-level Solar P25 (Project region detail)</div>';
       html += '<table style="width:100%;border-collapse:collapse;font-size:10.5px;font-variant-numeric:tabular-nums">';
       html += '<tbody>';
       ourHubs.slice().sort(function(a,b){return (a.p25||0)-(b.p25||0);}).forEach(function(h){
@@ -1134,7 +1134,7 @@ function valRenderLevelTenQuarter(q) {
         var prices = ourHubs.map(function(h){return h.p25||0;}).filter(function(v){return v>0;});
         if (prices.length >= 2) {
           var spread = Math.max.apply(null, prices) - Math.min.apply(null, prices);
-          html += '<div style="font-size:9px;color:var(--t3);margin-top:6px">💡 Hub 간 스프레드 $'+spread.toFixed(2)+' · interconnection point에 따라 실효 수익성 달라짐</div>';
+          html += '<div style="font-size:9px;color:var(--t3);margin-top:6px">💡 Hub spread $'+spread.toFixed(2)+' · effective profitability varies by interconnection point</div>';
         }
       }
       html += '</div>';
@@ -1148,7 +1148,7 @@ function valRenderLevelTenQuarter(q) {
     var bessResearch = window._bessTollingData || null;
     html += '<div style="margin-bottom:14px">';
     html += '<div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:6px">';
-    html += '<div style="font-size:10px;font-weight:700;color:var(--t2)">🔋 BESS Tolling Market (LevelTen Storage Index — 공식)</div>';
+    html += '<div style="font-size:10px;font-weight:700;color:var(--t2)">🔋 BESS Tolling Market (LevelTen Storage Index — Official)</div>';
     html += '<div style="font-size:8.5px;color:var(--green);background:rgba(16,185,129,.1);padding:1px 6px;border-radius:8px;font-weight:700">📋 LEVELTEN OFFICIAL</div>';
     html += '</div>';
     html += '<table style="width:100%;border-collapse:collapse;font-size:11px;font-variant-numeric:tabular-nums">';
@@ -1158,7 +1158,7 @@ function valRenderLevelTenQuarter(q) {
       '<th style="padding:6px 10px;text-align:right;font-size:9px;color:var(--t3);font-weight:700">Median</th>' +
       '<th style="padding:6px 10px;text-align:right;font-size:9px;color:var(--t3);font-weight:700">P75</th>' +
       '<th style="padding:6px 10px;text-align:right;font-size:9px;color:var(--t3);font-weight:700">Range</th>' +
-      '<th style="padding:6px 10px;text-align:right;font-size:9px;color:var(--t3);font-weight:700">우리 Toll</th>' +
+      '<th style="padding:6px 10px;text-align:right;font-size:9px;color:var(--t3);font-weight:700">Our Toll</th>' +
       '</tr></thead><tbody>';
     storageISO.slice().sort(function(a,b){return (a.median||a.p25||999)-(b.median||b.p25||999);}).forEach(function(e){
       var isOurISO = e.region && ourISO && e.region.toUpperCase() === ourISO;
@@ -1194,7 +1194,7 @@ function valRenderLevelTenQuarter(q) {
         if (ourDurMix[h]) durations.push(h+': '+Math.round(ourDurMix[h])+'%');
       });
       if (durations.length) {
-        html += '<div style="font-size:9.5px;color:var(--t3);margin-top:6px">💡 '+esc(ourISO)+' Duration Mix (2025 전체 offer): '+durations.join(' · ')+'</div>';
+        html += '<div style="font-size:9.5px;color:var(--t3);margin-top:6px">💡 '+esc(ourISO)+' Duration Mix (2025 offers): '+durations.join(' · ')+'</div>';
       }
     }
 
@@ -1202,23 +1202,23 @@ function valRenderLevelTenQuarter(q) {
     var ourISOInLevelTen = storageISO.some(function(e){return e.region && ourISO && e.region.toUpperCase() === ourISO;});
     if (!ourISOInLevelTen && ourISO) {
       html += '<div style="padding:8px 10px;background:var(--surface2);border:1px dashed var(--border2);border-radius:4px;margin-top:8px;font-size:10px;color:var(--t2)">';
-      html += '<b style="color:var(--amber)">⚠️ '+esc(ourISO)+'</b>는 LevelTen Storage Index 미커버. ';
+      html += '<b style="color:var(--amber)">⚠️ '+esc(ourISO)+'</b> is not covered by LevelTen Storage Index. ';
       if (bessResearch && bessResearch.iso_data) {
         var aiIso = (bessResearch.iso_data||[]).find(function(e){return e.region && e.region.toUpperCase()===ourISO;});
         if (aiIso) {
-          html += 'AI Research 추정치: ';
+          html += 'AI Research estimate: ';
           var dur = (aiIso.durations||[]).find(function(d){return d.hours===4;});
           if (dur) html += '4h P25-P75 $'+Number(dur.p25).toFixed(1)+'-$'+Number(dur.p75).toFixed(1)+'/kW-mo';
         } else {
-          html += '아래 AI 리서치 버튼으로 보완 데이터 조회 가능.';
+          html += 'Use AI Research button below to fetch complementary data.';
         }
       } else {
-        html += '아래 AI 리서치 버튼으로 보완 데이터 조회 가능.';
+        html += 'Use AI Research button below to fetch complementary data.';
       }
       html += '</div>';
     }
 
-    html += '<div style="font-size:8.5px;color:var(--t3);margin-top:4px;font-style:italic">※ LevelTen Storage Index: RFP/RFI tolling agreement offers, 2025 연간 집계 ($/kW-month levelized)</div>';
+    html += '<div style="font-size:8.5px;color:var(--t3);margin-top:4px;font-style:italic">※ LevelTen Storage Index: RFP/RFI tolling agreement offers, 2025 annual aggregation ($/kW-month levelized)</div>';
     html += '</div>';
   }
 
@@ -1227,20 +1227,20 @@ function valRenderLevelTenQuarter(q) {
   // ══════════════════════════════════════════════════
   if (solarPSV.length) {
     html += '<div style="margin-bottom:14px">';
-    html += '<div style="font-size:10px;font-weight:700;color:var(--t2);margin-bottom:6px">💵 Solar Projected Settlement Value (PSV) by ISO — 구매자 관점 현재가치</div>';
+    html += '<div style="font-size:10px;font-weight:700;color:var(--t2);margin-bottom:6px">💵 Solar Projected Settlement Value (PSV) by ISO — Buyer-perspective present value</div>';
     html += '<table style="width:100%;border-collapse:collapse;font-size:11px;font-variant-numeric:tabular-nums">';
     html += '<thead><tr style="border-bottom:1px solid var(--border);background:var(--surface2)">' +
       '<th style="padding:6px 10px;text-align:left;font-size:9px;color:var(--t3);font-weight:700">ISO</th>' +
       '<th style="padding:6px 10px;text-align:right;font-size:9px;color:var(--t3);font-weight:700">Median PSV</th>' +
       '<th style="padding:6px 10px;text-align:right;font-size:9px;color:var(--t3);font-weight:700">Range</th>' +
-      '<th style="padding:6px 10px;text-align:left;font-size:9px;color:var(--t3);font-weight:700">구매자 입장</th>' +
+      '<th style="padding:6px 10px;text-align:left;font-size:9px;color:var(--t3);font-weight:700">Buyer Position</th>' +
       '</tr></thead><tbody>';
     solarPSV.slice().sort(function(a,b){return (b.psv_median||-999)-(a.psv_median||-999);}).forEach(function(e){
       var isOurISO = e.region && ourISO && e.region.toUpperCase() === ourISO;
       var rowBg = isOurISO ? 'background:rgba(37,99,235,.08)' : '';
       var med = e.psv_median;
       var medCol = med > 0 ? 'var(--green)' : med < -15 ? 'var(--red)' : 'var(--amber)';
-      var interpret = med > 0 ? '✅ 순수익 (positive)' : med < -15 ? '❌ 큰 순손실' : '⚠️ 순손실';
+      var interpret = med > 0 ? '✅ Net Profit (positive)' : med < -15 ? '❌ Large Net Loss' : '⚠️ Net Loss';
       var rng = (e.psv_min!=null && e.psv_max!=null) ? ('$'+Number(e.psv_min).toFixed(0)+' ~ $'+Number(e.psv_max).toFixed(0)) : '—';
       html += '<tr style="border-bottom:1px solid rgba(255,255,255,.04);'+rowBg+'">';
       html += '<td style="padding:6px 10px;color:'+(isOurISO?'var(--blue-h)':'var(--t1)')+';font-weight:'+(isOurISO?'800':'600')+'">'+esc(e.region||'—')+(isOurISO?' <span style="font-size:8px;color:var(--blue-h);font-weight:700;margin-left:4px;padding:1px 5px;border:1px solid var(--blue-h);border-radius:8px">OUR</span>':'')+'</td>';
@@ -1250,7 +1250,7 @@ function valRenderLevelTenQuarter(q) {
       html += '</tr>';
     });
     html += '</tbody></table>';
-    html += '<div style="font-size:8.5px;color:var(--t3);margin-top:4px;font-style:italic">※ PSV = 시장가 vs 계약가의 NPV (Hitachi Energy 기준). 양수 = 구매자 수익, 음수 = 구매자 손실. 장기 offtake 안정성 지표.</div>';
+    html += '<div style="font-size:8.5px;color:var(--t3);margin-top:4px;font-style:italic">※ PSV = NPV of market price vs contract price (Hitachi Energy basis). Positive = buyer profit, negative = buyer loss. Long-term offtake stability indicator.</div>';
     html += '</div>';
   }
 
@@ -1308,7 +1308,7 @@ function valRenderLevelTenQuarter(q) {
     var p2030 = pipeline.find(function(p){return p.cod_year==='2030+'||p.cod_year==='2030';}) || {};
     if (p2025.hybrid_mw != null && p2030.hybrid_mw != null && p2025.hybrid_mw > 0) {
       var growth = (p2030.hybrid_mw / p2025.hybrid_mw).toFixed(0);
-      html += '<div style="font-size:9.5px;color:var(--t3);margin-top:8px;text-align:center;line-height:1.5">💡 2030+ Hybrid ' + (p2030.hybrid_mw/1000).toFixed(0) + 'GW (2025 대비 <b style="color:var(--green)">'+growth+'배</b> 성장) · <b>HEUH Solar+BESS 사업 모델이 시장 흐름과 일치</b></div>';
+      html += '<div style="font-size:9.5px;color:var(--t3);margin-top:8px;text-align:center;line-height:1.5">💡 2030+ Hybrid ' + (p2030.hybrid_mw/1000).toFixed(0) + 'GW (vs 2025 <b style="color:var(--green)">'+growth+'×</b> growth) · <b>HEUH Solar+BESS business model aligns with market trends</b></div>';
     }
     html += '</div>';
   }
@@ -1341,17 +1341,17 @@ async function valUploadLevelTen() {
   var submitBtn = document.getElementById('bm-lt-submit');
 
   if (!quarter.match(/^\d{4}-Q[1-4]$/i)) {
-    statusEl.innerHTML = '<span style="color:var(--red)">⚠️ 분기 형식: YYYY-Q1 ~ YYYY-Q4</span>';
+    statusEl.innerHTML = '<span style="color:var(--red)">⚠️ Quarter format: YYYY-Q1 ~ YYYY-Q4</span>';
     return;
   }
   if (!file) {
-    statusEl.innerHTML = '<span style="color:var(--red)">⚠️ 파일을 선택하세요</span>';
+    statusEl.innerHTML = '<span style="color:var(--red)">⚠️ Select a file</span>';
     return;
   }
 
   submitBtn.disabled = true;
-  submitBtn.textContent = '⏳ 파싱 중...';
-  statusEl.innerHTML = '<span style="color:var(--t3)">📤 업로드 & AI 파싱 중 (최대 90초 소요)...</span>';
+  submitBtn.textContent = '⏳ Parsing...';
+  statusEl.innerHTML = '<span style="color:var(--t3)">📤 Uploading & AI Parsing (up to 90s)...</span>';
 
   var fd = new FormData();
   fd.append('file', file);
@@ -1369,20 +1369,20 @@ async function valUploadLevelTen() {
     var j = await res.json();
     if (!res.ok) throw new Error(j.detail || ('HTTP '+res.status));
 
-    statusEl.innerHTML = '<span style="color:var(--green)">✓ '+j.entries_count+'개 엔트리 파싱 완료</span>';
+    statusEl.innerHTML = '<span style="color:var(--green)">✓ '+j.entries_count+' entries parsed</span>';
     setTimeout(function(){
       document.getElementById('bm-lt-modal').style.display = 'none';
       statusEl.innerHTML = '';
       submitBtn.disabled = false;
-      submitBtn.textContent = '업로드 & 파싱';
+      submitBtn.textContent = 'Upload & Parse';
       if (fileInput) fileInput.value = '';
       valLoadLevelTen();
     }, 1200);
   } catch(e) {
     var safeMsg = String(e.message||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
-    statusEl.innerHTML = '<span style="color:var(--red)">⚠️ 실패: '+safeMsg+'</span>';
+    statusEl.innerHTML = '<span style="color:var(--red)">⚠️ Failed: '+safeMsg+'</span>';
     submitBtn.disabled = false;
-    submitBtn.textContent = '업로드 & 파싱';
+    submitBtn.textContent = 'Upload & Parse';
   }
 }
 
@@ -1411,13 +1411,13 @@ function valRenderVsMarket() {
   if (uirr > 0 && wacc > 0) {
     var spread = (uirr - wacc) * 100;
     var col = spread >= 1.0 ? 'var(--green)' : spread >= 0 ? 'var(--amber)' : 'var(--red)';
-    var status = spread >= 1.0 ? '가치 창출' : spread >= 0 ? '손익 분기' : '가치 파괴';
+    var status = spread >= 1.0 ? 'Value Creation' : spread >= 0 ? 'Break-even' : 'Value Destruction';
     lines.push({
       label: '💰 Project Unlevered IRR vs WACC',
       val: (uirr*100).toFixed(2) + '%  vs  ' + (wacc*100).toFixed(2) + '% WACC',
       delta: (spread >= 0 ? '+' : '') + spread.toFixed(2) + '%p',
       col: col,
-      hint: status + ' · 자본구조 무관 사업성'
+      hint: status + ' · regardless of capital structure'
     });
   }
 
@@ -1432,7 +1432,7 @@ function valRenderVsMarket() {
       val: (sirr*100).toFixed(2) + '%  vs  ' + tenY.toFixed(2) + '% 10Y',
       delta: '+' + sprd.toFixed(0) + ' bp',
       col: col,
-      hint: sprd >= 600 ? '양호한 risk premium' : sprd >= 400 ? 'fair' : '타이트'
+      hint: sprd >= 600 ? 'Healthy risk premium' : sprd >= 400 ? 'fair' : 'Tight'
     });
   }
 
@@ -1452,7 +1452,7 @@ function valRenderVsMarket() {
           val: '$' + ppa.toFixed(2) + '/MWh  vs  $' + avgP25.toFixed(2) + '/MWh',
           delta: (diff >= 0 ? '+' : '') + diff.toFixed(2) + ' $/MWh',
           col: col,
-          hint: diff >= 5 ? '프리미엄 확보' : diff >= 0 ? 'market avg' : '시장 하회'
+          hint: diff >= 5 ? 'Premium secured' : diff >= 0 ? 'market avg' : 'Below market'
         });
       }
     }

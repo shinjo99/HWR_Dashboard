@@ -24,14 +24,14 @@ async function valRunBreakEven() {
   var baseInputs = window._valBaseInputs || {};
 
   if (!baseInputs.ppa_price) {
-    alert(currentLang==='en'?'Please run Calculate first.':'Please run Calculate first.');
+    alert('Please run Calculate first.');
     return;
   }
 
   var targetIrr = parseFloat((document.getElementById('be-target-irr')||{}).value) || 11.0;
-  if (targetIrr <= 0 || targetIrr > 30) { alert('Target IRR은 0~30% 범위여야 합니다.'); return; }
+  if (targetIrr <= 0 || targetIrr > 30) { alert('Target IRR must be in the range 0–30%.'); return; }
 
-  if (btn) { btn.textContent = '⏳ Newton-Raphson 역산 중... (최대 15초)'; btn.style.opacity='.6'; btn.style.pointerEvents='none'; }
+  if (btn) { btn.textContent = '⏳ Reverse-solving via Newton-Raphson... (up to 15s)'; btn.style.opacity='.6'; btn.style.pointerEvents='none'; }
   if (emptyEl) emptyEl.style.display = 'none';
 
   try {
@@ -43,7 +43,7 @@ async function valRunBreakEven() {
       target_var: 'ppa_price'
     });
 
-    if (!data || !data.ok) throw new Error('API 오류 또는 응답 없음');
+    if (!data || !data.ok) throw new Error('API error or no response');
     console.log('[BreakEven] Response:', data);
 
     valRenderBreakEven(data, targetIrr);
