@@ -1356,6 +1356,36 @@ function valSwitchTab(name, btn) {
   }
 }
 
+// PTC 활성화 (2026-05-02): vlSetCredit 진짜 로직
+// PTC ↔ ITC 토글 시: (1) 버튼 on/off 클래스 (2) input group 표시·숨김 (3) creditMode global 갱신 (4) Calculate dirty 표시
+function vlSetCredit(type) {
+  type = (type === 'PTC') ? 'PTC' : 'ITC';
+  window._creditMode = type;
+  
+  // 버튼 active 상태
+  var itcBtn = document.getElementById('vi-itc-btn');
+  var ptcBtn = document.getElementById('vi-ptc-btn');
+  if (itcBtn) {
+    itcBtn.classList.toggle('on', type === 'ITC');
+    itcBtn.classList.toggle('off', type !== 'ITC');
+  }
+  if (ptcBtn) {
+    ptcBtn.classList.toggle('on', type === 'PTC');
+    ptcBtn.classList.toggle('off', type !== 'PTC');
+  }
+  
+  // input group 표시
+  var itcGroup = document.getElementById('vi-itc-group');
+  var ptcGroup = document.getElementById('vi-ptc-group');
+  if (itcGroup) itcGroup.style.display = (type === 'ITC') ? '' : 'none';
+  if (ptcGroup) ptcGroup.style.display = (type === 'PTC') ? '' : 'none';
+  
+  // Calculate 버튼 dirty 표시
+  var calcBtn = document.getElementById('val-calc-btn');
+  if (calcBtn) calcBtn.classList.add('dirty');
+}
+window.vlSetCredit = vlSetCredit;
+
 // window 전역 노출 (HTML onclick용)
 window.valSetCredit = valSetCredit;
 window.valSwitchTab = valSwitchTab;
