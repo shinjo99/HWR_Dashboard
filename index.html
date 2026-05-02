@@ -10,6 +10,7 @@
 <script src="https://cdn.jsdelivr.net/npm/topojson-client@3/dist/topojson-client.min.js" onerror="console.warn('TopoJSON CDN 로딩 실패')"></script>
 <link rel="stylesheet" href="css/main.css">
 <link rel="stylesheet" href="css/valuation.css">
+<link rel="stylesheet" href="css/hdos_val.css">
 
   <!-- HWR API 클라이언트 -->
   <script>
@@ -6713,1033 +6714,986 @@ document.addEventListener('DOMContentLoaded', function() {
 
 
 <!-- ══ VALUATION PAGE ══════════════════════════════════════════ -->
-<div id="page-valuation" class="page-overlay" style="display:none">
+<!--
+=================================================================
+HDOS Valuation v2 — page HTML
+=================================================================
+파일: hdos_val.html (또는 index.html의 #page-valuation 영역 교체)
+Prefix: hv- (HDOS Valuation)
+Generated: 2026-05-02
 
+구조:
+  hv-page
+    ├── hv-header (제목 + 모드 셀렉터 + 뒤로가기)
+    ├── hv-toolbar (프로젝트 선택 + Excel upload + 상태)
+    └── hv-body
+        ├── hv-input-panel (left, 7 sections)
+        └── hv-output-panel (right, 5 tabs)
 
-<div class="val-hd">
-  <div class="val-hd-left">
-    <div class="val-hd-icon">📐</div>
-    <div>
-      <div class="val-hd-title">Valuation</div>
-      <div class="val-hd-sub">Project Financial Model · IRR &amp; Margin Analysis</div>
-    </div>
-  </div>
-  <div class="val-hd-right">
-    <button class="page-back-btn" onclick="closeAllPages()">← Back</button>
-  </div>
-</div>
+Step 1 범위: 골격 + Overview tab만 채움.
+다른 tab은 placeholder.
+=================================================================
+-->
 
-<div class="val-upload-bar">
-  <select id="val-proj-select" class="val-proj-sel" style="padding:5px 10px;background:var(--surface3);border:1px solid var(--border);border-radius:var(--r-md);color:var(--t1);font-size:11px;font-family:var(--font);cursor:pointer;max-width:180px;height:32px;box-sizing:border-box"></select>
+<div id="page-valuation" class="page-overlay hv-page" style="display:none">
 
-  <!-- 🔍 Integrity Check: 파일 선택 시 자동 실행 -->
-  <label id="val-ic-label" title="Run integrity check before upload" style="display:flex;align-items:center;gap:6px;padding:5px 12px;background:linear-gradient(135deg,rgba(124,58,237,0.15),rgba(91,33,182,0.1));border:1px solid rgba(124,58,237,0.4);border-radius:var(--r-md);color:#c4b5fd;font-size:11px;font-weight:600;cursor:pointer;height:32px;box-sizing:border-box;white-space:nowrap">
-    <span id="val-ic-btn-text">Model Audit</span>
-    <input type="file" id="vl-check-file" accept=".xlsb,.xlsx" style="display:none">
-  </label>
-
-  <label class="val-upload-label" style="height:32px;box-sizing:border-box">
-    <span>📎</span>
-    <span id="val-upload-fname">PF Model Upload (.xlsb / .xlsx)</span>
-    <input type="file" id="val-upload-file" accept=".xlsb,.xlsx" style="display:none">
-  </label>
-  <button id="val-upload-btn2" class="val-parse-btn" style="height:32px;box-sizing:border-box">Upload &amp; Parse</button>
-  <span id="val-upload-status" style="font-size:10px;color:var(--t3)"></span>
-
-  <div class="val-status-badge" style="margin-left:auto;height:32px">
-    <div class="val-status-dot" id="val-status-dot"></div>
-    <span id="val-data-badge">No data</span>
-  </div>
-</div>
-
-<!-- 🔍 Integrity Check 결과 모달 -->
-<div id="val-ic-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.7);backdrop-filter:blur(8px);z-index:200;align-items:center;justify-content:center;padding:24px">
-  <div style="max-width:720px;width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:14px;padding:24px;box-shadow:0 20px 50px rgba(0,0,0,0.5);max-height:85vh;overflow-y:auto">
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
-      <div style="font-size:14px;font-weight:800;color:var(--t1)"><span id="val-ic-modal-title">Model Audit</span></div>
-      <button onclick="document.getElementById('val-ic-modal').style.display='none'" style="background:transparent;border:none;color:var(--t3);font-size:20px;cursor:pointer">✕</button>
-    </div>
-    <div id="val-ic-modal-filename" style="font-size:10px;color:var(--t3);margin-bottom:12px;word-break:break-all"></div>
-    <div id="vl-check-result"></div>
-  </div>
-</div>
-
-<!-- ═══ MODE INFO 팝업 (ⓘ 클릭 시) ═══ -->
-<div id="val-mode-info-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.7);backdrop-filter:blur(8px);z-index:200;align-items:center;justify-content:center;padding:24px">
-  <div style="max-width:600px;width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:14px;padding:28px;box-shadow:0 20px 50px rgba(0,0,0,0.5);max-height:90vh;overflow-y:auto">
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
-      <div id="val-mode-info-title" style="font-size:15px;font-weight:800;color:var(--t1)">⚙️ Calculation Mode Comparison</div>
-      <button onclick="document.getElementById('val-mode-info-modal').style.display='none'" style="background:transparent;border:none;color:var(--t3);font-size:20px;cursor:pointer">✕</button>
-    </div>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px">
-      <div style="padding:14px;background:rgba(124,58,237,0.06);border:1px solid rgba(124,58,237,0.2);border-radius:10px">
-        <div style="font-size:13px;font-weight:800;margin-bottom:8px;color:#c4b5fd">📊 Actual Model</div>
-        <div style="font-size:10px;color:var(--t2);line-height:1.7">
-          <strong>Use case:</strong> Replicate actual Excel model + what-if analysis<br>
-          <strong>Debt Structure:</strong> Actual (Sculpted DSCR-based)<br>
-          <strong>Partnership Flip:</strong> Actual (e.g. 9.2% Pay-Go)<br>
-          <strong>Tax:</strong> Actual NOL offset (Y1–9)<br>
-          <strong>CAPEX:</strong> Actual FMV step-up (e.g. 23%)<br>
-          <strong>Accuracy:</strong> Replicates uploaded model ±0.15%p
-        </div>
+  <!-- ╔═══════════ HEADER ═══════════╗ -->
+  <header class="hv-header">
+    <div class="hv-header-brand">
+      <div class="hv-brand-icon">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+          <polyline points="3 17 9 11 13 15 21 7"/>
+          <polyline points="14 7 21 7 21 14"/>
+        </svg>
       </div>
-      <div style="padding:14px;background:rgba(16,185,129,0.06);border:1px solid rgba(16,185,129,0.2);border-radius:10px">
-        <div style="font-size:13px;font-weight:800;margin-bottom:8px;color:#6ee7b7">🔮 Scenario Analysis</div>
-        <div style="font-size:10px;color:var(--t2);line-height:1.7">
-          <strong>Use case:</strong> New deal feasibility analysis<br>
-          <strong>Debt Structure:</strong> DSCR 1.30 Sculpted (industry)<br>
-          <strong>Partnership Flip:</strong> 99/5 standard (dynamic flip)<br>
-          <strong>Tax:</strong> Immediate MACRS benefit (corp. sponsor)<br>
-          <strong>CAPEX:</strong> 17.5% FMV Step-up (industry mid-range)<br>
-          <strong>Accuracy:</strong> Industry-benchmarked approximation
-        </div>
-      </div>
-    </div>
-    <div style="padding:12px;background:rgba(0,0,0,0.25);border-radius:8px;font-size:11px;color:var(--t2);line-height:1.6">
-      <strong style="color:var(--t1)">💡 Which mode should I use?</strong><br>
-      • <strong>Excel model built</strong> → use <strong style="color:#c4b5fd">📊 Actual Model</strong> (replicate + tweak for what-if)<br>
-      • <strong>New deal, no Excel yet</strong> → use <strong style="color:#6ee7b7">🔮 Scenario Analysis</strong> (pre-IC feasibility)<br><br>
-      <span style="font-size:10px;color:var(--t3)">※ After uploading Excel, run Model Audit for automatic mode recommendation.</span>
-    </div>
-  </div>
-</div>
-
-<div class="val-body">
-
-  <!-- ── LEFT: INPUTS ── -->
-  <div class="val-left">
-
-    <!-- 스크롤 영역 시작 (하단 Calculate 박스는 밖에서 고정) -->
-    <div class="val-left-scroll">
-
-    <!-- ⓘ CALCULATION MODE -->
-    <div class="val-section" style="background:linear-gradient(135deg,rgba(124,58,237,0.05),rgba(59,130,246,0.03));border-left:3px solid rgba(124,58,237,0.5)">
-      <div class="val-section-hd" style="display:flex;align-items:center;justify-content:space-between">
-        <span class="val-sec-title" style="color:rgba(196,181,253,1)">⚙️ Calc Mode</span>
-        <button onclick="document.getElementById('val-mode-info-modal').style.display='flex'" title="Mode details" style="background:transparent;border:1px solid var(--border2);color:var(--t3);width:20px;height:20px;border-radius:50%;font-size:10px;cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0;font-family:var(--font)">ⓘ</button>
-      </div>
-      <div class="val-sec-body">
-        <div style="display:flex;gap:4px;padding:3px;background:rgba(0,0,0,0.3);border-radius:6px;margin-bottom:6px">
-          <button id="vl-mode-predict" data-mode="prediction" style="flex:1;padding:6px 4px;border:none;border-radius:4px;font-size:10px;font-weight:700;cursor:pointer;background:transparent;color:var(--t2);font-family:var(--font)">
-            🔮 Scenario
-          </button>
-          <button id="vl-mode-calib" data-mode="calibration" style="flex:1;padding:6px 4px;border:none;border-radius:4px;font-size:10px;font-weight:700;cursor:pointer;background:linear-gradient(135deg,#7c3aed,#5b21b6);color:#fff;font-family:var(--font)">
-            📊 Actual
-          </button>
-        </div>
-        <div id="vl-mode-desc" style="font-size:9px;color:var(--t3);line-height:1.4">
-          <strong>Actual Model:</strong> Replicates uploaded Excel model. Tweak parameters for what-if scenarios.
-        </div>
+      <div class="hv-brand-text">
+        <div class="hv-brand-title">Valuation</div>
+        <div class="hv-brand-sub">Project Financial Model</div>
       </div>
     </div>
 
-    <!-- ① PROJECT -->
-    <div class="val-section">
-      <div class="val-section-hd" onclick="valToggleSec(this)">
-        <span class="val-sec-title">Project</span>
-        <span class="val-sec-toggle open">▼</span>
-      </div>
-      <div class="val-sec-body">
-        <div class="val-grid2">
-          <div class="vf"><label>Dev Fee ($/kWac)</label><input class="vi" id="vi-dev-kwac" type="number" step="5" placeholder="200"></div>
-          <div class="vf"><label>Size (MWac)</label><input class="vi" id="vi-pv-mwac" type="number" step="1" placeholder="199"></div>
-        </div>
-      </div>
-    </div>
-
-    <!-- ② REVENUE -->
-    <div class="val-section">
-      <div class="val-section-hd" onclick="valToggleSec(this)">
-        <span class="val-sec-title">Revenue</span>
-        <span class="val-sec-toggle open">▼</span>
-      </div>
-      <div class="val-sec-body">
-        <div class="val-grid2">
-          <div class="vf"><label>PPA ($/MWh)</label><input class="vi" id="vi-ppa-p" type="number" step="0.01" placeholder="68.82"></div>
-          <div class="vf"><label>PPA Term (yr)</label><input class="vi" id="vi-ppa-t" type="number" step="1" placeholder="25"></div>
-          <div class="vf"><label>PPA Esc. (%)</label><input class="vi" id="vi-ppa-esc" type="number" step="0.1" placeholder="0"></div>
-          <div class="vf"><label>BESS Toll ($/kW-mo)</label><input class="vi" id="vi-toll-p" type="number" step="0.01" placeholder="14.50"></div>
-          <div class="vf"><label>Toll Term (yr)</label><input class="vi" id="vi-toll-t" type="number" step="1" placeholder="20"></div>
-          <div class="vf"><label>Toll Esc. (%)</label><input class="vi" id="vi-toll-esc" type="number" step="0.1" placeholder="0"></div>
-        </div>
-      </div>
-    </div>
-
-    <!-- ③ DEAL STRUCTURE (Debt ratio only; 세부는 아래 Debt 섹션으로 이동) -->
-    <div class="val-section">
-      <div class="val-section-hd" onclick="valToggleSec(this)">
-        <span class="val-sec-title">Deal Structure</span>
-        <span class="val-sec-toggle open">▼</span>
-      </div>
-      <div class="val-sec-body">
-        <div class="val-grid1" style="margin-bottom:6px">
-          <div class="vf"><label>Life (yr)</label><input class="vi" id="vi-life" type="number" step="1" placeholder="35"></div>
-        </div>
-        <div class="val-grid2">
-          <div class="vf"><label>CAPEX Override ($M)</label><input class="vi" id="vi-capex-override" type="number" step="1" placeholder="auto"></div>
-          <div class="vf"><label>TE Ratio Override (%)</label><input class="vi" id="vi-te-ratio" type="number" step="0.1" placeholder="auto"></div>
-        </div>
-      </div>
-    </div>
-
-    <!-- ④ CAPEX -->
-    <div class="val-section">
-      <div class="val-section-hd" onclick="valToggleSec(this)">
-        <span class="val-sec-title">CAPEX</span>
-        <span class="val-sec-toggle open">▼</span>
-      </div>
-      <div class="val-sec-body">
-        <div class="val-grid2">
-          <div class="vf"><label>PV Module (¢/Wdc)</label><input class="vi" id="vi-module" type="number" step="0.1" placeholder="31.5"></div>
-          <div class="vf"><label>PV BOS (¢/Wdc)</label><input class="vi" id="vi-bos" type="number" step="0.1" placeholder="42.88"></div>
-          <div class="vf"><label>BESS Equip. ($/kWh)</label><input class="vi" id="vi-ess-equip" type="number" step="1" placeholder="234.5"></div>
-          <div class="vf"><label>BESS BOS ($/kWh)</label><input class="vi" id="vi-bess-bos" type="number" step="1" placeholder="130"></div>
-          <div class="vf"><label>EPC Cont. (%)</label><input class="vi" id="vi-epc-cont" type="number" step="0.5" placeholder="8"></div>
-          <div class="vf"><label>Owner Cost (%)</label><input class="vi" id="vi-owner" type="number" step="0.5" placeholder="3"></div>
-          <div class="vf"><label>Interconnect ($M)</label><input class="vi" id="vi-intercon" type="number" step="0.5" placeholder="22.5"></div>
-          <div class="vf"><label>Dev Cost ($M)</label><input class="vi" id="vi-dev-cost" type="number" step="0.5" placeholder="20"></div>
-          <div class="vf" style="grid-column:span 2"><label>CAPEX Other ($M)</label><input class="vi" id="vi-capex-etc" type="number" step="0.5" placeholder="0"></div>
-        </div>
-        <!-- ⚠️ Scenario Analysis FMV Note -->
-        <div id="vi-prediction-fmv-note" style="display:none;margin-top:8px;padding:8px;background:rgba(245,158,11,0.08);border:1px solid rgba(245,158,11,0.3);border-radius:6px;font-size:9px;color:#fbbf24;line-height:1.5">
-          💡 <strong>Scenario Analysis mode:</strong> CAPEX total above = <strong>FMV</strong>. A 17.5% step-up is applied to derive Construction Cost (industry mid-range, Norton Rose 2021).
-        </div>
-      </div>
-    </div>
-
-    <!-- ⑤ OPEX -->
-    <div class="val-section">
-      <div class="val-section-hd" onclick="valToggleSec(this)">
-        <span class="val-sec-title">OPEX</span>
-        <span class="val-sec-toggle open">▼</span>
-      </div>
-      <div class="val-sec-body">
-        <div class="val-grid2">
-          <div class="vf"><label>PV O&amp;M ($/kW-yr)</label><input class="vi" id="vi-pv-om" type="number" step="0.1" placeholder="4.5"></div>
-          <div class="vf"><label>BESS O&amp;M ($/kW-yr)</label><input class="vi" id="vi-bess-om" type="number" step="0.1" placeholder="8.64"></div>
-          <div class="vf"><label>Insurance ($/kW)</label><input class="vi" id="vi-ins" type="number" step="0.1" placeholder="10.57"></div>
-          <div class="vf"><label>Asset Mgmt ($K/yr)</label><input class="vi" id="vi-assetmgmt" type="number" step="10" placeholder="210"></div>
-        </div>
-      </div>
-    </div>
-
-    <!-- ⑥ DEBT -->
-    <div class="val-section">
-      <div class="val-section-hd" onclick="valToggleSec(this)">
-        <span class="val-sec-title">Debt</span>
-        <span class="val-sec-toggle open">▼</span>
-      </div>
-      <div class="val-sec-body">
-        <div class="val-grid2">
-          <div class="vf"><label>Debt Ratio (%)</label><input class="vi" id="vi-debt-r" type="number" step="1" placeholder="47.6"></div>
-          <div class="vf"><label>Interest (%)</label><input class="vi" id="vi-int-r" type="number" step="0.1" placeholder="5.5"></div>
-          <div class="vf"><label>Loan Term (yr)</label><input class="vi" id="vi-loan-t" type="number" step="1" placeholder="18"></div>
-          <div class="vf"><label>DSCR Target</label><input class="vi" id="vi-dscr" type="number" step="0.05" placeholder="1.30"></div>
-        </div>
-      </div>
-    </div>
-
-    <!-- ⑦ CREDIT & TAX EQUITY -->
-    <div class="val-section">
-      <div class="val-section-hd" onclick="valToggleSec(this)">
-        <span class="val-sec-title">Credit &amp; Tax Equity</span>
-        <span class="val-sec-toggle open">▼</span>
-      </div>
-      <div class="val-sec-body">
-        <div class="val-credit-row" style="margin-bottom:6px">
-          <button id="vi-itc-btn" class="val-credit-btn on" onclick="valSetCredit('ITC')">ITC</button>
-          <button id="vi-ptc-btn" class="val-credit-btn off" onclick="valSetCredit('PTC')">PTC</button>
-        </div>
-        <!-- ITC 입력 -->
-        <div id="vi-itc-group" class="val-grid2" style="margin-bottom:6px">
-          <div class="vf"><label>PV ITC (%)</label><input class="vi" id="vi-pv-itc" type="number" step="1" placeholder="30"></div>
-          <div class="vf"><label>BESS ITC (%)</label><input class="vi" id="vi-bess-itc" type="number" step="1" placeholder="30"></div>
-          <div class="vf" style="grid-column:span 2"><label>ITC Eligible Basis (%)</label><input class="vi" id="vi-itc-elig" type="number" step="1" placeholder="97"></div>
-        </div>
-        <!-- PTC 입력 (숨김, PTC 선택 시에만 표시) -->
-        <div id="vi-ptc-group" class="val-grid2" style="display:none;margin-bottom:6px">
-          <div class="vf"><label>PTC Rate ($/kWh)</label><input class="vi" id="vi-ptc-rate" type="number" step="0.001" placeholder="0.027"></div>
-          <div class="vf"><label>BESS ITC (%)</label><input class="vi" id="vi-bess-itc-ptc" type="number" step="1" placeholder="30"></div>
-          <div class="vf" style="grid-column:span 2"><label>ITC Eligible Basis (%)</label><input class="vi" id="vi-itc-elig-ptc" type="number" step="1" placeholder="97"></div>
-        </div>
-        <!-- 공용 legacy field (gv('vi-credit-val') 하위 호환) -->
-        <input type="hidden" id="vi-credit-val" value="30">
-        <!-- Flip -->
-        <div class="val-grid2" style="padding-top:6px;border-top:1px dashed rgba(255,255,255,.05)">
-          <div class="vf"><label>Flip Yield (%)</label><input class="vi" id="vi-flip-y" type="number" step="0.25" placeholder="8.75"></div>
-          <div class="vf"><label>Flip Term (yr)</label><input class="vi" id="vi-flip-t" type="number" step="1" placeholder="7"></div>
-          <div class="vf" style="grid-column:span 2"><label>TE Fee (%)</label><input class="vi" id="vi-te-fee" type="number" step="0.5" placeholder="2"></div>
-        </div>
-      </div>
-    </div>
-
-    <!-- ⑧ BESS AUGMENTATION (고급, 기본 접힘) -->
-    <div class="val-section">
-      <div class="val-section-hd" onclick="valToggleSec(this)">
-        <span class="val-sec-title">BESS Augmentation</span>
-        <span class="val-sec-toggle">▼</span>
-      </div>
-      <div class="val-sec-body" style="display:none">
-        <div class="val-grid2">
-          <div class="vf"><label>Aug. Price ($/kWh)</label><input class="vi" id="vi-aug-price" type="number" step="5" placeholder="150"></div>
-          <div class="vf"><label>Aug. MWh (%)</label><input class="vi" id="vi-aug-mwh" type="number" step="0.5" placeholder="18.8"></div>
-          <div class="vf"><label>1st Aug. Year</label><input class="vi" id="vi-aug-y1" type="number" step="1" placeholder="4" title="Year when 1st BESS augmentation occurs (industry: Y4-Y7)"></div>
-          <div class="vf"><label>2nd Aug. Year</label><input class="vi" id="vi-aug-y2" type="number" step="1" placeholder="8" title="Year when 2nd BESS augmentation occurs (industry: Y8-Y10)"></div>
-          <div class="vf" style="grid-column:span 2"><label>3rd Aug. Year</label><input class="vi" id="vi-aug-y3" type="number" step="1" placeholder="12" title="Year when 3rd BESS augmentation occurs (industry: Y12-Y15, Neptune: Y14)"></div>
-        </div>
-      </div>
-    </div>
-
-    <!-- 엔진용 hidden (UI 없는 legacy ID) -->
-    <div style="display:none">
-      <input id="vi-pv-mwdc" value="">
-      <input id="vi-opex-etc" value="0">
-      <span id="vi-capex-total"></span>
-    </div>
-
-    </div><!-- /val-left-scroll -->
-
-    <div class="val-calc-wrap">
-      <button id="val-calc-btn" class="val-calc-btn">Calculate IRR / Margin</button>
-      <div id="val-calc-msg" class="val-calc-msg"></div>
-      <button id="val-save-version-btn" onclick="valShowSaveModal()" style="display:none;margin-top:8px;width:100%;padding:8px;border:1px solid var(--blue-h);border-radius:8px;background:rgba(37,99,235,.08);color:var(--blue-h);font-size:11px;font-weight:700;cursor:pointer;font-family:var(--font);align-items:center;justify-content:center;gap:6px">
-        💾 Save Version
+    <div class="hv-header-actions">
+      <button class="hv-btn-ghost" onclick="hvBack()">
+        <span>← Back</span>
       </button>
     </div>
+  </header>
 
-    <!-- Save Version Modal (승인 flow 제거 · Share with 재해석) -->
-    <div id="val-save-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:1000;align-items:center;justify-content:center">
-      <div style="background:var(--surface);border:1px solid var(--border2);border-radius:var(--r-lg);width:460px;padding:24px;box-shadow:0 20px 60px rgba(0,0,0,.5)">
-        <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">
-          <span style="font-size:16px">💾</span>
-          <div style="font-size:14px;font-weight:800;color:var(--t1)">Save Version</div>
-        </div>
-        <div style="font-size:10px;color:var(--t3);margin-bottom:20px">Save the current calculation to version history. Optionally tag teammates to send a review request.</div>
+  <!-- ╔═══════════ TOOLBAR ═══════════╗ -->
+  <div class="hv-toolbar">
+    <select id="hv-project-select" class="hv-select" onchange="hvLoadProject()">
+      <option value="">— Select project —</option>
+    </select>
 
-        <div style="display:flex;flex-direction:column;gap:12px">
-          <!-- 자동 생성 Version name (읽기전용) -->
-          <div>
-            <label style="font-size:10px;font-weight:600;color:var(--t2);display:block;margin-bottom:4px">Version name <span style="font-size:9px;color:var(--t3);font-weight:400">(auto-generated)</span></label>
-            <input id="vsm-scenario" readonly style="width:100%;padding:8px 10px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--r-md);color:var(--t3);font-size:11px;font-family:var(--font);box-sizing:border-box;cursor:not-allowed">
-          </div>
+    <div class="hv-toolbar-sep"></div>
 
-          <!-- Change summary (필수) -->
-          <div>
-            <label style="font-size:10px;font-weight:600;color:var(--t2);display:block;margin-bottom:4px">Change summary <span style="color:var(--red)">*</span></label>
-            <textarea id="vsm-reason" placeholder="e.g., Adjusted Flip yield to 9.0% reflecting tight TE market" rows="3" style="width:100%;padding:8px 10px;background:var(--surface3);border:1px solid var(--border);border-radius:var(--r-md);color:var(--t1);font-size:12px;font-family:var(--font);resize:vertical;box-sizing:border-box"></textarea>
-            <div style="font-size:9px;color:var(--t3);margin-top:3px">Keep it brief (e.g., "Applied PPA renegotiation", "CAPEX reduced by 3%")</div>
-          </div>
+    <label class="hv-file-pick">
+      <input type="file" id="hv-file-input" accept=".xlsx,.xlsb,.csv" onchange="hvOnFilePick()" hidden>
+      <span class="hv-file-icon">📎</span>
+      <span class="hv-file-name" id="hv-file-name">PF Model · .xlsb / .xlsx</span>
+    </label>
+    <button id="hv-parse-btn" class="hv-btn-primary" onclick="hvParseModel()" disabled>
+      Upload &amp; Parse
+    </button>
 
-          <!-- Share with (선택) -->
-          <div>
-            <label style="font-size:10px;font-weight:600;color:var(--t2);display:block;margin-bottom:4px">Share with <span style="font-size:9px;color:var(--t3);font-weight:400">(optional)</span></label>
-            <select id="vsm-approver" style="width:100%;padding:8px 10px;background:var(--surface3);border:1px solid var(--border);border-radius:var(--r-md);color:var(--t1);font-size:12px;font-family:var(--font);box-sizing:border-box;cursor:pointer">
-              <option value="">— No recipient —</option>
-            </select>
-            <div style="font-size:9px;color:var(--t3);margin-top:3px">Select teammates for review request (integrates with future notification/comments)</div>
-          </div>
-        </div>
+    <div class="hv-toolbar-sep"></div>
 
-        <div style="display:flex;gap:8px;margin-top:20px">
-          <button onclick="valCloseSaveModal()" style="flex:1;padding:10px;background:var(--surface3);border:1px solid var(--border);border-radius:var(--r-md);color:var(--t2);font-size:12px;font-weight:600;cursor:pointer;font-family:var(--font)">Cancel</button>
-          <button onclick="valSaveVersion()" style="flex:2;padding:10px;background:linear-gradient(135deg,var(--blue-h) 0%,#1D4ED8 100%);border:none;border-radius:var(--r-md);color:#fff;font-size:12px;font-weight:800;cursor:pointer;font-family:var(--font);letter-spacing:.02em">💾 Save</button>
-        </div>
-      </div>
+    <button id="hv-audit-btn" class="hv-btn-ghost" onclick="hvAuditModel()" disabled>
+      🔍 Model Audit
+    </button>
+
+    <div class="hv-toolbar-spacer"></div>
+
+    <div class="hv-status">
+      <span class="hv-status-dot" id="hv-status-dot"></span>
+      <span class="hv-status-text" id="hv-status-text">No data</span>
     </div>
-  </div><!-- /val-left -->
+  </div>
 
-  <!-- ── RIGHT: OUTPUTS ── -->
-  <div class="val-right">
+  <!-- ╔═══════════ BODY ═══════════╗ -->
+  <div class="hv-body">
 
-    <div class="val-tabs-row">
-      <button class="val-tab active" onclick="valSwitchTab('overview',this)">Overview</button>
-      <button class="val-tab" onclick="valSwitchTab('sensitivity',this)">Sensitivity</button>
-      <button class="val-tab val-tab-locked" id="val-tab-cf" onclick="valSwitchTab('cashflow',this)" title="Enabled after Calculate" style="opacity:.35;cursor:not-allowed;pointer-events:none">Cash Flow</button>
-      <button class="val-tab" onclick="valSwitchTab('history',this)">History</button>
-      <button class="val-tab" onclick="valSwitchTab('benchmark',this);valOnBenchmarkOpen()">Benchmark</button>
-      <button class="val-tab val-tab-locked" id="val-tab-ic" onclick="valSwitchTab('ic',this)" title="Enabled after Calculate" style="opacity:.35;cursor:not-allowed;pointer-events:none">IC Opinion</button>
-      <span id="val-calc-status" style="margin-left:auto"></span>
-      <button onclick="valExportPDF()" id="val-export-btn" style="margin-left:8px;margin-right:4px;padding:5px 12px;background:transparent;border:1px solid var(--border2);border-radius:var(--r-md);font-size:10px;font-weight:600;color:var(--t3);cursor:pointer;font-family:var(--font);transition:all var(--ease);white-space:nowrap" onmouseover="this.style.color='var(--t1)';this.style.borderColor='var(--t2)'" onmouseout="this.style.color='var(--t3)';this.style.borderColor='var(--border2)'">✨ Export IC Opinion</button>
-    </div>
+    <!-- ▌ LEFT: INPUT PANEL ▌ -->
+    <aside class="hv-input-panel">
+      <div class="hv-input-scroll">
 
-    <!-- OVERVIEW -->
-    <div class="val-tab-panel active" id="val-panel-overview">
-      <!-- empty state -->
-      <div id="val-empty-state" class="val-empty">
-        <div class="val-empty-icon">📐</div>
-        <div class="val-empty-title">Upload a model or click Calculate</div>
-        <div class="val-empty-sub">Upload a PF model (.xlsb) for auto-parsing, or fill inputs on the left and hit Calculate for a quick estimate.</div>
-      </div>
-
-      <!-- results (hidden until calc) -->
-      <div id="val-results-wrap" style="display:none">
-
-        <!-- Hero metrics -->
-        <div class="val-hero-row">
-          <div class="val-hero-cell">
-            <div class="val-hero-lbl">
-              <span class="val-hero-dot" style="background:var(--amber)"></span>
-              Dev Margin
-            </div>
-            <div id="vo-dev-margin" class="val-hero-val" style="color:var(--amber)">—</div>
-            <div id="vo-dev-cwp" class="val-hero-sub">—</div>
-          </div>
-          <div class="val-hero-cell">
-            <div class="val-hero-lbl">
-              <span class="val-hero-dot" style="background:var(--green)"></span>
-              Sponsor IRR
-            </div>
-            <div id="vo-sirr" class="val-hero-val">—</div>
-            <div class="val-hero-sub">After TE Flip · Full Life</div>
-            <div class="val-irr-track">
-              <div id="vo-sirr-bar" class="val-irr-fill" style="width:0;background:var(--green)"></div>
-            </div>
-          </div>
-          <div class="val-hero-cell">
-            <div class="val-hero-lbl">
-              <span class="val-hero-dot" style="background:var(--blue-h)"></span>
-              EBITDA Yield
-            </div>
-            <div id="vo-ebitda-yield" class="val-hero-val" style="color:var(--blue-h)">—</div>
-            <div class="val-hero-sub">Y1 EBITDA / CAPEX</div>
-            <div class="val-irr-track">
-              <div id="vo-yield-bar" class="val-irr-fill" style="width:0;background:var(--blue-h)"></div>
-            </div>
-          </div>
-        </div>
-
-        <!-- HURDLE CHECK — 투자 기준 달성 여부 (HEUH 의사결정 핵심) -->
-        <div id="vo-hurdle-check" style="background:linear-gradient(180deg,var(--surface) 0%,var(--surface2) 100%);border:1px solid var(--border);border-radius:var(--r-lg);padding:14px 16px;margin-bottom:16px;display:none">
-          <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:10px">
-            <div style="font-size:9px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--t3)">🎯 Hurdle Check</div>
-            <div style="font-size:9px;color:var(--t3)">IC decision thresholds · editable in Settings tab</div>
-          </div>
-          <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px">
-
-            <!-- Primary: Sponsor IRR vs Hurdle -->
-            <div id="vo-hurdle-irr" style="padding:10px 12px;background:var(--surface);border:1px solid var(--border2);border-radius:8px;border-left:3px solid var(--t3)">
-              <div style="font-size:8.5px;font-weight:700;color:var(--t3);letter-spacing:.06em;text-transform:uppercase;margin-bottom:4px">Primary · Buyer Hurdle</div>
-              <div style="display:flex;align-items:baseline;gap:8px;margin-bottom:4px">
-                <div id="vo-hurdle-irr-current" style="font-size:22px;font-weight:800;color:var(--t1);font-variant-numeric:tabular-nums;line-height:1">—</div>
-                <div style="font-size:10px;color:var(--t3)">vs <span id="vo-hurdle-irr-target" style="color:var(--t2);font-weight:700">—</span></div>
+        <!-- ── §1 PROJECT ── -->
+        <section class="hv-section">
+          <header class="hv-section-head" onclick="hvToggleSection(this)">
+            <span class="hv-section-title">Project</span>
+            <span class="hv-section-caret open">▾</span>
+          </header>
+          <div class="hv-section-body">
+            <div class="hv-grid-2">
+              <div class="hv-field">
+                <label>PV (MWac)</label>
+                <input type="number" id="hv-pv-mwac" step="1">
               </div>
-              <div style="font-size:9px;color:var(--t3);margin-bottom:6px">Sponsor IRR · After TE Flip · Full Life</div>
-              <div id="vo-hurdle-irr-status" style="font-size:10px;font-weight:700;padding:3px 8px;display:inline-block;border-radius:4px;background:var(--surface2);color:var(--t3)">Calculate</div>
-            </div>
-
-            <!-- Secondary: Dev Margin vs Hurdle -->
-            <div id="vo-hurdle-margin" style="padding:10px 12px;background:var(--surface);border:1px solid var(--border2);border-radius:8px;border-left:3px solid var(--t3)">
-              <div style="font-size:8.5px;font-weight:700;color:var(--t3);letter-spacing:.06em;text-transform:uppercase;margin-bottom:4px">Secondary · HEUH internal</div>
-              <div style="display:flex;align-items:baseline;gap:8px;margin-bottom:4px">
-                <div id="vo-hurdle-margin-current" style="font-size:22px;font-weight:800;color:var(--t1);font-variant-numeric:tabular-nums;line-height:1">—</div>
-                <div style="font-size:10px;color:var(--t3)">vs <span id="vo-hurdle-margin-target" style="color:var(--t2);font-weight:700">—</span></div>
+              <div class="hv-field">
+                <label>PV (MWdc)</label>
+                <input type="number" id="hv-pv-mwdc" step="1" placeholder="auto (DC/AC 1.3)">
               </div>
-              <div style="font-size:9px;color:var(--t3);margin-bottom:6px">Dev Margin · c/Wp</div>
-              <div id="vo-hurdle-margin-status" style="font-size:10px;font-weight:700;padding:3px 8px;display:inline-block;border-radius:4px;background:var(--surface2);color:var(--t3)">Calculate</div>
-            </div>
-
-            <!-- Overall Verdict -->
-            <div id="vo-hurdle-verdict" style="padding:10px 12px;background:var(--surface);border:1px solid var(--border2);border-radius:8px;border-left:3px solid var(--t3)">
-              <div style="font-size:8.5px;font-weight:700;color:var(--t3);letter-spacing:.06em;text-transform:uppercase;margin-bottom:4px">Overall Verdict</div>
-              <div id="vo-hurdle-verdict-icon" style="font-size:26px;line-height:1;margin-bottom:2px">—</div>
-              <div id="vo-hurdle-verdict-text" style="font-size:11px;font-weight:700;color:var(--t2);margin-bottom:4px">PENDING</div>
-              <div style="font-size:9px;color:var(--t3);line-height:1.3">Both must pass for IC approval</div>
-            </div>
-          </div>
-        </div>
-
-        <!-- Returns Detail — 5개 IRR/WACC 통합 패널 -->
-        <div style="background:linear-gradient(180deg,var(--surface) 0%,var(--surface2) 100%);border:1px solid var(--border);border-radius:var(--r-lg);padding:14px 16px;margin-bottom:16px">
-          <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:10px">
-            <div style="font-size:9px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--t3)">Returns Detail</div>
-            <div style="font-size:9px;color:var(--t3)">Full Life · Useful Life of Project</div>
-          </div>
-          <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:10px">
-
-            <!-- Levered Pre-Tax (메인) -->
-            <div style="padding:10px 12px;background:var(--surface);border:1px solid var(--border2);border-radius:8px;border-left:3px solid var(--green)">
-              <div style="font-size:8.5px;font-weight:700;color:var(--green);letter-spacing:.06em;text-transform:uppercase;margin-bottom:4px;white-space:nowrap">Sponsor IRR</div>
-              <div id="vo-irr-lev-pretax" style="font-size:20px;font-weight:800;color:var(--t1);font-variant-numeric:tabular-nums;line-height:1.1">—</div>
-              <div style="font-size:9px;color:var(--t3);margin-top:3px;white-space:nowrap">Levered · Pre-Tax</div>
-            </div>
-
-            <!-- Levered After-Tax Before NOL -->
-            <div style="padding:10px 12px;background:var(--surface);border:1px solid var(--border);border-radius:8px">
-              <div style="font-size:8.5px;font-weight:700;color:var(--t3);letter-spacing:.06em;text-transform:uppercase;margin-bottom:4px;white-space:nowrap">Sponsor IRR</div>
-              <div id="vo-irr-lev-aftertax-before" style="font-size:18px;font-weight:700;color:var(--t2);font-variant-numeric:tabular-nums;line-height:1.1">—</div>
-              <div style="font-size:9px;color:var(--t3);margin-top:3px;white-space:nowrap">After-Tax (Before NOL)</div>
-            </div>
-
-            <!-- Levered After-Tax After NOL (현실값) -->
-            <div style="padding:10px 12px;background:var(--surface);border:1px solid var(--border2);border-radius:8px;border-left:2px solid var(--amber)">
-              <div style="font-size:8.5px;font-weight:700;color:var(--amber);letter-spacing:.06em;text-transform:uppercase;margin-bottom:4px;white-space:nowrap">Sponsor IRR</div>
-              <div id="vo-irr-lev-aftertax-after" style="font-size:18px;font-weight:700;color:var(--t1);font-variant-numeric:tabular-nums;line-height:1.1">—</div>
-              <div style="font-size:9px;color:var(--t3);margin-top:3px;white-space:nowrap">After-Tax (After NOL)</div>
-            </div>
-
-            <!-- Project Unlevered -->
-            <div style="padding:10px 12px;background:var(--surface);border:1px solid var(--border);border-radius:8px" title="Project IRR (Unlevered Pre-Tax) — asset-level return before tax. Independent of ITC/Debt/Tax Equity. Pure project economics metric.">
-              <div style="font-size:8.5px;font-weight:700;color:var(--t3);letter-spacing:.06em;text-transform:uppercase;margin-bottom:4px;white-space:nowrap">Project IRR</div>
-              <div id="vo-irr-unlev-pretax" style="font-size:18px;font-weight:700;color:var(--t2);font-variant-numeric:tabular-nums;line-height:1.1">—</div>
-              <div style="font-size:9px;color:var(--t3);margin-top:3px;white-space:nowrap">Unlevered · Pre-Tax <span style="color:var(--t3);opacity:.6">· ITC-neutral</span></div>
-            </div>
-
-            <!-- WACC (기준) -->
-            <div style="padding:10px 12px;background:var(--surface);border:1px solid var(--border2);border-radius:8px;border-left:2px solid var(--blue-h)">
-              <div style="font-size:8.5px;font-weight:700;color:var(--blue-h);letter-spacing:.06em;text-transform:uppercase;margin-bottom:4px;white-space:nowrap">WACC</div>
-              <div id="vo-wacc" style="font-size:18px;font-weight:700;color:var(--t1);font-variant-numeric:tabular-nums;line-height:1.1">—</div>
-              <div style="font-size:9px;color:var(--t3);margin-top:3px;white-space:nowrap">Capital Cost · Hurdle</div>
+              <div class="hv-field">
+                <label>BESS (MW)</label>
+                <input type="number" id="hv-bess-mw" step="1" placeholder="auto (MWh/4hr)">
+              </div>
+              <div class="hv-field">
+                <label>BESS (MWh)</label>
+                <input type="number" id="hv-bess-mwh" step="1">
+              </div>
+              <div class="hv-field">
+                <label>Capacity Factor (%)</label>
+                <input type="number" id="hv-capacity-factor" step="0.1">
+              </div>
+              <div class="hv-field">
+                <label>Project Life (yr)</label>
+                <input type="number" id="hv-life" step="1" value="35">
+              </div>
+              <div class="hv-field hv-span-2">
+                <label>COD Year</label>
+                <input type="number" id="hv-cod-year" step="1" value="2026">
+              </div>
             </div>
           </div>
+        </section>
 
-          <!-- 비교 인사이트 (동적 계산) -->
-          <div id="vo-irr-insights" style="margin-top:10px;padding:8px 12px;background:var(--surface2);border-radius:6px;font-size:10px;color:var(--t3);display:none">
-            <span id="vo-irr-insight-text"></span>
-          </div>
-
-          <!-- 숨은 레거시 ID (기존 JS 호환용) -->
-          <span id="vo-lirr" style="display:none"></span>
-          <span id="vo-uirr" style="display:none"></span>
-        </div>
-
-        <!-- NPV (순현재가치) — 규모 비교 지표 -->
-        <div id="vo-npv-section" style="background:linear-gradient(180deg,var(--surface) 0%,var(--surface2) 100%);border:1px solid var(--border);border-radius:var(--r-lg);padding:14px 16px;margin-bottom:16px;display:none">
-          <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:10px">
-            <div style="font-size:9px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--t3)">💰 NPV (Net Present Value)</div>
-            <div style="font-size:9px;color:var(--t3)">For scale comparison · complements IRR</div>
-          </div>
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
-            <div style="padding:10px 12px;background:var(--surface);border:1px solid var(--border2);border-radius:8px;border-left:3px solid var(--green)">
-              <div style="font-size:8.5px;font-weight:700;color:var(--green);letter-spacing:.06em;text-transform:uppercase;margin-bottom:4px">Sponsor NPV</div>
-              <div id="vo-sponsor-npv" style="font-size:20px;font-weight:800;color:var(--t1);font-variant-numeric:tabular-nums;line-height:1.1">—</div>
-              <div style="font-size:9px;color:var(--t3);margin-top:3px">@ Hurdle <span id="vo-npv-hurdle-rate" style="color:var(--t2);font-weight:700">—</span> · Full Life Sponsor CF</div>
+        <!-- ── §2 CAPEX (옵션 C 하이브리드) ── -->
+        <section class="hv-section">
+          <header class="hv-section-head" onclick="hvToggleSection(this)">
+            <span class="hv-section-title">CAPEX</span>
+            <span class="hv-section-caret open">▾</span>
+          </header>
+          <div class="hv-section-body">
+            <!-- Default: Total CAPEX -->
+            <div class="hv-grid-1">
+              <div class="hv-field">
+                <label>Total CAPEX ($M)</label>
+                <input type="number" id="hv-capex-total" step="0.1" placeholder="Excel 업로드 또는 Breakdown 자동 계산">
+              </div>
             </div>
-            <div style="padding:10px 12px;background:var(--surface);border:1px solid var(--border2);border-radius:8px;border-left:3px solid var(--blue-h)">
-              <div style="font-size:8.5px;font-weight:700;color:var(--blue-h);letter-spacing:.06em;text-transform:uppercase;margin-bottom:4px">Project NPV</div>
-              <div id="vo-project-npv" style="font-size:20px;font-weight:800;color:var(--t1);font-variant-numeric:tabular-nums;line-height:1.1">—</div>
-              <div style="font-size:9px;color:var(--t3);margin-top:3px">@ WACC <span id="vo-npv-wacc-rate" style="color:var(--t2);font-weight:700">—</span> · Unlevered Project CF</div>
-            </div>
-          </div>
-          <div style="font-size:9px;color:var(--t3);margin-top:8px;padding:6px 10px;background:rgba(37,99,235,.05);border-left:2px solid var(--blue-h);border-radius:0 4px 4px 0;line-height:1.5">
-            💡 <b style="color:var(--t2)">IRR vs NPV</b>: IRR is <b>return rate</b> (% ratio); NPV is <b>absolute dollar value</b>. A large project at 12% IRR can exceed a small project at 15% IRR in absolute value. IC decisions should <b>consider both</b>.
-          </div>
-        </div>
 
-        <!-- IRR Decomposition (Actual Model vs Scenario Analysis) -->
-        <div id="vo-decomp-section" style="background:linear-gradient(135deg, rgba(124,58,237,0.04), rgba(59,130,246,0.03));border:1px solid rgba(124,58,237,0.2);border-radius:var(--r-lg);padding:14px 16px;margin-bottom:16px;display:none">
-          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
-            <div style="font-size:11px;font-weight:800;color:#c4b5fd">🔍 <span id="vo-decomp-title">IRR Diff Analysis (Actual vs Scenario)</span></div>
-            <button id="vo-decomp-run-btn" style="padding:5px 12px;background:linear-gradient(135deg,#7c3aed,#5b21b6);color:#fff;border:none;border-radius:6px;font-size:10px;font-weight:700;cursor:pointer;font-family:var(--font)">
-              <span id="vo-decomp-run-txt">Run Analysis</span>
+            <!-- Breakdown toggle -->
+            <button class="hv-advanced-toggle" onclick="hvToggleBreakdown('capex', this)">
+              <span class="hv-adv-caret">▸</span>
+              <span class="hv-adv-label">Show Breakdown</span>
             </button>
-          </div>
-          <div id="vo-decomp-content" style="display:none">
-            <!-- IRR 비교 헤더 -->
-            <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:10px">
-              <div style="padding:10px;background:rgba(124,58,237,0.08);border:1px solid rgba(124,58,237,0.25);border-radius:6px;text-align:center">
-                <div style="font-size:9px;color:#c4b5fd;font-weight:700;margin-bottom:3px">🎯 Calibration</div>
-                <div id="vo-decomp-calib-irr" style="font-size:18px;font-weight:800;color:#ddd6fe">—</div>
-              </div>
-              <div style="padding:10px;background:rgba(16,185,129,0.08);border:1px solid rgba(16,185,129,0.25);border-radius:6px;text-align:center">
-                <div style="font-size:9px;color:#6ee7b7;font-weight:700;margin-bottom:3px">📈 Prediction</div>
-                <div id="vo-decomp-predict-irr" style="font-size:18px;font-weight:800;color:#a7f3d0">—</div>
-              </div>
-              <div style="padding:10px;background:rgba(255,255,255,0.03);border:1px solid var(--border2);border-radius:6px;text-align:center">
-                <div style="font-size:9px;color:var(--t3);font-weight:700;margin-bottom:3px"><span id="vo-decomp-delta-label">Total diff</span></div>
-                <div id="vo-decomp-delta" style="font-size:18px;font-weight:800;color:var(--amber)">—</div>
-              </div>
-            </div>
-            <!-- 요인별 bars -->
-            <div id="vo-decomp-factors" style="display:flex;flex-direction:column;gap:8px;margin-bottom:10px"></div>
-            <!-- Claude 해설 버튼 -->
-            <div style="display:flex;gap:8px;align-items:center">
-              <button id="vo-decomp-explain-btn" style="flex:1;padding:8px;background:linear-gradient(135deg,#5B4CF0,#8B6FE8);color:#fff;border:none;border-radius:6px;font-size:11px;font-weight:700;cursor:pointer;font-family:var(--font)">
-                💬 <span id="vo-decomp-explain-txt">Get AI explanation</span>
-              </button>
-              <span id="vo-decomp-explain-note" style="font-size:9px;color:var(--t3);flex-shrink:0">Powered by Claude AI</span>
-            </div>
-            <!-- Claude 해설 결과 -->
-            <div id="vo-decomp-explanation" style="display:none;margin-top:10px;padding:12px;background:rgba(91,76,240,0.05);border-left:3px solid #5B4CF0;border-radius:0 6px 6px 0;font-size:11px;color:var(--t2);line-height:1.7;white-space:pre-wrap"></div>
-          </div>
-        </div>
 
-        <!-- Capital Structure -->
-        <div class="val-capstruct">
-          <div class="val-cs-title">Capital Structure</div>
-          <div class="val-cs-bar" id="val-cs-bar">
-            <div class="val-cs-seg val-cs-seg-debt" id="cs-debt-seg" style="width:47.6%">Debt</div>
-            <div class="val-cs-seg val-cs-seg-te"   id="cs-te-seg"   style="width:32.5%">TE</div>
-            <div class="val-cs-seg val-cs-seg-eq"   id="cs-eq-seg"   style="width:19.9%">Eq</div>
+            <!-- Breakdown fields (hidden default) -->
+            <div class="hv-advanced" id="hv-capex-breakdown" hidden>
+              <div class="hv-grid-2">
+                <div class="hv-field">
+                  <label>PV Module (¢/Wdc)</label>
+                  <input type="number" id="hv-pv-module" step="0.1" value="31.5">
+                </div>
+                <div class="hv-field">
+                  <label>PV BOS (¢/Wdc)</label>
+                  <input type="number" id="hv-pv-bos" step="0.1" value="42.88">
+                </div>
+                <div class="hv-field">
+                  <label>BESS Equip ($/kWh)</label>
+                  <input type="number" id="hv-bess-equip" step="0.1" value="234.5">
+                </div>
+                <div class="hv-field">
+                  <label>BESS BOS ($/kWh)</label>
+                  <input type="number" id="hv-bess-bos" step="0.1" value="130">
+                </div>
+                <div class="hv-field">
+                  <label>EPC Cont. (%)</label>
+                  <input type="number" id="hv-epc-cont" step="0.1" value="8">
+                </div>
+                <div class="hv-field">
+                  <label>Owner Cost (%)</label>
+                  <input type="number" id="hv-owner-cost" step="0.1" value="3">
+                </div>
+                <div class="hv-field">
+                  <label>Interconnect ($M)</label>
+                  <input type="number" id="hv-intercon" step="0.1">
+                </div>
+                <div class="hv-field">
+                  <label>Dev Cost ($M)</label>
+                  <input type="number" id="hv-dev-cost" step="0.1">
+                </div>
+                <div class="hv-field hv-span-2">
+                  <label>Dev Fee (¢/Wac)</label>
+                  <input type="number" id="hv-dev-fee" step="1" value="10">
+                </div>
+              </div>
+            </div>
           </div>
-          <div class="val-cs-legend">
-            <div class="val-cs-item">
-              <div class="val-cs-item-top">
-                <div class="val-cs-dot" style="background:var(--blue)"></div>
-                <span class="val-cs-name">DEBT</span>
-              </div>
-              <div><span id="vo-debt" class="val-cs-amount">—</span><span id="vo-debt-pct" class="val-cs-pct"></span></div>
-            </div>
-            <div class="val-cs-item">
-              <div class="val-cs-item-top">
-                <div class="val-cs-dot" style="background:var(--purple)"></div>
-                <span class="val-cs-name">TAX EQUITY</span>
-              </div>
-              <div><span id="vo-te" class="val-cs-amount">—</span><span id="vo-te-pct" class="val-cs-pct"></span></div>
-            </div>
-            <div class="val-cs-item">
-              <div class="val-cs-item-top">
-                <div class="val-cs-dot" style="background:var(--amber)"></div>
-                <span class="val-cs-name">SPONSOR EQ</span>
-              </div>
-              <div><span id="vo-eq" class="val-cs-amount" style="color:var(--amber)">—</span><span id="vo-eq-pct" class="val-cs-pct"></span></div>
-            </div>
-            <div class="val-cs-item" style="margin-left:auto">
-              <div class="val-cs-item-top"><span class="val-cs-name">TOTAL</span></div>
-              <div><span id="vo-capex" class="val-cs-amount" style="color:var(--t1)">—</span></div>
-            </div>
-          </div>
-        </div>
+        </section>
 
-        <!-- Deal Terms + Project Specs -->
-        <div class="val-detail-grid">
-          <div class="val-detail-card">
-            <div class="val-detail-title">Deal Terms</div>
-            <div class="val-detail-row">
-              <span class="val-detail-key">PPA</span>
-              <span id="vo-ppa" class="val-detail-val">—</span>
+        <!-- ── §3 OPEX (옵션 C 하이브리드) ── -->
+        <section class="hv-section">
+          <header class="hv-section-head" onclick="hvToggleSection(this)">
+            <span class="hv-section-title">OPEX</span>
+            <span class="hv-section-caret">▾</span>
+          </header>
+          <div class="hv-section-body" hidden>
+            <!-- Default: Total OPEX + Esc -->
+            <div class="hv-grid-2">
+              <div class="hv-field">
+                <label>Total OPEX Y1 ($M/yr)</label>
+                <input type="number" id="hv-opex-total" step="0.1" placeholder="Excel 또는 Breakdown 자동">
+              </div>
+              <div class="hv-field">
+                <label>OPEX Esc. (%)</label>
+                <input type="number" id="hv-opex-esc" step="0.1" value="2.5">
+              </div>
             </div>
-            <div class="val-detail-row">
-              <span class="val-detail-key">BESS Toll</span>
-              <span id="vo-toll" class="val-detail-val">—</span>
-            </div>
-            <div class="val-detail-row">
-              <span class="val-detail-key">Debt / Interest</span>
-              <span id="vo-debt-terms" class="val-detail-val">—</span>
-            </div>
-            <div class="val-detail-row">
-              <span class="val-detail-key">TE Flip Yield</span>
-              <span id="vo-flip" class="val-detail-val">—</span>
-            </div>
-          </div>
-          <div class="val-detail-card">
-            <div class="val-detail-title">Project Specs</div>
-            <div class="val-detail-row">
-              <span class="val-detail-key">PV / BESS</span>
-              <span id="vo-specs" class="val-detail-val">—</span>
-            </div>
-            <div class="val-detail-row">
-              <span class="val-detail-key">COD / NTP</span>
-              <span id="vo-dates" class="val-detail-val">—</span>
-            </div>
-            <div class="val-detail-row">
-              <span class="val-detail-key">ITC / PTC</span>
-              <span id="vo-credit-display" class="val-detail-val">—</span>
-            </div>
-            <div class="val-detail-row">
-              <span class="val-detail-key">EBITDA Y1</span>
-              <span id="vo-ebitda-y1" class="val-detail-val">—</span>
-            </div>
-          </div>
-        </div>
 
-        <div id="vo-meta" style="font-size:10px;color:var(--t3);text-align:right;padding-top:4px"></div>
+            <!-- Breakdown toggle -->
+            <button class="hv-advanced-toggle" onclick="hvToggleBreakdown('opex', this)">
+              <span class="hv-adv-caret">▸</span>
+              <span class="hv-adv-label">Show Breakdown</span>
+            </button>
+
+            <!-- Breakdown fields -->
+            <div class="hv-advanced" id="hv-opex-breakdown" hidden>
+              <div class="hv-grid-2">
+                <div class="hv-field">
+                  <label>PV O&amp;M ($/kW-yr)</label>
+                  <input type="number" id="hv-pv-om" step="0.1" value="4.5">
+                </div>
+                <div class="hv-field">
+                  <label>BESS O&amp;M ($/kW-yr)</label>
+                  <input type="number" id="hv-bess-om" step="0.1" value="8.6">
+                </div>
+                <div class="hv-field">
+                  <label>Insurance ($/kW-yr)</label>
+                  <input type="number" id="hv-insurance" step="0.01" value="10.57">
+                </div>
+                <div class="hv-field">
+                  <label>Asset Mgmt ($K/yr)</label>
+                  <input type="number" id="hv-asset-mgmt" step="1" value="150">
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- ── §4 REVENUE ── -->
+        <section class="hv-section">
+          <header class="hv-section-head" onclick="hvToggleSection(this)">
+            <span class="hv-section-title">Revenue</span>
+            <span class="hv-section-caret">▾</span>
+          </header>
+          <div class="hv-section-body" hidden>
+            <!-- Default -->
+            <div class="hv-grid-2">
+              <div class="hv-field">
+                <label>PPA Price ($/MWh)</label>
+                <input type="number" id="hv-ppa-price" step="0.1">
+              </div>
+              <div class="hv-field">
+                <label>PPA Term (yr)</label>
+                <input type="number" id="hv-ppa-term" step="1" value="25">
+              </div>
+              <div class="hv-field hv-span-2">
+                <label>BESS Toll ($/kW-mo, optional)</label>
+                <input type="number" id="hv-toll-price" step="0.01">
+              </div>
+            </div>
+
+            <!-- Advanced toggle -->
+            <button class="hv-advanced-toggle" onclick="hvToggleAdvanced('revenue', this)">
+              <span class="hv-adv-caret">▸</span>
+              <span class="hv-adv-label">Show Advanced</span>
+            </button>
+
+            <!-- Advanced -->
+            <div class="hv-advanced" id="hv-revenue-advanced" hidden>
+              <div class="hv-grid-2">
+                <div class="hv-field">
+                  <label>PPA Esc. (%)</label>
+                  <input type="number" id="hv-ppa-esc" step="0.1" value="1.5">
+                </div>
+                <div class="hv-field">
+                  <label>Toll Term (yr)</label>
+                  <input type="number" id="hv-toll-term" step="1" value="20">
+                </div>
+                <div class="hv-field">
+                  <label>Toll Esc. (%)</label>
+                  <input type="number" id="hv-toll-esc" step="0.1" value="2">
+                </div>
+                <div class="hv-field">
+                  <label>Merchant Tail ($/MWh)</label>
+                  <input type="number" id="hv-merchant-tail" step="0.1" placeholder="post-PPA Y26+">
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- ── §5 FINANCING ── -->
+        <section class="hv-section">
+          <header class="hv-section-head" onclick="hvToggleSection(this)">
+            <span class="hv-section-title">Financing</span>
+            <span class="hv-section-caret">▾</span>
+          </header>
+          <div class="hv-section-body" hidden>
+            <!-- Default -->
+            <div class="hv-grid-2">
+              <div class="hv-field">
+                <label>DSCR Target (Contracted)</label>
+                <input type="number" id="hv-dscr-contracted" step="0.01" value="1.30">
+              </div>
+              <div class="hv-field">
+                <label>DSCR Target (Merchant)</label>
+                <input type="number" id="hv-dscr-merchant" step="0.01" value="1.50">
+              </div>
+              <div class="hv-field">
+                <label>Interest Rate (%)</label>
+                <input type="number" id="hv-int-rate" step="0.01" value="6.5">
+              </div>
+              <div class="hv-field">
+                <label>Loan Tenor (yr)</label>
+                <input type="number" id="hv-loan-tenor" step="1" value="18">
+              </div>
+            </div>
+
+            <!-- Advanced toggle -->
+            <button class="hv-advanced-toggle" onclick="hvToggleAdvanced('financing', this)">
+              <span class="hv-adv-caret">▸</span>
+              <span class="hv-adv-label">Show Advanced</span>
+            </button>
+
+            <!-- Advanced -->
+            <div class="hv-advanced" id="hv-financing-advanced" hidden>
+              <div class="hv-grid-2">
+                <div class="hv-field">
+                  <label>Tax Rate (%)</label>
+                  <input type="number" id="hv-tax-rate" step="0.1" value="21">
+                </div>
+                <div class="hv-field">
+                  <label>Debt Ratio Override (%)</label>
+                  <input type="number" id="hv-debt-ratio" step="0.1" placeholder="auto (sculpted)">
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- ── §6 TAX CREDIT ── -->
+        <section class="hv-section">
+          <header class="hv-section-head" onclick="hvToggleSection(this)">
+            <span class="hv-section-title">Tax Credit</span>
+            <span class="hv-section-caret">▾</span>
+          </header>
+          <div class="hv-section-body" hidden>
+            <!-- ITC/PTC Toggle -->
+            <div class="hv-toggle-row">
+              <button id="hv-credit-itc" class="hv-toggle-btn on" onclick="hvSetCredit('ITC')">ITC</button>
+              <button id="hv-credit-ptc" class="hv-toggle-btn" onclick="hvSetCredit('PTC')">PTC</button>
+            </div>
+
+            <!-- Default fields -->
+            <div id="hv-itc-fields" class="hv-grid-2">
+              <div class="hv-field">
+                <label>PV ITC (%)</label>
+                <input type="number" id="hv-pv-itc" step="1" value="40">
+              </div>
+              <div class="hv-field">
+                <label>BESS ITC (%)</label>
+                <input type="number" id="hv-bess-itc" step="1" value="30">
+              </div>
+            </div>
+
+            <div id="hv-ptc-fields" class="hv-grid-2" hidden>
+              <div class="hv-field">
+                <label>PTC Rate ($/kWh)</label>
+                <input type="number" id="hv-ptc-rate" step="0.0001" value="0.0275">
+              </div>
+              <div class="hv-field">
+                <label>PTC Term (yr)</label>
+                <input type="number" id="hv-ptc-term" step="1" value="10">
+              </div>
+            </div>
+
+            <div class="hv-grid-2" style="margin-top:8px">
+              <div class="hv-field">
+                <label>TE Flip Yield (%)</label>
+                <input type="number" id="hv-te-flip-y" step="0.1" value="8.75">
+              </div>
+              <div class="hv-field">
+                <label>TE Flip Term (yr)</label>
+                <input type="number" id="hv-te-flip-t" step="1" value="5">
+              </div>
+            </div>
+
+            <!-- Advanced toggle -->
+            <button class="hv-advanced-toggle" onclick="hvToggleAdvanced('credit', this)">
+              <span class="hv-adv-caret">▸</span>
+              <span class="hv-adv-label">Show Advanced</span>
+            </button>
+
+            <!-- Advanced -->
+            <div class="hv-advanced" id="hv-credit-advanced" hidden>
+              <div class="hv-grid-2">
+                <div class="hv-field">
+                  <label>ITC Eligible Basis (%)</label>
+                  <input type="number" id="hv-itc-elig" step="0.1" value="97">
+                </div>
+                <div class="hv-field">
+                  <label>TE Fee ($K)</label>
+                  <input type="number" id="hv-te-fee" step="1" value="500">
+                </div>
+                <div class="hv-field hv-span-2">
+                  <label>TE Ratio Override (%)</label>
+                  <input type="number" id="hv-te-ratio" step="0.1" placeholder="auto">
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- ── §7 BESS AUGMENTATION ── -->
+        <section class="hv-section">
+          <header class="hv-section-head" onclick="hvToggleSection(this)">
+            <span class="hv-section-title">BESS Augmentation</span>
+            <span class="hv-section-caret">▾</span>
+          </header>
+          <div class="hv-section-body" hidden>
+            <div class="hv-grid-2">
+              <div class="hv-field">
+                <label>1st Aug Year</label>
+                <input type="number" id="hv-aug-y1" step="1" value="4">
+              </div>
+              <div class="hv-field">
+                <label>Aug Cost % (Y1)</label>
+                <input type="number" id="hv-aug-pct1" step="0.1" value="20">
+              </div>
+              <div class="hv-field">
+                <label>2nd Aug Year</label>
+                <input type="number" id="hv-aug-y2" step="1" value="8">
+              </div>
+              <div class="hv-field">
+                <label>Aug Cost % (Y2)</label>
+                <input type="number" id="hv-aug-pct2" step="0.1" value="15">
+              </div>
+            </div>
+          </div>
+        </section>
+
       </div>
-    </div>
 
-    <!-- SENSITIVITY -->
-    <div class="val-tab-panel" id="val-panel-sensitivity">
-
-      <!-- SCENARIO COMPARISON -->
-      <div id="val-scenario-section">
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
-          <div>
-            <div style="font-size:11px;font-weight:700;color:var(--t1)">Scenario Comparison</div>
-            <div style="font-size:10px;color:var(--t3);margin-top:2px">Calculates and compares three scenarios simultaneously</div>
-          </div>
-          <button id="val-run-scenarios-btn" onclick="valRunScenarios()" style="padding:7px 18px;background:var(--blue-d);color:#fff;border:none;border-radius:var(--r-md);font-size:11px;font-weight:700;cursor:pointer;font-family:var(--font);opacity:.4;pointer-events:none">▶ Run Scenarios</button>
-        </div>
-
-        <!-- Sensitivity 조정 패널 -->
-        <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--r-lg);padding:12px 14px;margin-bottom:14px">
-          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
-            <div>
-              <div style="font-size:10px;font-weight:700;color:var(--t1);letter-spacing:.05em">🎚️ Sensitivity Adjustment</div>
-              <div style="font-size:9px;color:var(--t3);margin-top:1px">BESS Toll stays at Base value across all scenarios</div>
-            </div>
-            <div style="display:flex;gap:4px">
-              <button onclick="valApplySensPreset('mild')"     style="padding:4px 10px;background:var(--surface3);border:1px solid var(--border2);border-radius:6px;font-size:9.5px;color:var(--t2);cursor:pointer;font-family:var(--font);font-weight:600">Mild (±2%)</button>
-              <button onclick="valApplySensPreset('moderate')" style="padding:4px 10px;background:var(--blue-d);border:none;border-radius:6px;font-size:9.5px;color:#fff;cursor:pointer;font-family:var(--font);font-weight:700">Moderate</button>
-              <button onclick="valApplySensPreset('severe')"   style="padding:4px 10px;background:var(--surface3);border:1px solid var(--border2);border-radius:6px;font-size:9.5px;color:var(--t2);cursor:pointer;font-family:var(--font);font-weight:600">Severe (±5%)</button>
-            </div>
-          </div>
-
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
-            <!-- PPA -->
-            <div style="display:flex;align-items:center;gap:8px;padding:8px 10px;background:var(--surface2);border-radius:6px">
-              <div style="flex:1">
-                <div style="font-size:9px;font-weight:700;color:var(--t2);letter-spacing:.04em;text-transform:uppercase">PPA Price</div>
-                <div style="font-size:8px;color:var(--t3);margin-top:1px">Upside ↑ / Stress ↓</div>
-              </div>
-              <div style="display:flex;align-items:center;gap:4px">
-                <span style="font-size:9px;color:var(--green);font-weight:600">+</span>
-                <input id="sens-ppa-up" type="number" step="0.5" value="3" min="0" max="20" style="width:44px;padding:3px 6px;background:var(--surface);border:1px solid var(--border2);border-radius:4px;color:var(--t1);font-size:11px;font-weight:700;text-align:center;font-family:var(--font)">
-                <span style="font-size:9px;color:var(--t3)">%</span>
-                <span style="width:8px"></span>
-                <span style="font-size:9px;color:var(--red);font-weight:600">−</span>
-                <input id="sens-ppa-dn" type="number" step="0.5" value="3" min="0" max="20" style="width:44px;padding:3px 6px;background:var(--surface);border:1px solid var(--border2);border-radius:4px;color:var(--t1);font-size:11px;font-weight:700;text-align:center;font-family:var(--font)">
-                <span style="font-size:9px;color:var(--t3)">%</span>
-              </div>
-            </div>
-
-            <!-- CAPEX -->
-            <div style="display:flex;align-items:center;gap:8px;padding:8px 10px;background:var(--surface2);border-radius:6px">
-              <div style="flex:1">
-                <div style="font-size:9px;font-weight:700;color:var(--t2);letter-spacing:.04em;text-transform:uppercase">CAPEX</div>
-                <div style="font-size:8px;color:var(--t3);margin-top:1px">Upside ↓ / Stress ↑</div>
-              </div>
-              <div style="display:flex;align-items:center;gap:4px">
-                <span style="font-size:9px;color:var(--green);font-weight:600">−</span>
-                <input id="sens-capex-up" type="number" step="0.5" value="4" min="0" max="20" style="width:44px;padding:3px 6px;background:var(--surface);border:1px solid var(--border2);border-radius:4px;color:var(--t1);font-size:11px;font-weight:700;text-align:center;font-family:var(--font)">
-                <span style="font-size:9px;color:var(--t3)">%</span>
-                <span style="width:8px"></span>
-                <span style="font-size:9px;color:var(--red);font-weight:600">+</span>
-                <input id="sens-capex-dn" type="number" step="0.5" value="5" min="0" max="20" style="width:44px;padding:3px 6px;background:var(--surface);border:1px solid var(--border2);border-radius:4px;color:var(--t1);font-size:11px;font-weight:700;text-align:center;font-family:var(--font)">
-                <span style="font-size:9px;color:var(--t3)">%</span>
-              </div>
-            </div>
-          </div>
-
-          <div style="display:flex;justify-content:flex-end;margin-top:10px">
-            <button onclick="valRecalcScenariosFromSens()" style="padding:5px 14px;background:transparent;border:1px solid var(--blue-d);color:var(--blue-h);border-radius:6px;font-size:10px;font-weight:700;cursor:pointer;font-family:var(--font)">🔄 Re-apply Scenario Values</button>
-          </div>
-        </div>
-
-        <!-- 3-column scenario inputs -->
-        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:14px">
-          <div class="val-sc-card" id="val-sc-base" data-sc="base">
-            <div class="val-sc-header" style="background:rgba(74,140,247,.12);border-color:rgba(74,140,247,.3)">
-              <span class="val-sc-label">BASE</span>
-              <span class="val-sc-tag" style="color:var(--blue-h)">Base Scenario</span>
-            </div>
-            <div class="val-sc-body">
-              <div class="val-sc-row"><label>PPA ($/MWh)</label><input class="val-sc-inp" data-field="ppa_price" type="number" step="0.5" placeholder="—"></div>
-              <div class="val-sc-row"><label>BESS Toll ($/kW-mo)</label><input class="val-sc-inp" data-field="bess_toll" type="number" step="0.25" placeholder="—"></div>
-              <div class="val-sc-row"><label>CAPEX ($M)</label><input class="val-sc-inp" data-field="capex_total_override" type="number" step="5" placeholder="—"></div>
-              <div class="val-sc-row"><label>Debt Ratio (%)</label><input class="val-sc-inp" data-field="debt_ratio" type="number" step="1" placeholder="—"></div>
-              <div class="val-sc-row"><label>Flip Yield (%)</label><input class="val-sc-inp" data-field="flip_yield" type="number" step="0.25" placeholder="—"></div>
-            </div>
-            <div class="val-sc-result" id="val-sc-result-base" style="display:none"></div>
-          </div>
-          <div class="val-sc-card" id="val-sc-upside" data-sc="upside">
-            <div class="val-sc-header" style="background:rgba(16,185,129,.1);border-color:rgba(16,185,129,.3)">
-              <span class="val-sc-label" style="color:var(--green)">UPSIDE</span>
-              <span class="val-sc-tag" style="color:var(--green)">Upside Scenario</span>
-            </div>
-            <div class="val-sc-body">
-              <div class="val-sc-row"><label>PPA ($/MWh)</label><input class="val-sc-inp" data-field="ppa_price" type="number" step="0.5" placeholder="—"></div>
-              <div class="val-sc-row"><label>BESS Toll ($/kW-mo)</label><input class="val-sc-inp" data-field="bess_toll" type="number" step="0.25" placeholder="—"></div>
-              <div class="val-sc-row"><label>CAPEX ($M)</label><input class="val-sc-inp" data-field="capex_total_override" type="number" step="5" placeholder="—"></div>
-              <div class="val-sc-row"><label>Debt Ratio (%)</label><input class="val-sc-inp" data-field="debt_ratio" type="number" step="1" placeholder="—"></div>
-              <div class="val-sc-row"><label>Flip Yield (%)</label><input class="val-sc-inp" data-field="flip_yield" type="number" step="0.25" placeholder="—"></div>
-            </div>
-            <div class="val-sc-result" id="val-sc-result-upside" style="display:none"></div>
-          </div>
-          <div class="val-sc-card" id="val-sc-stress" data-sc="stress">
-            <div class="val-sc-header" style="background:rgba(240,82,82,.08);border-color:rgba(240,82,82,.25)">
-              <span class="val-sc-label" style="color:var(--red)">STRESS</span>
-              <span class="val-sc-tag" style="color:var(--red)">Downside Scenario</span>
-            </div>
-            <div class="val-sc-body">
-              <div class="val-sc-row"><label>PPA ($/MWh)</label><input class="val-sc-inp" data-field="ppa_price" type="number" step="0.5" placeholder="—"></div>
-              <div class="val-sc-row"><label>BESS Toll ($/kW-mo)</label><input class="val-sc-inp" data-field="bess_toll" type="number" step="0.25" placeholder="—"></div>
-              <div class="val-sc-row"><label>CAPEX ($M)</label><input class="val-sc-inp" data-field="capex_total_override" type="number" step="5" placeholder="—"></div>
-              <div class="val-sc-row"><label>Debt Ratio (%)</label><input class="val-sc-inp" data-field="debt_ratio" type="number" step="1" placeholder="—"></div>
-              <div class="val-sc-row"><label>Flip Yield (%)</label><input class="val-sc-inp" data-field="flip_yield" type="number" step="0.25" placeholder="—"></div>
-            </div>
-            <div class="val-sc-result" id="val-sc-result-stress" style="display:none"></div>
-          </div>
-        </div>
-
-        <!-- Comparison table (hidden until run) -->
-        <div id="val-sc-compare" style="display:none;background:var(--surface);border:1px solid var(--border);border-radius:var(--r-lg);overflow:hidden;margin-bottom:20px">
-          <table style="width:100%;border-collapse:collapse;font-size:11px;font-variant-numeric:tabular-nums">
-            <thead>
-              <tr style="border-bottom:1px solid var(--border)">
-                <th style="padding:10px 14px;text-align:left;font-size:9px;color:var(--t3);font-weight:700;letter-spacing:.08em;text-transform:uppercase;background:var(--surface2)">Metric</th>
-                <th style="padding:10px 14px;text-align:right;color:var(--blue-h);font-size:10px;background:var(--surface2)">BASE</th>
-                <th style="padding:10px 14px;text-align:right;color:var(--green);font-size:10px;background:var(--surface2)">UPSIDE</th>
-                <th style="padding:10px 14px;text-align:right;color:var(--red);font-size:10px;background:var(--surface2)">STRESS</th>
-              </tr>
-            </thead>
-            <tbody id="val-sc-compare-body"></tbody>
-          </table>
-        </div>
-
-        <div style="width:100%;height:1px;background:var(--border);margin:20px 0"></div>
+      <!-- Calculate (스크롤 영역 외, 하단 고정) -->
+      <div class="hv-calc-bar">
+        <button id="hv-calc-btn" class="hv-btn-calc" onclick="hvCalculate()">
+          ▶ Calculate
+        </button>
+        <div id="hv-calc-status" class="hv-calc-status">No data</div>
       </div>
+    </aside>
 
-      <!-- ═══ BREAK-EVEN ANALYSIS (역산 민감도) ═══ -->
-      <div id="val-breakeven-section" style="background:var(--surface);border:1px solid var(--border);border-radius:var(--r-lg);padding:16px;margin-bottom:20px">
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
-          <div>
-            <div style="font-size:11px;font-weight:700;color:var(--t1)">🎯 Break-Even Analysis</div>
-            <div style="font-size:9px;color:var(--t3);margin-top:2px">Back-solve for target Sponsor IRR · by PPA price</div>
+    <!-- ▌ RIGHT: OUTPUT PANEL ▌ -->
+    <main class="hv-output-panel">
+
+      <!-- Tabs -->
+      <nav class="hv-tabs">
+        <button class="hv-tab active" data-tab="overview" onclick="hvSwitchTab('overview', this)">Overview</button>
+        <button class="hv-tab" data-tab="sensitivity" onclick="hvSwitchTab('sensitivity', this)">Sensitivity</button>
+        <button class="hv-tab" data-tab="cf" onclick="hvSwitchTab('cf', this)">Cash Flow</button>
+        <button class="hv-tab" data-tab="history" onclick="hvSwitchTab('history', this)">History</button>
+        <button class="hv-tab" data-tab="benchmark" onclick="hvSwitchTab('benchmark', this)">Benchmark</button>
+      </nav>
+
+      <!-- ═══ OVERVIEW PANEL ═══ -->
+      <section class="hv-tab-panel active" data-panel="overview">
+
+        <!-- ▸ Reference Comparison 2 cards -->
+        <div class="hv-ref-row">
+          <article class="hv-ref-card">
+            <div class="hv-ref-head">
+              <span class="hv-ref-label">Sponsor IRR</span>
+              <span class="hv-ref-sub">Levered · After-Tax</span>
+            </div>
+            <div class="hv-ref-main">
+              <span class="hv-ref-value" id="hv-ref-sponsor-value">—</span>
+              <span class="hv-ref-unit">%</span>
+            </div>
+            <div class="hv-ref-compare">
+              <span class="hv-ref-baseline" id="hv-ref-sponsor-baseline">Reference: —</span>
+              <span class="hv-ref-delta" id="hv-ref-sponsor-delta">—</span>
+            </div>
+          </article>
+
+          <article class="hv-ref-card">
+            <div class="hv-ref-head">
+              <span class="hv-ref-label">Project IRR</span>
+              <span class="hv-ref-sub">Unlevered · Pre-Tax</span>
+            </div>
+            <div class="hv-ref-main">
+              <span class="hv-ref-value" id="hv-ref-project-value">—</span>
+              <span class="hv-ref-unit">%</span>
+            </div>
+            <div class="hv-ref-compare">
+              <span class="hv-ref-baseline" id="hv-ref-project-baseline">Reference: —</span>
+              <span class="hv-ref-delta" id="hv-ref-project-delta">—</span>
+            </div>
+          </article>
+        </div>
+
+        <!-- ▸ Project Type Indicator -->
+        <div class="hv-type-bar" id="hv-type-bar">
+          <span class="hv-type-label">Project Type</span>
+          <span class="hv-type-value" id="hv-type-value">—</span>
+          <span class="hv-type-note">Thresholds applied automatically by type</span>
+        </div>
+
+        <!-- ▸ Returns Detail -->
+        <div class="hv-block">
+          <div class="hv-block-head">
+            <h3 class="hv-block-title">Returns Detail</h3>
+            <span class="hv-block-sub">Useful Life of Project</span>
+            <button class="hv-link" id="hv-adv-toggle" onclick="hvToggleAdvanced()">Show Advanced ▾</button>
           </div>
-          <div style="display:flex;gap:8px;align-items:center">
-            <label style="font-size:9px;color:var(--t3);font-weight:600">Target IRR</label>
-            <input id="be-target-irr" type="number" step="0.5" value="11.0" style="width:56px;padding:4px 6px;background:var(--surface);border:1px solid var(--border2);border-radius:5px;color:var(--blue-h);font-size:12px;font-weight:700;text-align:center;font-family:var(--font)">
-            <span style="font-size:10px;color:var(--t3)">%</span>
-            <button onclick="valRunBreakEven()" id="be-run-btn" style="padding:5px 14px;background:var(--blue-d);color:#fff;border:none;border-radius:var(--r-md);font-size:10px;font-weight:700;cursor:pointer;font-family:var(--font);margin-left:8px">▶ Run Analysis</button>
+
+          <div class="hv-returns-grid">
+            <article class="hv-ret-card primary">
+              <div class="hv-ret-lbl">Sponsor IRR</div>
+              <div class="hv-ret-val" id="hv-ret-lev-at">—</div>
+              <div class="hv-ret-sub">Levered · After-Tax</div>
+            </article>
+            <article class="hv-ret-card">
+              <div class="hv-ret-lbl">Sponsor IRR</div>
+              <div class="hv-ret-val" id="hv-ret-unlev-at">—</div>
+              <div class="hv-ret-sub">Unlevered · After-Tax</div>
+            </article>
+            <article class="hv-ret-card">
+              <div class="hv-ret-lbl">Project IRR</div>
+              <div class="hv-ret-val" id="hv-ret-proj">—</div>
+              <div class="hv-ret-sub">Unlevered · Pre-Tax</div>
+            </article>
+          </div>
+
+          <!-- Advanced (hidden by default) -->
+          <div class="hv-returns-grid hv-advanced" id="hv-returns-advanced" hidden>
+            <article class="hv-ret-card secondary">
+              <div class="hv-ret-lbl">Sponsor IRR</div>
+              <div class="hv-ret-val" id="hv-ret-lev-pre">—</div>
+              <div class="hv-ret-sub">Levered · Pre-Tax</div>
+            </article>
+            <article class="hv-ret-card secondary">
+              <div class="hv-ret-lbl">Sponsor IRR</div>
+              <div class="hv-ret-val" id="hv-ret-after-nol">—</div>
+              <div class="hv-ret-sub">After-Tax · After NOL</div>
+            </article>
+            <article class="hv-ret-card secondary">
+              <div class="hv-ret-lbl">Sponsor NPV</div>
+              <div class="hv-ret-val" id="hv-ret-npv">—</div>
+              <div class="hv-ret-sub">@ Hurdle IRR</div>
+            </article>
           </div>
         </div>
 
-        <div id="be-empty" style="padding:28px 16px;text-align:center;background:var(--surface2);border:1px dashed var(--border2);border-radius:var(--r-md);font-size:10px;color:var(--t3)">
-          Calculates required PPA price / Dev Margin / CAPEX headroom to achieve target IRR. Run after Calculate completes.
+        <!-- ▸ Capital Stack -->
+        <div class="hv-block">
+          <div class="hv-block-head">
+            <h3 class="hv-block-title">Capital Structure</h3>
+            <span class="hv-block-sub" id="hv-cap-total-sub">—</span>
+          </div>
+
+          <div class="hv-capstack" id="hv-capstack">
+            <div class="hv-cs-seg hv-cs-debt" style="width:0">
+              <span class="hv-cs-seg-pct">—</span>
+            </div>
+            <div class="hv-cs-seg hv-cs-te" style="width:0">
+              <span class="hv-cs-seg-pct">—</span>
+            </div>
+            <div class="hv-cs-seg hv-cs-eq" style="width:0">
+              <span class="hv-cs-seg-pct">—</span>
+            </div>
+          </div>
+
+          <div class="hv-capstack-legend">
+            <div class="hv-cs-item">
+              <span class="hv-cs-dot hv-cs-debt"></span>
+              <div>
+                <div class="hv-cs-name">Debt</div>
+                <div class="hv-cs-amount" id="hv-cs-debt">—</div>
+              </div>
+            </div>
+            <div class="hv-cs-item">
+              <span class="hv-cs-dot hv-cs-te"></span>
+              <div>
+                <div class="hv-cs-name">Tax Equity</div>
+                <div class="hv-cs-amount" id="hv-cs-te">—</div>
+              </div>
+            </div>
+            <div class="hv-cs-item">
+              <span class="hv-cs-dot hv-cs-eq"></span>
+              <div>
+                <div class="hv-cs-name">Sponsor Equity</div>
+                <div class="hv-cs-amount" id="hv-cs-eq">—</div>
+              </div>
+            </div>
+          </div>
         </div>
 
-        <div id="be-result" style="display:none">
-          <!-- 핵심 결과 카드 3개 -->
-          <div id="be-cards" style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:14px"></div>
+        <!-- ▸ Deal Terms + Project Specs (side by side) -->
+        <div class="hv-detail-row">
+          <div class="hv-detail">
+            <h4 class="hv-detail-title">Deal Terms</h4>
+            <dl class="hv-detail-list">
+              <div class="hv-detail-item">
+                <dt>PPA</dt>
+                <dd id="hv-dt-ppa">—</dd>
+              </div>
+              <div class="hv-detail-item">
+                <dt>BESS Toll</dt>
+                <dd id="hv-dt-toll">—</dd>
+              </div>
+              <div class="hv-detail-item">
+                <dt>Debt / Interest</dt>
+                <dd id="hv-dt-debt">—</dd>
+              </div>
+              <div class="hv-detail-item">
+                <dt>TE Flip Yield</dt>
+                <dd id="hv-dt-flip">—</dd>
+              </div>
+            </dl>
+          </div>
 
-          <!-- 민감도 표: PPA 변화에 따른 Sponsor IRR / Dev Margin -->
-          <div style="font-size:9px;color:var(--t3);font-weight:700;letter-spacing:.08em;text-transform:uppercase;margin-bottom:6px">PPA shifts → Sponsor IRR · Dev Margin response</div>
-          <div id="be-table-wrap" style="background:var(--surface2);border:1px solid var(--border);border-radius:var(--r-md);overflow:hidden">
-            <table id="be-table" style="width:100%;border-collapse:collapse;font-size:10.5px;font-variant-numeric:tabular-nums">
+          <div class="hv-detail">
+            <h4 class="hv-detail-title">Project Specs</h4>
+            <dl class="hv-detail-list">
+              <div class="hv-detail-item">
+                <dt>PV / BESS</dt>
+                <dd id="hv-ps-size">—</dd>
+              </div>
+              <div class="hv-detail-item">
+                <dt>COD</dt>
+                <dd id="hv-ps-cod">—</dd>
+              </div>
+              <div class="hv-detail-item">
+                <dt>ITC / PTC</dt>
+                <dd id="hv-ps-credit">—</dd>
+              </div>
+              <div class="hv-detail-item">
+                <dt>EBITDA Y1</dt>
+                <dd id="hv-ps-ebitda">—</dd>
+              </div>
+              <div class="hv-detail-item">
+                <dt>Dev Margin</dt>
+                <dd id="hv-ps-dev-margin">—</dd>
+              </div>
+            </dl>
+          </div>
+        </div>
+
+      </section>
+
+      <!-- ═══ SENSITIVITY PANEL ═══ -->
+      <section class="hv-tab-panel" data-panel="sensitivity">
+
+        <!-- Header -->
+        <div class="hv-block-head" style="margin-bottom:12px">
+          <h3 class="hv-block-title">Sensitivity Analysis</h3>
+          <span class="hv-block-sub">Sponsor IRR (Lev After-Tax) sensitivity to ±10% / ±20% input changes</span>
+        </div>
+
+        <!-- Tornado: 단일 변수별 ±20% 영향 (rank by impact) -->
+        <div class="hv-block">
+          <div class="hv-block-head">
+            <h4 class="hv-subtitle">Tornado — Impact on Sponsor IRR</h4>
+            <span class="hv-block-sub">Base case = current input</span>
+          </div>
+          <div class="hv-tornado" id="hv-tornado">
+            <!-- core.js renders bars dynamically -->
+            <div class="hv-empty-inline">Run Calculation to see tornado chart</div>
+          </div>
+        </div>
+
+        <!-- Two-Way Matrix: PPA × CAPEX → IRR -->
+        <div class="hv-block">
+          <div class="hv-block-head">
+            <h4 class="hv-subtitle">Two-Way Matrix — PPA Price × Total CAPEX</h4>
+            <span class="hv-block-sub">Sponsor IRR (%) at each combination</span>
+          </div>
+          <div class="hv-table-wrap">
+            <table class="hv-sens-table" id="hv-sens-matrix">
               <thead>
-                <tr style="background:var(--surface3)">
-                  <th style="text-align:left;padding:8px 12px;font-size:9px;font-weight:700;color:var(--t3);letter-spacing:.06em;text-transform:uppercase">PPA ($/MWh)</th>
-                  <th style="text-align:right;padding:8px 12px;font-size:9px;font-weight:700;color:var(--t3);letter-spacing:.06em;text-transform:uppercase">Sponsor IRR</th>
-                  <th style="text-align:right;padding:8px 12px;font-size:9px;font-weight:700;color:var(--t3);letter-spacing:.06em;text-transform:uppercase">Dev Margin</th>
-                  <th style="text-align:center;padding:8px 12px;font-size:9px;font-weight:700;color:var(--t3);letter-spacing:.06em;text-transform:uppercase">vs Target</th>
+                <tr>
+                  <th rowspan="2" class="hv-sens-corner">
+                    <span>PPA / CAPEX</span>
+                  </th>
+                  <th colspan="5" class="hv-sens-axis-h">Total CAPEX (Δ%)</th>
+                </tr>
+                <tr>
+                  <th>−20%</th>
+                  <th>−10%</th>
+                  <th class="hv-sens-base">Base</th>
+                  <th>+10%</th>
+                  <th>+20%</th>
                 </tr>
               </thead>
-              <tbody id="be-table-body"></tbody>
+              <tbody>
+                <!-- core.js fills rows: PPA −20%, −10%, Base, +10%, +20% -->
+                <tr><td colspan="6" class="hv-empty-inline">Run Calculation to see matrix</td></tr>
+              </tbody>
             </table>
           </div>
         </div>
-      </div>
 
-      <!-- PPA SENSITIVITY -->
-      <div id="val-empty-sens" class="val-empty" style="padding:32px 24px">
-        <div class="val-empty-icon">📊</div>
-        <div class="val-empty-title">PPA sensitivity appears after Calculate</div>
-      </div>
-      <div id="vo-sens-table" style="display:none"></div>
-      <div id="vo-heatmap" style="margin-top:24px"></div>
-    </div>
-
-    <!-- CASH FLOW -->
-    <div class="val-tab-panel" id="val-panel-cashflow">
-      <div id="val-empty-cf" class="val-empty">
-        <div class="val-empty-icon">📈</div>
-        <div class="val-empty-title">CF chart appears after Calculate</div>
-      </div>
-      <div id="vo-chart-section" style="display:none">
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
-          <div style="font-size:9px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--t3)">Annual Sponsor Cash Flow (Y1–Y20)</div>
-          <button id="cf-interp-btn" onclick="valRunCFInterp()" style="padding:5px 12px;background:var(--blue-d);border:none;border-radius:var(--r-md);font-size:10px;font-weight:700;color:#fff;cursor:pointer;font-family:var(--font)">✨ AI Insight</button>
-        </div>
-        <canvas id="val-cf-canvas" style="width:100%;height:180px;display:block"></canvas>
-
-        <!-- AI CF 해석 결과 -->
-        <div id="cf-interp-result" style="display:none;margin-top:14px;padding:12px 14px;background:var(--surface);border:1px solid var(--border);border-radius:var(--r-lg)">
-          <div style="font-size:9px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--blue-h);margin-bottom:8px">✨ AI CF Pattern Insight</div>
-          <div id="cf-interp-body" style="font-size:11px;color:var(--t2);line-height:1.6"></div>
-        </div>
-      </div>
-    </div>
-
-    <!-- HISTORY -->
-    <div class="val-tab-panel" id="val-panel-history">
-      <div id="val-empty-hist" class="val-empty">
-        <div class="val-empty-icon">🕐</div>
-        <div class="val-empty-title">No saved versions</div>
-      </div>
-      <div id="vo-history-list" style="display:none"></div>
-    </div>
-
-    <!-- BENCHMARK -->
-    <div class="val-tab-panel" id="val-panel-benchmark">
-
-      <!-- 서브탭: Internal(프로젝트) / External(시장) -->
-      <div style="display:flex;gap:4px;margin-bottom:16px;border-bottom:1px solid var(--border);padding-bottom:0">
-        <button id="bm-sub-internal" class="bm-sub-btn active" onclick="valSwitchBmSub('internal')" style="padding:8px 16px;background:transparent;border:none;border-bottom:2px solid var(--blue);color:var(--t1);font-size:11px;font-weight:700;cursor:pointer;font-family:var(--font);letter-spacing:.03em">📊 Internal (Project Comparison)</button>
-        <button id="bm-sub-external" class="bm-sub-btn" onclick="valSwitchBmSub('external')" style="padding:8px 16px;background:transparent;border:none;border-bottom:2px solid transparent;color:var(--t3);font-size:11px;font-weight:600;cursor:pointer;font-family:var(--font);letter-spacing:.03em">🌐 External (Market Benchmark)</button>
-      </div>
-
-      <!-- ── INTERNAL (기존) ── -->
-      <div id="bm-panel-internal">
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
-          <div>
-            <div style="font-size:13px;font-weight:700;color:var(--t1)">Project Benchmark</div>
-            <div style="font-size:10px;color:var(--t3);margin-top:2px">Compare projects with Valuation data · click to load</div>
+        <!-- Quick Sensitivity: 단일 변수 슬라이더 -->
+        <div class="hv-block">
+          <div class="hv-block-head">
+            <h4 class="hv-subtitle">Quick Sensitivity — Adjust &amp; See Impact</h4>
+            <span class="hv-block-sub">Slide to adjust input by % from base</span>
           </div>
-          <button onclick="valLoadBenchmark()" style="padding:5px 12px;background:var(--surface3);border:1px solid var(--border2);border-radius:var(--r-md);font-size:10px;color:var(--t2);cursor:pointer;font-family:var(--font)">↻ Refresh</button>
-        </div>
-        <div id="val-bm-stats" style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:16px"></div>
-        <div id="val-bm-chart" style="background:var(--surface);border:1px solid var(--border);border-radius:var(--r-lg);padding:16px;margin-bottom:16px"></div>
-        <div id="val-bm-loading" class="val-empty" style="padding:32px">
-          <div class="val-empty-icon">📊</div>
-          <div class="val-empty-title">Click the Benchmark tab to load data</div>
-        </div>
-        <div id="val-bm-table" style="display:none;background:var(--surface);border:1px solid var(--border);border-radius:var(--r-lg);overflow:hidden"></div>
-      </div>
-
-      <!-- ── EXTERNAL (신규) ── -->
-      <div id="bm-panel-external" style="display:none">
-
-        <!-- 1. Market Rates 섹션 (컴팩트) -->
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
-          <div>
-            <div style="font-size:12px;font-weight:700;color:var(--t1)">Market Rate Indicators</div>
-            <div style="font-size:9px;color:var(--t3);margin-top:1px">Discount rate · financing cost reference · <span id="bm-ext-fetched" style="color:var(--t2)"></span></div>
-          </div>
-          <button onclick="valLoadMarketBenchmark(true)" style="padding:4px 10px;background:var(--surface3);border:1px solid var(--border2);border-radius:var(--r-md);font-size:10px;color:var(--t2);cursor:pointer;font-family:var(--font)">↻ Refresh</button>
-        </div>
-
-        <!-- 금리 카드 (컴팩트) -->
-        <div id="bm-ext-rates" style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-bottom:10px"></div>
-
-        <!-- 기타 섹터 (CPI, Henry Hub, KRW) -->
-        <div id="bm-ext-others" style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-bottom:14px"></div>
-
-        <!-- 3. LevelTen 섹션 (접기 가능) -->
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;padding-top:12px;border-top:1px solid var(--border);cursor:pointer" onclick="valToggleLevelTen()">
-          <div style="display:flex;align-items:center;gap:8px">
-            <span id="bm-lt-chevron" style="font-size:10px;color:var(--t3);transition:transform .2s">▼</span>
-            <div>
-              <div style="font-size:12px;font-weight:700;color:var(--t1)">LevelTen PPA Price Index</div>
-              <div style="font-size:9px;color:var(--t3);margin-top:1px"><span id="bm-lt-meta" style="color:var(--t2)">No data</span></div>
+          <div class="hv-sens-sliders">
+            <div class="hv-sens-slider-row">
+              <label>PPA Price</label>
+              <input type="range" id="hv-slider-ppa" min="-30" max="30" step="1" value="0">
+              <span class="hv-sens-pct" id="hv-slider-ppa-pct">0%</span>
+              <span class="hv-sens-result" id="hv-slider-ppa-result">IRR: —</span>
+            </div>
+            <div class="hv-sens-slider-row">
+              <label>Total CAPEX</label>
+              <input type="range" id="hv-slider-capex" min="-30" max="30" step="1" value="0">
+              <span class="hv-sens-pct" id="hv-slider-capex-pct">0%</span>
+              <span class="hv-sens-result" id="hv-slider-capex-result">IRR: —</span>
+            </div>
+            <div class="hv-sens-slider-row">
+              <label>Dev Fee</label>
+              <input type="range" id="hv-slider-devfee" min="-50" max="50" step="1" value="0">
+              <span class="hv-sens-pct" id="hv-slider-devfee-pct">0%</span>
+              <span class="hv-sens-result" id="hv-slider-devfee-result">IRR: —</span>
+            </div>
+            <div class="hv-sens-slider-row">
+              <label>Interest Rate</label>
+              <input type="range" id="hv-slider-int" min="-30" max="30" step="1" value="0">
+              <span class="hv-sens-pct" id="hv-slider-int-pct">0%</span>
+              <span class="hv-sens-result" id="hv-slider-int-result">IRR: —</span>
             </div>
           </div>
-          <div style="display:flex;gap:6px" onclick="event.stopPropagation()">
-            <button id="bm-lt-upload-btn" onclick="valOpenLevelTenModal()" style="padding:4px 10px;background:var(--blue-d);border:none;border-radius:var(--r-md);font-size:10px;color:#fff;cursor:pointer;font-family:var(--font);font-weight:700">📤 Upload</button>
-            <button onclick="valLoadLevelTen()" style="padding:4px 10px;background:var(--surface3);border:1px solid var(--border2);border-radius:var(--r-md);font-size:10px;color:var(--t2);cursor:pointer;font-family:var(--font)">↻</button>
+        </div>
+
+      </section>
+
+      <!-- ═══ CASH FLOW PANEL ═══ -->
+      <section class="hv-tab-panel" data-panel="cf">
+
+        <!-- Header -->
+        <div class="hv-block-head" style="margin-bottom:12px">
+          <h3 class="hv-block-title">Cash Flow — 35 Year Lifecycle</h3>
+          <span class="hv-block-sub">Phase-by-phase view with key milestones</span>
+        </div>
+
+        <!-- Phase Summary (4 phases) -->
+        <div class="hv-phase-row">
+          <div class="hv-phase-card">
+            <div class="hv-phase-lbl">Phase 1 · Construction</div>
+            <div class="hv-phase-yrs">Y0 — Y1</div>
+            <div class="hv-phase-cf" id="hv-phase1-cf">—</div>
+            <div class="hv-phase-note">CAPEX outflow</div>
+          </div>
+          <div class="hv-phase-card">
+            <div class="hv-phase-lbl">Phase 2 · TE Pre-Flip</div>
+            <div class="hv-phase-yrs">Y1 — Y5 (or Flip Year)</div>
+            <div class="hv-phase-cf" id="hv-phase2-cf">—</div>
+            <div class="hv-phase-note">99% to TE, 1% to Sponsor</div>
+          </div>
+          <div class="hv-phase-card">
+            <div class="hv-phase-lbl">Phase 3 · Operation</div>
+            <div class="hv-phase-yrs">Flip — End of PPA</div>
+            <div class="hv-phase-cf" id="hv-phase3-cf">—</div>
+            <div class="hv-phase-note">95% to Sponsor, debt service</div>
+          </div>
+          <div class="hv-phase-card">
+            <div class="hv-phase-lbl">Phase 4 · Merchant Tail</div>
+            <div class="hv-phase-yrs">PPA End — Y35</div>
+            <div class="hv-phase-cf" id="hv-phase4-cf">—</div>
+            <div class="hv-phase-note">Post-PPA merchant revenue</div>
           </div>
         </div>
 
-        <div id="bm-lt-content" style="background:var(--surface);border:1px solid var(--border);border-radius:var(--r-lg);padding:12px;margin-bottom:12px;min-height:60px;display:none">
-          <div class="val-empty" style="padding:12px">
-            <div class="val-empty-icon" style="font-size:22px">📈</div>
-            <div class="val-empty-title" style="font-size:10px">Uploaded LevelTen reports will appear here</div>
+        <!-- Stacked area chart: Revenue / OPEX / Debt Service / Tax / CFADS -->
+        <div class="hv-block">
+          <div class="hv-block-head">
+            <h4 class="hv-subtitle">Annual Cash Flow — Stacked View</h4>
+            <span class="hv-block-sub">Revenue (top) → OPEX → Debt Service → Tax → Cash to Sponsor</span>
+          </div>
+          <div class="hv-chart-wrap" id="hv-cf-stacked">
+            <div class="hv-empty-inline">Run Calculation to see chart</div>
           </div>
         </div>
 
-        <!-- ═══ BESS TOLLING AI RESEARCH ═══ -->
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;padding-top:12px;border-top:1px solid var(--border);cursor:pointer" onclick="valToggleBessResearch()">
-          <div style="display:flex;align-items:center;gap:8px">
-            <span id="bm-bess-chevron" style="font-size:10px;color:var(--t3);transition:transform .2s">▼</span>
-            <div>
-              <div style="font-size:12px;font-weight:700;color:var(--t1)">🔋 BESS Tolling Price (AI Research)</div>
-              <div style="font-size:9px;color:var(--t3);margin-top:1px">
-                No official index · <span id="bm-bess-meta" style="color:var(--t2)">Research not run</span>
-              </div>
+        <!-- Cumulative Cash Flow + breakeven -->
+        <div class="hv-block">
+          <div class="hv-block-head">
+            <h4 class="hv-subtitle">Cumulative Sponsor Cash Flow</h4>
+            <span class="hv-block-sub">After-tax cumulative cash + key milestones</span>
+          </div>
+          <div class="hv-chart-wrap" id="hv-cf-cumulative">
+            <div class="hv-empty-inline">Run Calculation to see chart</div>
+          </div>
+          <div class="hv-cf-milestones" id="hv-cf-milestones">
+            <!-- core.js renders: TE Flip Y5 / PPA End Y25 / Loan Maturity Y18 / End Y35 -->
+          </div>
+        </div>
+
+        <!-- Detailed yearly table (collapsible) -->
+        <div class="hv-block">
+          <div class="hv-block-head">
+            <h4 class="hv-subtitle">Yearly Cash Flow Table</h4>
+            <button class="hv-link" onclick="hvToggleCFTable(this)">Show Table ▾</button>
+          </div>
+          <div class="hv-cf-table-wrap" id="hv-cf-table" hidden>
+            <div class="hv-table-wrap">
+              <table class="hv-cf-table">
+                <thead>
+                  <tr>
+                    <th>Year</th>
+                    <th>Revenue ($M)</th>
+                    <th>OPEX ($M)</th>
+                    <th>EBITDA ($M)</th>
+                    <th>Debt Service ($M)</th>
+                    <th>Tax ($M)</th>
+                    <th>CFADS ($M)</th>
+                    <th>Sponsor CF ($M)</th>
+                    <th>DSCR</th>
+                  </tr>
+                </thead>
+                <tbody id="hv-cf-table-body">
+                  <tr><td colspan="9" class="hv-empty-inline">No data</td></tr>
+                </tbody>
+              </table>
             </div>
           </div>
-          <div style="display:flex;gap:6px" onclick="event.stopPropagation()">
-            <button id="bm-bess-research-btn" onclick="valRunBessResearch()" style="padding:4px 10px;background:var(--amber);border:none;border-radius:var(--r-md);font-size:10px;color:#fff;cursor:pointer;font-family:var(--font);font-weight:700">🔍 AI Research</button>
-            <button onclick="valLoadBessResearch()" style="padding:4px 10px;background:var(--surface3);border:1px solid var(--border2);border-radius:var(--r-md);font-size:10px;color:var(--t2);cursor:pointer;font-family:var(--font)">↻</button>
+        </div>
+
+      </section>
+
+      <!-- ═══ HISTORY PANEL ═══ -->
+      <section class="hv-tab-panel" data-panel="history">
+
+        <!-- Header -->
+        <div class="hv-block-head" style="margin-bottom:12px">
+          <h3 class="hv-block-title">History</h3>
+          <span class="hv-block-sub">Project Calculation runs + Reference threshold changes</span>
+        </div>
+
+        <!-- Project Calculation History -->
+        <div class="hv-block">
+          <div class="hv-block-head">
+            <h4 class="hv-subtitle">Calculation History — This Project</h4>
+            <span class="hv-block-sub">Recent IRR runs, latest first</span>
+          </div>
+          <div class="hv-history-list" id="hv-history-project">
+            <div class="hv-empty-inline">Select a project to see history</div>
           </div>
         </div>
 
-        <div id="bm-bess-content" style="background:var(--surface);border:1px solid var(--border);border-radius:var(--r-lg);padding:12px;margin-bottom:12px;min-height:60px;display:none">
-          <div class="val-empty" style="padding:12px">
-            <div class="val-empty-icon" style="font-size:22px">🔋</div>
-            <div class="val-empty-title" style="font-size:10px">Click "🔍 AI Research" to pull BESS tolling prices by ISO (30–60s)</div>
+        <!-- Reference Threshold Changes -->
+        <div class="hv-block">
+          <div class="hv-block-head">
+            <h4 class="hv-subtitle">Reference Threshold Changes</h4>
+            <span class="hv-block-sub">Type-level reference value updates · admin only</span>
+          </div>
+          <div class="hv-history-list" id="hv-history-threshold">
+            <div class="hv-empty-inline">No changes yet</div>
           </div>
         </div>
 
-        <!-- 4. 내 프로젝트 vs 시장 비교 -->
-        <div id="bm-vs-market" style="background:var(--surface);border:1px solid var(--border);border-radius:var(--r-lg);padding:12px;display:none">
-          <div style="font-size:9px;color:var(--t3);font-weight:700;letter-spacing:.08em;text-transform:uppercase;margin-bottom:8px">📌 Current Project vs Market</div>
-          <div id="bm-vs-market-body"></div>
+      </section>
+
+      <!-- ═══ BENCHMARK PANEL ═══ -->
+      <section class="hv-tab-panel" data-panel="benchmark">
+
+        <!-- Header -->
+        <div class="hv-block-head" style="margin-bottom:12px">
+          <h3 class="hv-block-title">Benchmark</h3>
+          <span class="hv-block-sub">This project vs internal peers + market data</span>
         </div>
-      </div>
 
-      <!-- ── LEVELTEN UPLOAD MODAL ── -->
-      <div id="bm-lt-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:9999;align-items:center;justify-content:center;backdrop-filter:blur(4px)" onclick="if(event.target===this)this.style.display='none'">
-        <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--r-lg);padding:24px;width:440px;max-width:92vw">
-          <div style="font-size:14px;font-weight:700;color:var(--t1);margin-bottom:4px">Upload LevelTen Report</div>
-          <div style="font-size:10px;color:var(--t3);margin-bottom:16px">PDF · XLSX · CSV supported · auto-parsed by AI</div>
+        <!-- Auto Match summary (this project vs market) -->
+        <div class="hv-bm-summary" id="hv-bm-summary">
+          <div class="hv-empty-inline">Run Calculation to see benchmark match</div>
+        </div>
 
-          <div style="margin-bottom:12px">
-            <label style="font-size:10px;color:var(--t3);font-weight:600;display:block;margin-bottom:4px">Quarter</label>
-            <select id="bm-lt-quarter" style="width:100%;padding:8px 10px;background:var(--surface3);border:1px solid var(--border2);border-radius:var(--r-md);color:var(--t1);font-size:12px;font-family:var(--font);cursor:pointer">
-              <option value="">— Select Quarter —</option>
-            </select>
+        <!-- Internal Peer Comparison -->
+        <div class="hv-block">
+          <div class="hv-block-head">
+            <h4 class="hv-subtitle">Internal Peer Comparison</h4>
+            <span class="hv-block-sub">HEUH portfolio · Sponsor IRR distribution</span>
           </div>
-
-          <div style="margin-bottom:16px">
-            <label style="font-size:10px;color:var(--t3);font-weight:600;display:block;margin-bottom:4px">File</label>
-            <input id="bm-lt-file" type="file" accept=".pdf,.xlsx,.xls,.xlsb,.csv,.tsv" style="width:100%;padding:8px;background:var(--surface3);border:1px solid var(--border2);border-radius:var(--r-md);color:var(--t2);font-size:11px;font-family:var(--font)">
-          </div>
-
-          <div id="bm-lt-upload-status" style="font-size:10px;color:var(--t3);margin-bottom:12px;min-height:14px"></div>
-
-          <div style="display:flex;gap:8px;justify-content:flex-end">
-            <button onclick="document.getElementById('bm-lt-modal').style.display='none'" style="padding:7px 14px;background:transparent;border:1px solid var(--border2);border-radius:var(--r-md);font-size:11px;color:var(--t3);cursor:pointer;font-family:var(--font)">Cancel</button>
-            <button onclick="valUploadLevelTen()" id="bm-lt-submit" style="padding:7px 14px;background:var(--blue-d);color:#fff;border:none;border-radius:var(--r-md);font-size:11px;font-weight:700;cursor:pointer;font-family:var(--font)">Upload & Parse</button>
+          <div class="hv-bm-peer" id="hv-bm-peer">
+            <div class="hv-empty-inline">Loading peer data...</div>
           </div>
         </div>
-      </div>
 
-    </div>
+        <!-- LevelTen — Solar PPA Price Index -->
+        <div class="hv-block">
+          <div class="hv-block-head">
+            <h4 class="hv-subtitle">LevelTen — Solar PPA Price Index</h4>
+            <span class="hv-block-sub" id="hv-bm-lt-meta">Latest quarter · auto-updated</span>
+          </div>
 
-  
+          <!-- ISO P25 Map View (data table for now) -->
+          <div class="hv-bm-section">
+            <div class="hv-subtitle-sm">Solar P25 by ISO ($/MWh)</div>
+            <div class="hv-table-wrap">
+              <table class="hv-bm-table" id="hv-bm-lt-iso">
+                <thead>
+                  <tr>
+                    <th>ISO</th>
+                    <th>P25</th>
+                    <th>QoQ %</th>
+                    <th>YoY %</th>
+                    <th class="hv-bm-this">This Project</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr><td colspan="5" class="hv-empty-inline">No data</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
 
-    <!-- IC OPINION -->
-    <div class="val-tab-panel" id="val-panel-ic">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;flex-wrap:wrap;gap:10px">
-        <div>
-          <div style="font-size:13px;font-weight:700;color:var(--t1)">IC Opinion</div>
-          <div style="font-size:10px;color:var(--t3);margin-top:2px">Pure-economics decision (PROCEED · RECUT · STOP) · risks monitored separately</div>
+          <!-- Continental P10-P90 + this project marker -->
+          <div class="hv-bm-section">
+            <div class="hv-subtitle-sm">Continental Solar PPA Price Range</div>
+            <div class="hv-bm-percentile" id="hv-bm-lt-continental">
+              <div class="hv-empty-inline">No data</div>
+            </div>
+          </div>
+
+          <!-- Hub-level (filtered by this project's ISO) -->
+          <div class="hv-bm-section">
+            <div class="hv-subtitle-sm">Hub-level Solar P25 — <span id="hv-bm-lt-iso-name">—</span></div>
+            <div class="hv-table-wrap">
+              <table class="hv-bm-table" id="hv-bm-lt-hub">
+                <thead>
+                  <tr>
+                    <th>Hub</th>
+                    <th>P25 ($/MWh)</th>
+                    <th class="hv-bm-this">This Project</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr><td colspan="3" class="hv-empty-inline">Select project ISO</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- Market Insights -->
+          <div class="hv-bm-section">
+            <div class="hv-subtitle-sm">Market Insights · Avg PPA Term</div>
+            <div class="hv-bm-meta-row">
+              <span>Avg Solar PPA Term:</span>
+              <span class="hv-bm-meta-val" id="hv-bm-lt-term">—</span>
+              <span class="hv-bm-vs">This project: <span id="hv-bm-lt-term-this">—</span></span>
+            </div>
+            <ul class="hv-bm-insights" id="hv-bm-lt-insights">
+              <!-- core.js renders insights -->
+            </ul>
+          </div>
         </div>
-        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
 
-          <!-- ── Investment Threshold (Dev Margin → Sponsor IRR 순) ── -->
-          <div style="display:flex;align-items:center;gap:8px;padding:0 12px;height:32px;background:var(--surface3);border:1px solid var(--border2);border-radius:6px;box-sizing:border-box" title="투자 기준: 최소 Dev Margin">
-            <span style="font-size:9px;font-weight:700;color:var(--t3);letter-spacing:.06em;text-transform:uppercase;white-space:nowrap">Dev Margin</span>
-            <input id="thr-dev-margin" type="number" step="1" value="10" style="width:42px;padding:2px 4px;background:var(--surface);border:1px solid var(--border2);border-radius:4px;color:var(--blue-h);font-size:12px;font-weight:800;font-family:var(--font);text-align:center">
-            <span style="color:var(--t3);font-size:9px;font-weight:600;white-space:nowrap">c/Wp</span>
+        <!-- BNEF — placeholder until first upload -->
+        <div class="hv-block">
+          <div class="hv-block-head">
+            <h4 class="hv-subtitle">BNEF — Renewable Outlook</h4>
+            <span class="hv-block-sub" id="hv-bm-bnef-meta">CAPEX trends · Tax Equity · Cost of Capital</span>
           </div>
 
-          <div style="display:flex;align-items:center;gap:8px;padding:0 12px;height:32px;background:var(--surface3);border:1px solid var(--border2);border-radius:6px;box-sizing:border-box" title="투자 기준: 최소 Sponsor IRR (Levered Pre-Tax)">
-            <span style="font-size:9px;font-weight:700;color:var(--t3);letter-spacing:.06em;text-transform:uppercase;white-space:nowrap">Sponsor IRR</span>
-            <input id="thr-sponsor-irr" type="number" step="0.5" value="9.0" style="width:42px;padding:2px 4px;background:var(--surface);border:1px solid var(--border2);border-radius:4px;color:var(--blue-h);font-size:12px;font-weight:800;font-family:var(--font);text-align:center">
-            <span style="color:var(--t3);font-size:9px;font-weight:600;white-space:nowrap">%</span>
+          <div class="hv-bm-section" id="hv-bm-bnef-content">
+            <div class="hv-empty">
+              <div class="hv-empty-icon">📥</div>
+              <div class="hv-empty-title">No BNEF report uploaded yet</div>
+              <div class="hv-empty-sub">Admin can upload BNEF Renewable Outlook / NA Power Outlook / LCOE PDF<br>via Reference Data Module</div>
+            </div>
           </div>
-
-          <input id="thr-itc" type="hidden" value="30">
-
-          <!-- Divider -->
-          <div style="width:1px;height:20px;background:var(--border);margin:0 4px"></div>
-
-          <!-- 언어 토글 (segmented control) — 처음부터 노출, 기본 EN (Valuation = English-only; IC Opinion can toggle to KO) -->
-          <div id="cf-lang-toggle" style="display:flex;align-items:center;height:32px;background:var(--surface);border:1px solid var(--border2);border-radius:8px;padding:3px;box-sizing:border-box;gap:2px;position:relative">
-            <button onclick="valCFLang('kr')" data-l="kr" id="cf-lang-kr" style="position:relative;z-index:1;padding:0 14px;height:24px;border:none;background:transparent;border-radius:6px;font-size:10px;font-weight:600;cursor:pointer;font-family:var(--font);color:var(--t3);letter-spacing:.04em;transition:all .15s">한국어</button>
-            <button onclick="valCFLang('en')" data-l="en" id="cf-lang-en" style="position:relative;z-index:1;padding:0 14px;height:24px;border:none;background:var(--blue-d);border-radius:6px;font-size:10px;font-weight:700;cursor:pointer;font-family:var(--font);color:#fff;letter-spacing:.04em;transition:all .15s;box-shadow:0 1px 3px rgba(0,0,0,.25)">English</button>
-          </div>
-
-          <!-- Run AI Analysis 버튼 -->
-          <button id="cf-ai-btn" onclick="valRunCFAnalysis()" style="padding:0 16px;height:32px;background:var(--blue-d);color:#fff;border:none;border-radius:var(--r-md);font-size:11px;font-weight:700;cursor:pointer;font-family:var(--font);box-sizing:border-box">Run AI Analysis</button>
         </div>
-      </div>
-      <div id="cf-ai-result" style="font-size:11px;color:var(--t3)">Please run Calculate first.</div>
-    </div>
 
-</div><!-- /val-right -->
-</div><!-- /val-body -->
+      </section>
 
-<!-- hidden legacy IDs for JS compatibility -->
-<span id="vo-epc-margin" style="display:none"></span>
-<span id="vo-total-margin" style="display:none"></span>
-<span id="vo-margin-cwp" style="display:none"></span>
-<span id="vo-heatmap-section" style="display:none"></span>
-<span id="vo-chart-section-legacy" style="display:none"></span>
-<span id="vo-sensitivity" style="display:none"></span>
-<span id="vo-history-section" style="display:none"></span>
+    </main>
+  </div>
 
-</div><!-- /page-valuation -->
+</div>
 
 
 
