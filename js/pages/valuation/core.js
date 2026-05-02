@@ -1563,7 +1563,7 @@ function hvBack() {
     window.navigateTo('home');
   } else {
     // Fallback: hide self
-    const page = el('hv-page');
+    const page = el('page-valuation');
     if (page) page.style.display = 'none';
     history.back();
   }
@@ -1628,16 +1628,41 @@ function hvBindSliders() {
 
 // Page enter — call this from existing dashboard's page nav
 async function hvOnEnter() {
-  const page = el('hv-page');
+  const page = el('page-valuation');
   if (page) page.style.display = '';
   await hvLoadProjectList();
   hvBindSliders();
   setStatus('Ready', 'idle');
 }
 
+// SPA router integration — called by L6673 addEventListener('click', openValuationPage)
+function openValuationPage() {
+  // 1) close other pages (existing dashboard router)
+  if (typeof closeAllPages === 'function') {
+    try { closeAllPages(); } catch (e) { console.warn('[HV] closeAllPages error:', e); }
+  }
+
+  // 2) show this page — explicitly 'flex' to match .hv-page CSS
+  const page = el('page-valuation');
+  if (page) page.style.display = 'flex';
+
+  // 3) update nav button active state (match existing pattern)
+  ['btn-issues','btn-finance','btn-report','btn-ppv','btn-kpi','btn-retail','btn-valuation'].forEach(id => {
+    const b = document.getElementById(id);
+    if (b) b.classList.toggle('active', id === 'btn-valuation');
+  });
+
+  // 4) hide AI FAB if exists (match closeAllPages pattern)
+  const fab = document.querySelector('.ai-fab');
+  if (fab) fab.style.display = 'none';
+
+  // 5) init valuation module (best-effort, async)
+  hvOnEnter().catch(e => console.warn('[HV] hvOnEnter error:', e));
+}
+
 // Auto-init on DOM ready (if page already visible)
 function hvAutoInit() {
-  const page = el('hv-page');
+  const page = el('page-valuation');
   if (!page) return;
   hvBindSliders();
   // Load project list lazily — only if user navigates to this page
@@ -1666,3 +1691,4 @@ window.hvSetCredit = hvSetCredit;
 window.hvSwitchTab = hvSwitchTab;
 window.hvToggleCFTable = hvToggleCFTable;
 window.hvOnEnter = hvOnEnter;
+window.openValuationPage = openValuationPage;
